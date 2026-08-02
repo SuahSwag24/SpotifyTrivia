@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text;
@@ -19,7 +20,7 @@ namespace SpotifyTrivia.Services.Dtos
 
     //  Playlist Tracks DTOs
     internal record SpotifyPlaylistTracksResponse(
-        [property: JsonPropertyName("tracks")] List<SpotifyPlaylistTracksDto>? Items
+        [property: JsonPropertyName("items")] List<SpotifyPlaylistTracksDto>? Items
     );
 
     internal record SpotifyPlaylistTracksDto(
@@ -45,5 +46,17 @@ namespace SpotifyTrivia.Services.Dtos
 
     internal record SpotifyAlbumDto(
         [property: JsonPropertyName("images")] List<SpotifyImageDto>? Images
+    );
+
+    //  User Profile DTOs
+    internal record SpotifyUserProfileDto(
+        [property: JsonPropertyName("display_name")] string? DisplayName,
+        [property: JsonPropertyName("images")] List<SpotifyImageDto>? Images,
+        [property: JsonPropertyName("product")] string? Product,
+        [property: JsonPropertyName("external_urls")] SpotifyExternalUrlsDto? ExternalUrls
+    );
+
+    internal record SpotifyExternalUrlsDto(
+        [property: JsonPropertyName("spotify")] string? Spotify
     );
 }

@@ -7,4 +7,8 @@
     <UserSecretsId>d1664cbc-c640-4f0c-8f0d-755ae859ee4a</UserSecretsId>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Folder Include="Views\Game\" />
+  </ItemGroup>
+
 </Project>

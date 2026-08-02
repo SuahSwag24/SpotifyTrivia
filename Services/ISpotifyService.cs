@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using SpotifyTrivia.Models;
 
 namespace SpotifyTrivia.Services
 {
@@ -8,5 +9,6 @@ namespace SpotifyTrivia.Services
     {
         Task<List<PlaylistModel>> GetUserPlaylistsAsync(string accessToken);
         Task<List<TrackModel>> GetPlaylistTracksAsync(string accessToken, string playlistId);
+        Task<UserProfileModel> GetUserProfileAsync(string accessToken);
     }
 }

@@ -70,6 +70,6 @@ public class AuthController : Controller
             HttpContext.Session.SetString("SpotifyAccessToken", accessToken);
         }
 
-        return Content($"Received authorization code from Spotify: {code}");
+        return RedirectToAction("Index", "Dashboard");
     }
 }

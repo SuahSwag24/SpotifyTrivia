@@ -1,24 +1,22 @@
-using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 
-namespace SpotifyTrivia.Controllers;
-
-public class HomeController : Controller
+namespace SpotifyTrivia.Controllers
 {
-    public IActionResult Index()
+    public class HomeController : Controller
     {
-        var token = HttpContext.Session.GetString("SpotifyAccessToken");
+        [HttpGet("")]
+        public IActionResult Index()
+        {
+            var token = HttpContext.Session.GetString("SpotifyAccessToken");
 
-        if (string.IsNullOrEmpty(token))
-        {
-            ViewBag.IsLoggedIn = false;
+            // If user isn't logged in, send them to Spotify Auth
+            if (string.IsNullOrEmpty(token))
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            // If user is already logged in, send them to the Dashboard
+            return RedirectToAction("Index", "Dashboard");
         }
-        else
-        {
-            ViewBag.IsLoggedIn = true;
-            ViewBag.TokenPreview = token [..10] + "...";
-        }
-        
-        return View();
     }
 }

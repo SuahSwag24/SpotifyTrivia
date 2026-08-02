@@ -34,10 +34,12 @@ namespace SpotifyTrivia.Controllers
                 if (tracks == null || tracks.Count < 4)
                 {
                     int count = tracks?.Count ?? 0;
-                    throw new InvalidOperationException($"Playlist does not have enough tracks with audio previews ({count} found.)");
+                    throw new InvalidOperationException($"Playlist does not have enough tracks to play ({count} found.)");
                 }
 
                 var questions = await _triviaEngine.CreateTriviaQuestions(tracks);
+
+                ViewBag.SpotifyAccessToken = token;
 
                 return View(questions);
             }

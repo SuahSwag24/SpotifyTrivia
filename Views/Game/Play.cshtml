@@ -96,20 +96,22 @@
     </div>
 
     <!-- Game Area -->
-    <div id="gameCard" class="spotify-class p-4 text-center shadow-lg">
+    <div id="gameCard" class="spotify-card p-4 text-center shadow-lg">
 
         <h5 class="text-secondary mb-3">Guess the track title & artist!</h5>
 
-        <!-- Audio Player -->
-        <audio id="audioPlayer" controls autoplay class="w-100 mb-3">
-            <source id="audtioSource" src="" type="audio/mpeg">
-        </audio>
+        <!-- Album Cover (blur reveal) -->
+        <div class="album-cover-container mb-3">
+            <img id="albumArt" class="album-cover album-blurred" src="" alt="Album cover" />
+        </div>
+
+        <p id="playerStatus" class="text-secondary small mb-3">Loading player...</p>
 
         <p id="feedback" class="fw-bold mt-2 fs-5" style="min-height: 32px;"></p>
 
         <!-- Answer Choices -->
         <div id="choiceContainer" class="row g-3 mt-1">
-            
+
         </div>
 
         <!-- Next Question Button -->
@@ -127,21 +129,83 @@
     </div>
 </div>
 
+<script src="https://sdk.scdn.co/spotify-player.js"></script>
 <script>
+    const accessToken = "@ViewBag.SpotifyAccessToken";
     const questions = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model));
 
     let currentIndex = 0;
     let score = 0;
+    let player;
+    let deviceId;
+    let playerReady = false;
 
-    //  Initialize elements
-    const audioPlayer = document.getElementById("audioPlayer");
-    const audioSource = document.getElementById("audioSource");
-    @* const albumArt = document.getElementById("albumArt"); *@
+    // Initialize elements
+    const albumArt = document.getElementById("albumArt");
     const choiceContainer = document.getElementById("choiceContainer");
     const feedback = document.getElementById("feedback");
     const nextBtn = document.getElementById("nextBtn");
     const quizProgressBar = document.getElementById("quizProgressBar");
+    const playerStatus = document.getElementById("playerStatus");
 
+    // --- Spotify Web Playback SDK setup ---
+    window.onSpotifyWebPlaybackSDKReady = () => {
+        player = new Spotify.Player({
+            name: 'Spotify Trivia Player',
+            getOAuthToken: cb => { cb(accessToken); },
+            volume: 0.7
+        });
+
+        player.addListener('ready', ({ device_id }) => {
+            deviceId = device_id;
+            playerReady = true;
+            playerStatus.textContent = "";
+            loadQuestion(); // start the game once the player is actually usable
+        });
+
+        player.addListener('not_ready', () => {
+            playerReady = false;
+        });
+
+        player.addListener('initialization_error', ({ message }) => {
+            console.error(message);
+            playerStatus.textContent = "Could not initialize player.";
+        });
+
+        player.addListener('authentication_error', ({ message }) => {
+            console.error(message);
+            playerStatus.textContent = "Session expired — please log in again.";
+        });
+
+        player.addListener('account_error', ({ message }) => {
+            console.error(message);
+            playerStatus.textContent = "Spotify Premium is required to play trivia audio.";
+        });
+
+        player.connect();
+    };
+
+    async function playSnippet(trackUri, durationMs = 15000) {
+        if (!deviceId) {
+            console.warn("Player not ready yet");
+            return;
+        }
+
+        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ uris: [trackUri] })
+        });
+
+        setTimeout(() => {
+            if (player) player.pause();
+        }, durationMs);
+    }
+
+    // --- Game flow ---
     function loadQuestion() {
         if (currentIndex >= questions.length) {
             showResults();
@@ -153,14 +217,13 @@
         feedback.textContent = "";
         nextBtn.classList.add("d-none");
 
-        const progressPercent = ((curentIndex + 1) / questions.length) * 100;
-        quizProgressBar.style.width = ${progressPercent};
-        document.getElementById("questionProgress").textContent = 'Question ${currentIndex + 1} / ${questions.length}';
+        albumArt.src = q.AlbumCoverUrl;
+        albumArt.classList.remove("album-revealed");
+        albumArt.classList.add("album-blurred");
 
-        //  Load audio
-        audioSource.src = q.PreviewUrl;
-        audioPlayer.load();
-        audioPlayer.play.catch(() => console.log("Autoplay blocked by browser. Please click play instead."));
+        const progressPercent = ((currentIndex + 1) / questions.length) * 100;
+        quizProgressBar.style.width = `${progressPercent}%`;
+        document.getElementById("questionProgress").textContent = `Question ${currentIndex + 1} / ${questions.length}`;
 
         choiceContainer.innerHTML = "";
         q.AnswerChoices.forEach(choice => {
@@ -175,14 +238,22 @@
             col.appendChild(btn);
             choiceContainer.appendChild(col);
         });
+
+        playSnippet(q.Uri, 15000);
     }
 
     function checkAnswer(selected, correct, selectedBtn) {
         const buttons = choiceContainer.querySelectorAll("button");
         buttons.forEach(b => b.disabled = true);
 
+        albumArt.classList.remove("album-blurred");
+        albumArt.classList.add("album-revealed");
+
+        if (player) player.pause();
+
         if (selected === correct) {
             score++;
+            document.getElementById("scoreDisplay").textContent = `Score: ${score}`;
             selectedBtn.style.backgroundColor = "#1ed760";
             selectedBtn.style.color = "#000000";
             selectedBtn.style.borderColor = "#1ed760";
@@ -196,7 +267,6 @@
             feedback.textContent = `Wrong! Answer: ${correct}`;
             feedback.className = "fw-bold mt-2 text-danger fs-5";
 
-            // Highlight the correct answer in green
             buttons.forEach(b => {
                 if (b.textContent === correct) {
                     b.style.backgroundColor = "#1ed760";
@@ -205,6 +275,8 @@
                 }
             });
         }
+
+        nextBtn.classList.remove("d-none");
     }
 
     function nextQuestion() {
@@ -214,13 +286,12 @@
 
     function showResults() {
         document.getElementById("gameCard").classList.add("d-none");
-        document.getElementByid(".progress").classList.add("d-none");
+        document.querySelector(".progress").classList.add("d-none");
+        document.querySelector(".d-flex.justify-content-between").classList.add("d-none");
 
         const resultsScreen = document.getElementById("resultsScreen");
         resultsScreen.classList.remove("d-none");
-        document.getElementById("finalScore").textContent = '${score} / ${questions.length}';
+        document.getElementById("finalScore").textContent = `${score} / ${questions.length}`;
     }
 
-    //  Initialize first question upon loading
-    loadQuestion();
 </script>

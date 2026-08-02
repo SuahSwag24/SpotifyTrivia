@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
+using System.Threading.Tasks;
 using SpotifyTrivia.Models;
 
 namespace SpotifyTrivia.Services
@@ -10,8 +11,8 @@ namespace SpotifyTrivia.Services
         public async Task<List<TriviaQuestionModel>> CreateTriviaQuestions(List<TrackModel> tracks, int numberOfQuestions = 10)
         {
             var playableTracks = tracks
-                .Where(t => !string.IsNullOrEmpty(t.PreviewUrl))
-                .ToList();
+            .Where(t => !string.IsNullOrEmpty(t.Uri))
+            .ToList();
 
             if (playableTracks.Count < 4)
             {
@@ -25,7 +26,7 @@ namespace SpotifyTrivia.Services
 
             var selectedTarget = targetPool.Take(numberOfQuestions).ToList();
 
-            foreach(var target in selectedTarget)
+            foreach (var target in selectedTarget)
             {
                 string correctAnswer = $"{target.Title} - {target.Artist}";
 
@@ -46,7 +47,7 @@ namespace SpotifyTrivia.Services
                 quizQuestions.Add(new TriviaQuestionModel
                 {
                     TargetTrackId = target.Id,
-                    PreviewUrl = target.PreviewUrl!,
+                    Uri = target.Uri,
                     AlbumCoverUrl = target.AlbumCoverUrl ?? string.Empty,
                     CorrectAnswer = correctAnswer,
                     AnswerChoices = choices

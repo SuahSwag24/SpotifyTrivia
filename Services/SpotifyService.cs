@@ -58,11 +58,12 @@ namespace SpotifyTrivia.Services
             client.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
 
-            var response = await client.GetAsync($"https://api.spotify.com/v1/playlists/{playlistId}/tracks");
+            var response = await client.GetAsync($"https://api.spotify.com/v1/playlists/{playlistId}/items");
 
             if (!response.IsSuccessStatusCode)
             {
-                throw new Exception($"Spotify API return status code {response.StatusCode} when fetching tracks");
+                var errorBody = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Spotify API returned status code {response.StatusCode} when fetching tracks: {errorBody}");
             }
 
             var json = await response.Content.ReadAsStringAsync();
@@ -75,15 +76,15 @@ namespace SpotifyTrivia.Services
             var result = JsonSerializer.Deserialize<SpotifyPlaylistTracksResponse>(json, jsonOptions);
 
             return result?.Items?
-                .Where(i => i.Track != null && !string.IsNullOrEmpty(i.Track.PreviewUrl))
-                .Select(i => new TrackModel
-                {
-                    Id = i.Track!.Id,
-                    Title = i.Track.Name,
-                    Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
-                    AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
-                    PreviewUrl = i.Track.PreviewUrl
-                }).ToList() ?? new List<TrackModel>();
+            .Where(i => i.Track != null)
+            .Select(i => new TrackModel
+            {
+                Id = i.Track!.Id,
+                Title = i.Track.Name,
+                Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
+                AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
+                Uri = $"spotify:track:{i.Track.Id}"
+            }).ToList() ?? new List<TrackModel>();
         }
 
         public async Task<UserProfileModel> GetUserProfileAsync(string accessToken)

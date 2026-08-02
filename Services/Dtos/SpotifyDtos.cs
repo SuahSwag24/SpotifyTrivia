@@ -24,7 +24,7 @@ namespace SpotifyTrivia.Services.Dtos
     );
 
     internal record SpotifyPlaylistTracksDto(
-        [property: JsonPropertyName("track")] SpotifyTrackDto? Track
+        [property: JsonPropertyName("item")] SpotifyTrackDto? Track
     );
 
     internal record SpotifyTrackDto(

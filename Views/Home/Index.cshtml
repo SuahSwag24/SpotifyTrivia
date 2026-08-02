@@ -1,0 +1,21 @@
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome to Spotify Trivia</h1>
+
+    @if (ViewBag.IsLoggedIn == true)
+    {
+        <div class="alert alert-success mt-4">
+            <p>✅ Logged in to Spotify!</p>
+            <small>Token preview: <code>@ViewBag.TokenPreview</code></small>
+        </div>
+        <a href="/game" class="btn btn-primary btn-lg mt-3">Start Trivia Game</a>
+    }
+    else
+    {
+        <p class="lead">Connect your Spotify account to generate trivia quizzes from your playlists!</p>
+        <a href="/login" class="btn btn-success btn-lg mt-3">Login with Spotify</a>
+    }
+</div>

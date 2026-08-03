@@ -83,7 +83,7 @@ namespace SpotifyTrivia.Services
                 Title = i.Track.Name,
                 Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
                 AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
-                Uri = $"spotify:track:{i.Track.Id}"
+                PreviewUrl = $"spotify:track:{i.Track.Id}"
             }).ToList() ?? new List<TrackModel>();
         }
 

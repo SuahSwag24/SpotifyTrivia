@@ -17,6 +17,7 @@ builder.Services.AddSession(options =>
 });
 builder.Services.AddScoped<ISpotifyService, SpotifyService>();
 builder.Services.AddScoped<ITriviaEngine, TriviaEngine>();
+builder.Services.AddScoped<IDeezerService, DeezerService>();
 
 var app = builder.Build();
 

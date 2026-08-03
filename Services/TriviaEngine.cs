@@ -8,30 +8,42 @@ namespace SpotifyTrivia.Services
 {
     public class TriviaEngine : ITriviaEngine
     {
+        private readonly IDeezerService _deezerService;
+
+        public TriviaEngine(IDeezerService deezerService)
+        {
+            _deezerService = deezerService;
+        }
+
         public async Task<List<TriviaQuestionModel>> CreateTriviaQuestions(List<TrackModel> tracks, int numberOfQuestions = 10)
         {
-            var playableTracks = tracks
-            .Where(t => !string.IsNullOrEmpty(t.Uri))
-            .ToList();
-
-            if (playableTracks.Count < 4)
+            if (tracks.Count < 4)
             {
-                throw new InvalidOperationException("Not enough tracks in the current playlist.");
+                throw new InvalidOperationException("Not enough tracks in the current playlist");
             }
 
+            var shuffledPool = new List<TrackModel>(tracks);
+            Shuffle(shuffledPool);
+
+            int maxAttempts = Math.Min(shuffledPool.Count, numberOfQuestions * 3);
+
             var quizQuestions = new List<TriviaQuestionModel>();
+            var usedTrackIds = new HashSet<string>();
 
-            var targetPool = new List<TrackModel>(playableTracks);
-            Shuffle(targetPool);
-
-            var selectedTarget = targetPool.Take(numberOfQuestions).ToList();
-
-            foreach (var target in selectedTarget)
+            for (int i = 0; i < maxAttempts; i++)
             {
-                string correctAnswer = $"{target.Title} - {target.Artist}";
+                var candidate = shuffledPool[i];
 
-                var wrongAnswers = playableTracks
-                    .Where(t => t.Id != target.Id)
+                var previewUrl = await _deezerService.GetPreviewUrlAsync(candidate.Artist, candidate.Title);
+                if (string.IsNullOrEmpty(previewUrl))
+                {
+                    continue;
+                }
+
+                string correctAnswer = $"{candidate.Title} - {candidate.Artist}";
+                
+                var wrongAnswers = tracks
+                    .Where(t => t.Id != candidate.Id)
                     .ToList();
 
                 Shuffle(wrongAnswers);
@@ -46,12 +58,19 @@ namespace SpotifyTrivia.Services
 
                 quizQuestions.Add(new TriviaQuestionModel
                 {
-                    TargetTrackId = target.Id,
-                    Uri = target.Uri,
-                    AlbumCoverUrl = target.AlbumCoverUrl ?? string.Empty,
+                    TargetTrackId = candidate.Id,
+                    PreviewUrl = previewUrl,
+                    AlbumCoverUrl = candidate.AlbumCoverUrl ?? string.Empty,
                     CorrectAnswer = correctAnswer,
                     AnswerChoices = choices
                 });
+
+                usedTrackIds.Add(candidate.Id);
+            }
+
+            if (quizQuestions.Count == 0)
+            {
+                throw new InvalidOperationException("Couldn't find playable previews for any tracks in this playlist.");
             }
 
             return quizQuestions;

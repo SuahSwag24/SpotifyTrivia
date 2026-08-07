@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using SpotifyTrivia.Hubs;
 using SpotifyTrivia.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,9 +16,12 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
+builder.Services.AddSignalR();
 builder.Services.AddScoped<ISpotifyService, SpotifyService>();
 builder.Services.AddScoped<ITriviaEngine, TriviaEngine>();
 builder.Services.AddScoped<IDeezerService, DeezerService>();
+builder.Services.AddSingleton<ILobbyManager, LobbyManager>();
+builder.Services.AddSingleton<IBroadcaster, Broadcaster>();
 
 var app = builder.Build();
 
@@ -42,6 +46,8 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
+
+app.MapHub<LobbyHub>("/hubs/lobby");
 
 
 app.Run();

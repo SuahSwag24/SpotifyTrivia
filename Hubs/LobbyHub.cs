@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.AspNetCore.SignalR;
+using SpotifyTrivia.Models;
+using SpotifyTrivia.Models.Multiplayer;
 using SpotifyTrivia.Services;
 
 namespace SpotifyTrivia.Hubs
@@ -28,19 +30,46 @@ namespace SpotifyTrivia.Hubs
             await _broadcaster.BroadcastPlayerJoined(lobbyCode, player);
         }
 
-        public async Task StartGame(string lobbyCode, string playlistId)
+        public async Task StartGame(string lobbyCode)
         {
             var lobby = _lobbyManager.GetLobby(lobbyCode);
             if (lobby == null) return;
 
-            var mapping = _lobbyManager.GetConnectionMapping(Context.ConnectionId);
-            if (mapping == null || mapping.Value.playerId != lobby.PlayerHostId)
+            if (!IsHost(lobby))
             {
                 await Clients.Caller.SendAsync("ActionError", new { Message = "Only the host can start the game." });
                 return;
             }
 
-            var tracks = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, playlistId);
+            if (lobby.State != LobbyState.Waiting)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Game already started." });
+                return;
+            }
+
+            if (string.IsNullOrEmpty(lobby.SelectedPlaylistId))
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Select a playlist before starting." });
+                return;
+            }
+
+            List<TrackModel> tracks;
+            try
+            {
+                tracks = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.SelectedPlaylistId);
+            }
+            catch (Exception)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Couldn't load that playlist. Try another." });
+                return;
+            }
+
+            if (tracks == null || tracks.Count < 4)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Playlist doesn't have enough tracks to play." });
+                return;
+            }
+
             await _lobbyManager.StartSessionAsync(lobbyCode, tracks);
         }
 
@@ -67,6 +96,27 @@ namespace SpotifyTrivia.Hubs
             }
         }
 
+        public async Task SelectPlaylist(string lobbyCode, string playlistId)
+        {
+            var lobby = _lobbyManager.GetLobby(lobbyCode);
+            if (lobby == null) return;
+
+            if (!IsHost(lobby))
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Only the host can select a playlist." });
+                return;
+            }
+
+            if (lobby.State != LobbyState.Waiting)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Game already started." });
+                return;
+            }
+
+            lobby.SelectedPlaylistId = playlistId;
+            await Clients.Group(lobbyCode).SendAsync("PlaylistSelected", new { PlaylistId = playlistId });
+        }
+
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             var mapping = _lobbyManager.GetConnectionMapping(Context.ConnectionId);
@@ -89,6 +139,12 @@ namespace SpotifyTrivia.Hubs
             }
 
             await base.OnDisconnectedAsync(exception);
+        }
+
+        private bool IsHost(LobbyModel lobby)
+        {
+            var mapping = _lobbyManager.GetConnectionMapping(Context.ConnectionId);
+            return mapping != null && mapping.Value.playerId == lobby.PlayerHostId;
         }
     }
 }

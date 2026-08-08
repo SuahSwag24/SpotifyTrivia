@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Server.IIS;
+using SpotifyTrivia.Models.Multiplayer;
 using SpotifyTrivia.Services;
 
 namespace SpotifyTrivia.Controllers
@@ -14,7 +15,13 @@ namespace SpotifyTrivia.Controllers
         [HttpGet("multiplayer")]
         public IActionResult Index()
         {
-            throw new NotImplementedException();
+            var token = HttpContext.Session.GetString("SpotifyAccessToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                return RedirectToAction("Login", "Auth");
+            }
+
+            return View();
         }
 
         [HttpPost("multiplayer/create")]
@@ -23,8 +30,10 @@ namespace SpotifyTrivia.Controllers
             var token = HttpContext.Session.GetString("SpotifyAccessToken");
             if (string.IsNullOrEmpty(token)) return RedirectToAction("Login", "Auth");
 
-            string hostPlayerId = "0000";
-            var lobby = _lobbyManager.CreateLobby(hostPlayerId, hostPlayerName: "Host", token);
+            string hostPlayerId = GetOrCreatePlayerId();
+            string hostDisplayName = "Host";
+
+            var lobby = _lobbyManager.CreateLobby(hostPlayerId, hostDisplayName, token);
 
             return RedirectToAction("Lobby", new { code = lobby.Code });
         }
@@ -44,10 +53,53 @@ namespace SpotifyTrivia.Controllers
             return View(lobby);
         }
 
+        [HttpPost("multiplayer/join")]
+        public IActionResult JoinLobby(string code)
+        {
+            var token = HttpContext.Session.GetString("SpotifyAccessToken");
+            if (string.IsNullOrEmpty(token)) return RedirectToAction("Login", "Auth");
+
+            code = code?.Trim().ToUpperInvariant() ?? string.Empty;
+
+            var lobby = _lobbyManager.GetLobby(code);
+            if (lobby == null)
+            {
+                TempData["ErrorMessage"] = "Lobby not found. Check the code and try again.";
+                return RedirectToAction("Index");
+            }
+
+            return RedirectToAction("Lobby", new { code });
+        }
+
         [HttpGet("mutliplayer/game/{code}")]
         public IActionResult Game(string code)
         {
-            throw new NotImplementedException();
+            var token = HttpContext.Session.GetString("SpotifyAccessToken");
+            if (string.IsNullOrEmpty(token)) return RedirectToAction("Login", "Auth");
+
+            var lobby = _lobbyManager.GetLobby(code);
+            if (lobby == null)
+            {
+                TempData["ErrorMessage"] = "This lobby no longer exists (ERROR)";
+                return RedirectToAction("Index");
+            }    
+
+            if (lobby.State == LobbyState.Waiting)
+            {
+                //  Game waiting to start...
+                return RedirectToAction("Lobby", new { code });
+            }
+
+            var playerId = HttpContext.Session.GetString("PlayerId");
+            if (string.IsNullOrEmpty(playerId) || !lobby.Players.ContainsKey(playerId))
+            {
+                TempData["ErrorMessage"] = "Unable to join lobby";
+                return RedirectToAction("Index");
+            }
+
+            ViewBag.PlayerId = playerId;
+            ViewBag.LobbyCode = code;
+            return View(lobby);
         }
 
         private string GetOrCreatePlayerId()

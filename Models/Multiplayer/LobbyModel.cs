@@ -20,5 +20,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public CancellationTokenSource? SessionLoopCts { get; set; }
         public DateTime RoundStartedAtUtc { get; set; }
         public string HostSpotifyAccessToken { get; set; } = string.Empty;
+        public string? SelectedPlaylistId { get; set; }
     }
 }

@@ -59,17 +59,25 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderAnswerChoices(choices) {
         const container = document.getElementById("answer-choices");
         container.innerHTML = "";
-        choices.forEach((choice, index) => {
+
+        choices.forEach((choiceText, index) => {
             const btn = document.createElement("button");
-            btn.textContent = choice;
-            btn.addEventListener("click", () => {
-                container.querySelectorAll("button").forEach(b => b.disabled = true);
-                btn.classList.add("selected-answer");
-                connection.invoke("SubmitAnswer", lobbyCode, playerId, index)
-                    .catch(err => console.error("Answer submit failed:", err));
-            });
+            btn.textContent = choiceText;
+            btn.className = "answer-btn";
+            btn.dataset.index = index;
+            btn.addEventListener("click", () => handleAnswerSelected(index, btn));
             container.appendChild(btn);
         });
+    }
+
+    function handleAnswerSelected(index, btn) {
+        const allButtons = document.querySelectorAll("#answer-choices .answer-btn");
+        allButtons.forEach(b => b.disabled = true);
+
+        btn.classList.add("selected"); // optional: immediate feedback while waiting on server
+
+        connection.invoke("SubmitAnswer", lobbyCode, playerId, index)
+            .catch(err => console.error("Answer submit failed:", err));
     }
 
     function runLocalCountdown(seconds) {

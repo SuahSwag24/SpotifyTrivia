@@ -75,7 +75,9 @@ namespace SpotifyTrivia.Hubs
 
         public async Task SubmitAnswer(string lobbyCode, string playerId, int answerIndex)
         {
-            await _lobbyManager.RecordPlayerAnswerAsync(lobbyCode, playerId, answerIndex);
+            var result = await _lobbyManager.RecordPlayerAnswerAsync(lobbyCode, playerId, answerIndex);
+            if (!result.Success) return;
+            await Clients.Caller.SendAsync("AnswerResult", result);
         }
 
         public async Task LeaveLobby(string lobbyCode, string playerId)

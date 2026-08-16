@@ -90,21 +90,20 @@ namespace SpotifyTrivia.Services
             player.ConnectionId = isConnected ? connectionId : null;
         }
 
-        public async Task<bool> RecordPlayerAnswerAsync(string code, string playerId, int choiceIndex)
+        public async Task<AnswerResult> RecordPlayerAnswerAsync(string code, string playerId, int choiceIndex)
         {
-            if (!_lobbies.TryGetValue(code, out var lobby)) return false;
+            if (!_lobbies.TryGetValue(code, out var lobby)) return new AnswerResult { Success = false };
 
             await lobby.StateLock.WaitAsync();
             try
             {
-                if (lobby.State != LobbyState.Question) return false;
-                if (!lobby.Players.TryGetValue(playerId, out var player)) return false;
-                if (player.HasAnsweredCurrentQuestion) return false;
+                if (lobby.State != LobbyState.Question) return new AnswerResult { Success = false };
+                if (!lobby.Players.TryGetValue(playerId, out var player)) return new AnswerResult { Success = false };
+                if (player.HasAnsweredCurrentQuestion) return new AnswerResult { Success = false };
 
                 var currentQuestion = lobby.Questions[lobby.CurrentQuestionIndex];
-                bool isCorrect = choiceIndex >= 0
-                    && choiceIndex < currentQuestion.AnswerChoices.Count
-                    && currentQuestion.AnswerChoices[choiceIndex] == currentQuestion.CorrectAnswer;
+                int correctIndex = currentQuestion.AnswerChoices.IndexOf(currentQuestion.CorrectAnswer);
+                bool isCorrect = choiceIndex == correctIndex;
 
                 player.HasAnsweredCurrentQuestion = true;
                 player.LastAnswerCorrect = isCorrect;
@@ -115,7 +114,13 @@ namespace SpotifyTrivia.Services
                     player.Score += CalculateScore(lobby.RoundStartedAtUtc, player.LastAnswerSubmittedUtc.Value);
                 }
 
-                return true;
+                return new AnswerResult
+                {
+                    Success = true,
+                    WasCorrect = isCorrect,
+                    SubmittedIndex = choiceIndex,
+                    CorrectIndex = correctIndex
+                };
             }
             finally
             {

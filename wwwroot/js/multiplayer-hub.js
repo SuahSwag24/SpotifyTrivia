@@ -17,4 +17,18 @@ function setupLobbyHandlers(connection, callbacks) {
     connection.on("RoundStarted", (data) => callbacks.onRoundStarted?.(data));
     connection.on("RoundEnded", (data) => callbacks.onRoundEnded?.(data));
     connection.on("GameEnded", (data) => callbacks.onGameEnded?.(data));
+
+    connection.on("AnswerResult", (data) => {
+        const allButtons = document.querySelectorAll("#answer-choices .answer-btn");
+
+        allButtons.forEach(b => b.classList.remove("selected"));
+
+        const correctBtn = document.querySelector(`#answer-choices .answer-btn[data-index="${data.correctIndex}"]`);
+        correctBtn?.classList.add("correct");
+
+        if (!data.wasCorrect) {
+            const yourBtn = document.querySelector(`#answer-choices .answer-btn[data-index="${data.submittedIndex}"]`);
+            yourBtn?.classList.add("incorrect");
+        }
+    });
 }

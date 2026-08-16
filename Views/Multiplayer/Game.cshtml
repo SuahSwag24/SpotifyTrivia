@@ -55,6 +55,39 @@
         margin-bottom: 1.5rem;
     }
 
+    /* Round Counter Pill */
+    .round-counter-badge {
+        background-color: rgba(29, 185, 84, 0.15);
+        color: #1DB954;
+        border: 1px solid rgba(29, 185, 84, 0.4);
+        font-size: 1.00rem;
+        font-weight: 800;
+        border-radius: 50px;
+        padding: 4px 18px;
+        display: inline-block;
+        margin-bottom: 1.5rem;
+    }
+
+    .progress-container {
+        width: 100%;
+        margin-bottom: 1.5rem;
+    }
+
+    .progress-track {
+        height: 10px;
+        background-color: #282828;
+        border-radius: 50px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        width: 0%;
+        background-color: #1DB954;
+        border-radius: 50px;
+        transition: width 0.35s ease;
+    }
+
     /* Answer Choices Grid */
     #answer-choices {
         display: grid;
@@ -115,6 +148,15 @@
 
     <!-- Phase 2: Question -->
     <div id="question-phase" class="phase-panel text-center" style="display:none;">
+        <div class="progress-container">    
+            <div>
+                <span id="round-counter" class="round-counter-badge"></span>
+            </div>
+            <div class="progress-track">
+                <div id="progress-fill" class="progress-fill"></div>
+            </div>
+        </div>
+
         <img id="album-cover" class="album-frame" src="" alt="Album Artwork" />
         <audio id="preview-audio" src=""></audio>
         

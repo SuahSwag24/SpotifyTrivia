@@ -23,7 +23,7 @@ namespace SpotifyTrivia.Services
                 .SendAsync("CountdownStarted", new { Seconds = seconds });
         }
 
-        public Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds)
+        public Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds, int questionNumber, int totalQuestions)
         {
             var payload = new
             {
@@ -31,7 +31,9 @@ namespace SpotifyTrivia.Services
                 question.AlbumCoverUrl,
                 question.AnswerChoices,
                 StartedAtUtc = gameStartedAtUtc,
-                DurationSeconds = durationSeconds
+                DurationSeconds = durationSeconds,
+                QuestionNumber = questionNumber,
+                TotalQuestions = totalQuestions
             };
             return _hubContext.Clients.Group(lobbyCode).SendAsync("RoundStarted", payload);
         }

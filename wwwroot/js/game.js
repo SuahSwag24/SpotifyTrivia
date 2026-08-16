@@ -24,7 +24,13 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onRoundStarted: (data) => {
             showPhase("question-phase");
+
+            const roundPercent = Math.min(100, Math.round(((data.questionNumber - 1) / data.totalQuestions) * 100))
+
             document.getElementById("album-cover").src = data.albumCoverUrl;
+
+            document.getElementById("round-counter").textContent = `Question ${data.questionNumber}/${data.totalQuestions}`;
+            document.getElementById('progress-fill').style.width = roundPercent + '%';
 
             audio.src = data.previewUrl;
             audio.currentTime = 0;

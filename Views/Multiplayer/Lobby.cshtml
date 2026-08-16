@@ -1,0 +1,160 @@
+@using SpotifyTrivia.Models.Multiplayer
+@model LobbyModel
+@{
+    ViewData["Title"] = "Lobby";
+    bool isHost = ViewBag.PlayerId == Model.PlayerHostId;
+}
+
+<script src="/js/multiplayer-hub.js"></script>
+<script src="/js/lobby.js"></script>
+
+<style>
+    .lobby-wrapper {
+        max-width: 850px;
+        margin: 0 auto;
+    }
+
+    .lobby-card {
+        background-color: #181818;
+        border: 1px solid #282828;
+        border-radius: 16px;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .code-badge {
+        background-color: #282828;
+        color: #1DB954;
+        font-weight: 800;
+        letter-spacing: 4px;
+        padding: 0.4rem 1.25rem;
+        border-radius: 8px;
+        border: 1px solid #383838;
+        display: inline-block;
+    }
+
+    .player-pill-list {
+        list-style: none;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 0.75rem;
+        margin: 0;
+    }
+
+    .player-pill-item {
+        background-color: #242424;
+        border: 1px solid #333333;
+        color: #ffffff;
+        font-weight: 600;
+        padding: 0.75rem 1rem;
+        border-radius: 50px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-spotify {
+        background-color: #1DB954;
+        color: #000000 !important;
+        font-weight: 700;
+        border-radius: 50px;
+        padding: 0.75rem 1.75rem;
+        border: none;
+        transition: all 0.2s ease;
+    }
+
+    .btn-spotify:hover:not(:disabled) {
+        background-color: #1ed760;
+        transform: scale(1.02);
+    }
+
+    .btn-spotify:disabled {
+        background-color: #282828;
+        color: #6a6a6a !important;
+        cursor: not-allowed;
+    }
+
+    .btn-outline-custom {
+        background: transparent;
+        color: #ffffff;
+        border: 1px solid #535353;
+        font-weight: 600;
+        border-radius: 50px;
+        padding: 0.75rem 1.5rem;
+    }
+
+    .btn-outline-custom:hover {
+        border-color: #ffffff;
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .waiting-pulse {
+        animation: pulseText 1.8s infinite ease-in-out;
+        color: #b3b3b3;
+    }
+
+    @@keyframes pulseText {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 1; }
+    }
+</style>
+
+<div class="lobby-wrapper lobby-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-is-host="@isHost.ToString().ToLower()">
+    <!-- Header Code Bar -->
+    <div class="lobby-card text-center text-md-start d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+        <div>
+            <span class="text-secondary small fw-bold text-uppercase d-block mb-1">Game Room</span>
+            <h1 class="h2 text-white fw-bold mb-0">Lobby Code: <span id="lobby-code-display" class="code-badge">@Model.Code</span></h1>
+        </div>
+        <div>
+            <span class="badge bg-success bg-opacity-20 border border-success px-3 py-2 rounded-pill">
+                🟢 Live Connection
+            </span>
+        </div>
+    </div>
+
+    <!-- Players Roster -->
+    <div class="lobby-card">
+        <h2 class="h4 text-white fw-bold mb-3">Connected Players</h2>
+        <ul id="player-list" class="player-pill-list">
+            @foreach (var player in Model.Players.Values)
+            {
+                <li class="player-pill-item" data-player-id="@player.PlayerId">
+                    <span>👤</span>
+                    <span class="text-truncate">@player.DisplayName</span>
+                </li>
+            }
+        </ul>
+    </div>
+
+    <!-- Controls / Status -->
+    <div class="lobby-card">
+        @if (isHost)
+        {
+            <section class="host-controls" id="host-controls">
+                <h2 class="h4 text-white fw-bold mb-3">Host Settings</h2>
+                
+                <div class="p-3 mb-3 rounded-3" style="background-color: #242424; border: 1px solid #333333;">
+                    <span class="text-secondary small d-block mb-1">Active Playlist</span>
+                    <p id="selected-playlist-label" class="fw-bold text-white mb-0">No playlist selected</p>
+                </div>
+
+                <div id="playlist-picker-container" class="mb-3" style="display:none;"></div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button id="choose-playlist-btn" type="button" class="btn btn-outline-custom">Choose Playlist</button>
+                    <button id="start-game-btn" type="button" class="btn btn-spotify" disabled>Start Game</button>
+                </div>
+            </section>
+        }
+        else
+        {
+            <div class="text-center py-3">
+                <p id="waiting-message" class="waiting-pulse fs-5 mb-0">⏳ Waiting for the host to select a playlist and start the game...</p>
+            </div>
+        }
+    </div>
+
+    <div id="lobby-error" class="alert alert-danger rounded-3" style="display:none; background-color: rgba(226, 33, 52, 0.15); border-color: rgba(226, 33, 52, 0.4); color: #f15e6c;"></div>
+</div>

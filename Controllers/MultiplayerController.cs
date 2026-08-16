@@ -10,7 +10,12 @@ namespace SpotifyTrivia.Controllers
 {
     public class MultiplayerController : Controller
     {
-        private readonly LobbyManager _lobbyManager;
+        private readonly ILobbyManager _lobbyManager;
+
+        public MultiplayerController(ILobbyManager lobbyManager)
+        {
+            _lobbyManager = lobbyManager;
+        }
 
         [HttpGet("multiplayer")]
         public IActionResult Index()
@@ -71,7 +76,7 @@ namespace SpotifyTrivia.Controllers
             return RedirectToAction("Lobby", new { code });
         }
 
-        [HttpGet("mutliplayer/game/{code}")]
+        [HttpGet("multiplayer/game/{code}")]
         public IActionResult Game(string code)
         {
             var token = HttpContext.Session.GetString("SpotifyAccessToken");

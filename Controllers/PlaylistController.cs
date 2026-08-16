@@ -28,5 +28,18 @@ namespace SpotifyTrivia.Controllers
 
             return View(playlists);
         }
+
+        [HttpGet("playlists/picker-partial")]
+        public async Task<IActionResult> PickerPartial()
+        {
+            var token = HttpContext.Session.GetString("SpotifyAccessToken");
+            if (string.IsNullOrEmpty(token))
+            {
+                return Unauthorized();
+            }
+
+            var playlists = await _spotifyService.GetUserPlaylistsAsync(token);
+            return PartialView("_PlaylistPickerPartial", playlists);
+        }
     }
 }

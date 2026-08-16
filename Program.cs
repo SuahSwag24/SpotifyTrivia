@@ -17,9 +17,9 @@ builder.Services.AddSession(options =>
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
 builder.Services.AddSignalR();
-builder.Services.AddScoped<ISpotifyService, SpotifyService>();
-builder.Services.AddScoped<ITriviaEngine, TriviaEngine>();
-builder.Services.AddScoped<IDeezerService, DeezerService>();
+builder.Services.AddSingleton<ISpotifyService, SpotifyService>();
+builder.Services.AddSingleton<ITriviaEngine, TriviaEngine>();
+builder.Services.AddSingleton<IDeezerService, DeezerService>();
 builder.Services.AddSingleton<ILobbyManager, LobbyManager>();
 builder.Services.AddSingleton<IBroadcaster, Broadcaster>();
 

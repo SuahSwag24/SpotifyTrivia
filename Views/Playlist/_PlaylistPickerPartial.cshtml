@@ -1,0 +1,127 @@
+@model List<SpotifyTrivia.Models.PlaylistModel>
+
+<style>
+    /* Scrollable Frame Container for Picker */
+    .playlist-picker-wrapper {
+        max-height: 480px;
+        overflow-y: auto;
+        padding-right: 6px;
+    }
+
+    /* Custom Dark Scrollbar */
+    .playlist-picker-wrapper::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .playlist-picker-wrapper::-webkit-scrollbar-track {
+        background: #121212;
+        border-radius: 4px;
+    }
+
+    .playlist-picker-wrapper::-webkit-scrollbar-thumb {
+        background: #282828;
+        border-radius: 4px;
+    }
+
+    .playlist-picker-wrapper::-webkit-scrollbar-thumb:hover {
+        background: #3e3e3e;
+    }
+
+    /* Playlist Card */
+    .playlist-card {
+        background-color: #181818;
+        border: 1px solid #282828;
+        border-radius: 12px;
+        padding: 0.85rem;
+        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .playlist-card:hover {
+        transform: translateY(-4px);
+        border-color: #1DB954;
+        box-shadow: 0 8px 20px rgba(29, 185, 84, 0.15);
+    }
+
+    /* Fixed Aspect Ratio Frame (1:1 Square) */
+    .playlist-img-container {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+        border-radius: 8px;
+        background-color: #242424;
+    }
+
+    .playlist-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    /* Select Button */
+    .btn-spotify-picker {
+        background-color: #1DB954;
+        color: #000000 !important;
+        font-weight: 700;
+        font-size: 0.9rem;
+        border-radius: 50px;
+        border: none;
+        transition: all 0.2s ease;
+    }
+
+    .btn-spotify-picker:hover {
+        background-color: #1ed760;
+        transform: scale(1.02);
+    }
+
+    /* Empty State Card */
+    .empty-playlist-card {
+        background-color: #181818;
+        border: 1px solid #282828;
+        border-radius: 14px;
+        padding: 3rem 1.5rem;
+    }
+</style>
+
+@if (Model == null || !Model.Any())
+{
+    <div class="empty-playlist-card text-center">
+        <h3 class="text-white fw-bold mb-2">No Playlists Found 🎧</h3>
+        <p class="text-secondary mb-0">We couldn't find any public or saved playlists in your Spotify account.</p>
+    </div>
+}
+else
+{
+    <div class="playlist-picker-wrapper">
+        <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 g-3" id="playlist-picker-grid">
+            @foreach (var playlist in Model)
+            {
+                <div class="col">
+                    <div class="playlist-card h-100 d-flex flex-column">
+                        <!-- Enforced 1:1 Aspect Ratio Cover Frame -->
+                        <div class="playlist-img-container mb-2">
+                            <img src="@(string.IsNullOrEmpty(playlist.ImageUrl) ? "https://via.placeholder.com/300?text=No+Cover" : playlist.ImageUrl)"
+                                 alt="@playlist.Name"
+                                 class="playlist-img"
+                                 loading="lazy" />
+                        </div>
+
+                        <h6 class="fw-bold text-white text-truncate mb-2" title="@playlist.Name">
+                            @playlist.Name
+                        </h6>
+
+                        <div class="mt-auto">
+                            <button type="button"
+                                    class="btn btn-spotify-picker w-100 py-2 playlist-select-btn"
+                                    data-playlist-id="@playlist.Id"
+                                    data-playlist-name="@playlist.Name">
+                                Select 🎮
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}

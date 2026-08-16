@@ -127,8 +127,22 @@ namespace SpotifyTrivia.Hubs
 
                 if (lobby != null && lobby.PlayerHostId == playerId)
                 {
-                    await _broadcaster.BroadcastLobbyDisbanded(lobbyCode);
-                    _lobbyManager.DisbandLobby(lobbyCode);
+                    _lobbyManager.MarkPlayerConnection(lobbyCode, playerId, isConnected: false, Context.ConnectionId);
+                    _lobbyManager.RemoveConnectionMapping(Context.ConnectionId);
+
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(5));
+
+                        var stillLobby = _lobbyManager.GetLobby(lobbyCode);
+                        if (stillLobby == null) return; // already cleaned up
+
+                        if (stillLobby.Players.TryGetValue(playerId, out var hostPlayer) && !hostPlayer.IsConnected)
+                        {
+                            await _broadcaster.BroadcastLobbyDisbanded(lobbyCode);
+                            _lobbyManager.DisbandLobby(lobbyCode);
+                        }
+                    });
                 }
                 else
                 {

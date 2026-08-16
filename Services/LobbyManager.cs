@@ -37,6 +37,7 @@ namespace SpotifyTrivia.Services
 
             var lobby = new LobbyModel
             {
+                Code = code,
                 PlayerHostId = hostPlayerId,
                 HostDisplayName = hostPlayerName,
                 HostSpotifyAccessToken = hostAccessToken,

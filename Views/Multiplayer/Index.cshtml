@@ -1,0 +1,127 @@
+@{
+    ViewData["Title"] = "Multiplayer";
+}
+
+<style>
+    .mp-landing {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 1rem 0;
+    }
+
+    .mp-card {
+        background-color: #181818;
+        border: 1px solid #282828;
+        border-radius: 16px;
+        padding: 2.25rem;
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .mp-card:hover {
+        border-color: #1DB954;
+        transform: translateY(-3px);
+    }
+
+    .code-input {
+        background-color: #282828;
+        border: 1px solid #3e3e3e;
+        color: #ffffff;
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: 6px;
+        text-align: center;
+        text-transform: uppercase;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        width: 100%;
+    }
+
+    .code-input:focus {
+        outline: none;
+        border-color: #1DB954;
+        box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.3);
+    }
+
+    .btn-spotify-lg {
+        background-color: #1DB954;
+        color: #000000 !important;
+        font-weight: 700;
+        border-radius: 50px;
+        padding: 0.85rem 1.5rem;
+        border: none;
+        width: 100%;
+        transition: all 0.2s ease;
+    }
+
+    .btn-spotify-lg:hover {
+        background-color: #1ed760;
+        transform: scale(1.02);
+    }
+
+    .btn-outline-lg {
+        background: transparent;
+        color: #ffffff;
+        border: 1px solid #535353;
+        font-weight: 700;
+        border-radius: 50px;
+        padding: 0.85rem 1.5rem;
+        width: 100%;
+        transition: all 0.2s ease;
+    }
+
+    .btn-outline-lg:hover {
+        border-color: #ffffff;
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .alert-spotify-error {
+        background-color: rgba(226, 33, 52, 0.15);
+        border: 1px solid rgba(226, 33, 52, 0.4);
+        color: #f15e6c;
+        border-radius: 10px;
+        padding: 1rem;
+    }
+</style>
+
+<div class="mp-landing">
+    <div class="text-center mb-5">
+        <h1 class="display-5 fw-extrabold text-white mb-2">Multiplayer Trivia 🎙️</h1>
+        <p class="text-secondary fs-5">Host a game session or join your friends live.</p>
+    </div>
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-spotify-error mb-4">
+            ⚠️ @TempData["ErrorMessage"]
+        </div>
+    }
+
+    <div class="row g-4">
+        <!-- Host Game Section -->
+        <div class="col-12 col-md-6">
+            <div class="mp-card h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <h2 class="h3 fw-bold text-white mb-2">Host a Game</h2>
+                    <p class="text-secondary mb-4">Create a new trivia room, pick a playlist, and invite your friends with a lobby code.</p>
+                </div>
+                <form asp-controller="Multiplayer" asp-action="CreateLobby" method="post">
+                    <button type="submit" class="btn-spotify-lg">Create Lobby</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Join Game Section -->
+        <div class="col-12 col-md-6">
+            <div class="mp-card h-100 d-flex flex-column justify-content-between">
+                <div>
+                    <h2 class="h3 fw-bold text-white mb-2">Join a Game</h2>
+                    <p class="text-secondary mb-3">Have a 5-character lobby code? Enter it below to hop into an existing game.</p>
+                </div>
+                <form asp-controller="Multiplayer" asp-action="JoinLobby" method="post" class="d-flex flex-column gap-3">
+                    <input type="text" name="code" class="code-input" placeholder="XXXXX" maxlength="5" required autocomplete="off" />
+                    <button type="submit" class="btn-outline-lg">Join Room</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

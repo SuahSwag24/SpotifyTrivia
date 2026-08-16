@@ -32,6 +32,11 @@ namespace SpotifyTrivia.Services
 
             for (int i = 0; i < maxAttempts; i++)
             {
+                if (quizQuestions.Count >= numberOfQuestions)
+                {
+                    break;
+                }
+
                 var candidate = shuffledPool[i];
 
                 var previewUrl = await _deezerService.GetPreviewUrlAsync(candidate.Artist, candidate.Title);

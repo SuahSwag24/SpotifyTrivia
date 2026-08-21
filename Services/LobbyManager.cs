@@ -145,11 +145,11 @@ namespace SpotifyTrivia.Services
             }
         }
 
-        public async Task StartSessionAsync(string code, List<TrackModel> tracks)
+        public async Task StartSessionAsync(string code, List<TrackModel> tracks, int questionCount)
         {
             if (!_lobbies.TryGetValue(code, out var lobby)) return;
 
-            lobby.Questions = await _triviaEngine.CreateTriviaQuestions(tracks, _settings.NumberOfQuestions);
+            lobby.Questions = await _triviaEngine.CreateTriviaQuestions(tracks, questionCount);
             lobby.SessionLoopCts = new CancellationTokenSource();
 
             _ = RunSessionLoop(lobby, lobby.SessionLoopCts.Token);

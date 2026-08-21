@@ -98,6 +98,32 @@
         0%, 100% { opacity: 0.5; }
         50% { opacity: 1; }
     }
+
+    .custom-range-spotify {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 6px;
+        background: #3e3e3e;
+        border-radius: 5px;
+        outline: none;
+        margin: 1rem 0;
+    }
+
+    .custom-range-spotify::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #1DB954;
+        cursor: pointer;
+        transition: transform 0.1s ease, background-color 0.1s ease;
+    }
+
+    .custom-range-spotify::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+        background: #1ed760;
+    }
 </style>
 
 <div class="lobby-wrapper lobby-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-is-host="@isHost.ToString().ToLower()">
@@ -145,6 +171,7 @@
                 <div class="d-flex flex-wrap gap-2">
                     <button id="choose-playlist-btn" type="button" class="btn btn-outline-custom">Choose Playlist</button>
                     <button id="start-game-btn" type="button" class="btn btn-spotify" disabled>Start Game</button>
+                    <button type="button" class="btn btn-outline-custom" data-bs-toggle="modal" data-bs-target="#settingsModal">Settings</button>
                 </div>
             </section>
         }
@@ -158,3 +185,45 @@
 
     <div id="lobby-error" class="alert alert-danger rounded-3" style="display:none; background-color: rgba(226, 33, 52, 0.15); border-color: rgba(226, 33, 52, 0.4); color: #f15e6c;"></div>
 </div>
+
+<!-- Settings Modal (Host Only) -->
+@if (isHost)
+{
+    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background-color: #181818; border: 1px solid #282828;">
+                <div class="modal-header" style="border-bottom: 1px solid #282828;">
+                    <h5 class="modal-title text-white fw-bold" id="settingsModalLabel">Game Settings</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body pb-4">
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label for="question-count-slider" class="form-label text-secondary fw-bold mb-0">Number of Questions</label>
+                            <span id="question-count-display" class="fw-bold text-white fs-5">10</span>
+                        </div>
+                        
+                        <!-- Range Slider: 5 to 20 -->
+                        <input type="range" 
+                               id="question-count-slider" 
+                               class="custom-range-spotify" 
+                               min="5" 
+                               max="20" 
+                               step="1" 
+                               value="10" 
+                               oninput="document.getElementById('question-count-display').innerText = this.value" />
+                               
+                        <div class="d-flex justify-content-between text-secondary" style="font-size: 0.75rem;">
+                            <span>5</span>
+                            <span>20</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #282828;">
+                    <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-spotify" id="save-settings-btn" data-bs-dismiss="modal">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

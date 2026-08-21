@@ -47,6 +47,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const pickerContainer = document.getElementById("playlist-picker-container");
         const startBtn = document.getElementById("start-game-btn");
 
+        let selectedQuestionCount = 10;
+
+        const questionSlider = document.getElementById("question-count-slider");
+        const questionDisplay = document.getElementById("question-count-display");
+        const saveSettingsBtn = document.getElementById("save-settings-btn");
+
+        saveSettingsBtn.addEventListener("click", () => {
+            selectedQuestionCount = parseInt(questionSlider.value, 10);
+        })
+
         chooseBtn.addEventListener("click", async () => {
             const res = await fetch("/playlists/picker-partial");
             pickerContainer.innerHTML = await res.text();
@@ -69,7 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         startBtn.addEventListener("click", () => {
             startBtn.disabled = true;
-            connection.invoke("StartGame", lobbyCode)
+            connection.invoke("StartGame", lobbyCode, selectedQuestionCount)
                 .catch(err => { showError("Failed to start: " + err); startBtn.disabled = false; });
         });
     }

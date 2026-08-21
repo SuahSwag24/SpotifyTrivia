@@ -30,7 +30,7 @@ namespace SpotifyTrivia.Hubs
             await _broadcaster.BroadcastPlayerJoined(lobbyCode, player);
         }
 
-        public async Task StartGame(string lobbyCode)
+        public async Task StartGame(string lobbyCode, int questionCount)
         {
             var lobby = _lobbyManager.GetLobby(lobbyCode);
             if (lobby == null) return;
@@ -70,7 +70,7 @@ namespace SpotifyTrivia.Hubs
                 return;
             }
 
-            await _lobbyManager.StartSessionAsync(lobbyCode, tracks);
+            await _lobbyManager.StartSessionAsync(lobbyCode, tracks, questionCount);
         }
 
         public async Task SubmitAnswer(string lobbyCode, string playerId, int answerIndex)

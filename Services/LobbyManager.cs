@@ -111,7 +111,7 @@ namespace SpotifyTrivia.Services
 
                 if (isCorrect)
                 {
-                    player.Score += CalculateScore(lobby.RoundStartedAtUtc, player.LastAnswerSubmittedUtc.Value, roundDuration);
+                    player.Score += CalculateScore(lobby.RoundStartedAtUtc, player.LastAnswerSubmittedUtc.Value, _settings.RoundDurationSeconds);
                 }
 
                 return new AnswerResultModel
@@ -196,9 +196,12 @@ namespace SpotifyTrivia.Services
             return code;
         }
 
-        private int CalculateScore(DateTime roundStartedAtUtc, DateTime playerAnsweredAtUtc)
+        private int CalculateScore(DateTime roundStartedAtUtc, DateTime playerAnsweredAtUtc, double roundDurationSeconds)
         {
-            return 100;
+            double elapsedSeconds = (playerAnsweredAtUtc -  roundStartedAtUtc).TotalSeconds;
+
+            double score = 100 * (1 - elapsedSeconds / roundDurationSeconds);
+            return Math.Clamp((int)Math.Round(score), 1, 100);
         }
 
         private async Task RunSessionLoop(LobbyModel lobby, CancellationToken ct)

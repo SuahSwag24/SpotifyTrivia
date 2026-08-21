@@ -92,4 +92,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 .catch(err => { showError("Failed to start: " + err); startBtn.disabled = false; });
         });
     }
+
+    document.getElementById("leave-lobby-btn").addEventListener("click", () => {
+        connection.invoke("LeaveLobby", lobbyCode, playerId)
+            .catch(err => showError("Failed to leave: " + err))
+            .finally(() => { window.location.href = "/multiplayer"; });
+    });
 });

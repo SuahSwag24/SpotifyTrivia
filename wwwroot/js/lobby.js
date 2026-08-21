@@ -17,9 +17,18 @@ document.addEventListener("DOMContentLoaded", () => {
             const list = document.getElementById("player-list");
             if (!list.querySelector(`[data-player-id="${data.playerId}"]`)) {
                 const li = document.createElement("li");
-
+                li.className = "player-pill-item";
                 li.dataset.playerId = data.playerId;
-                li.textContent = data.displayName;
+
+                const icon = document.createElement("span");
+                icon.textContent = "👤";
+
+                const nameSpan = document.createElement("span");
+                nameSpan.className = "text-truncate";
+                nameSpan.textContent = data.displayName;
+
+                li.appendChild(icon);
+                li.appendChild(nameSpan);
                 list.appendChild(li);
             }
         },

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace SpotifyTrivia.Models.Multiplayer
 {
-    public class AnswerResult
+    public class AnswerResultModel
     {
         public bool Success { get; set; }
         public bool WasCorrect { get; set; }

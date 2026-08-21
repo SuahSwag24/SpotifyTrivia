@@ -90,16 +90,16 @@ namespace SpotifyTrivia.Services
             player.ConnectionId = isConnected ? connectionId : null;
         }
 
-        public async Task<AnswerResult> RecordPlayerAnswerAsync(string code, string playerId, int choiceIndex)
+        public async Task<AnswerResultModel> RecordPlayerAnswerAsync(string code, string playerId, int choiceIndex)
         {
-            if (!_lobbies.TryGetValue(code, out var lobby)) return new AnswerResult { Success = false };
+            if (!_lobbies.TryGetValue(code, out var lobby)) return new AnswerResultModel { Success = false };
 
             await lobby.StateLock.WaitAsync();
             try
             {
-                if (lobby.State != LobbyState.Question) return new AnswerResult { Success = false };
-                if (!lobby.Players.TryGetValue(playerId, out var player)) return new AnswerResult { Success = false };
-                if (player.HasAnsweredCurrentQuestion) return new AnswerResult { Success = false };
+                if (lobby.State != LobbyState.Question) return new AnswerResultModel { Success = false };
+                if (!lobby.Players.TryGetValue(playerId, out var player)) return new AnswerResultModel { Success = false };
+                if (player.HasAnsweredCurrentQuestion) return new AnswerResultModel { Success = false };
 
                 var currentQuestion = lobby.Questions[lobby.CurrentQuestionIndex];
                 int correctIndex = currentQuestion.AnswerChoices.IndexOf(currentQuestion.CorrectAnswer);
@@ -111,10 +111,10 @@ namespace SpotifyTrivia.Services
 
                 if (isCorrect)
                 {
-                    player.Score += CalculateScore(lobby.RoundStartedAtUtc, player.LastAnswerSubmittedUtc.Value);
+                    player.Score += CalculateScore(lobby.RoundStartedAtUtc, player.LastAnswerSubmittedUtc.Value, roundDuration);
                 }
 
-                return new AnswerResult
+                return new AnswerResultModel
                 {
                     Success = true,
                     WasCorrect = isCorrect,

@@ -19,6 +19,7 @@ namespace SpotifyTrivia.Models.Multiplayer
         public SemaphoreSlim StateLock { get; set; } = new(1, 1);
         public CancellationTokenSource? SessionLoopCts { get; set; }
         public DateTime RoundStartedAtUtc { get; set; }
+        public DateTime CountdownStartedAtUtc { get; set; }
         public string HostSpotifyAccessToken { get; set; } = string.Empty;
         public string? SelectedPlaylistId { get; set; }
     }

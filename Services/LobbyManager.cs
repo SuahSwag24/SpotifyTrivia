@@ -248,6 +248,7 @@ namespace SpotifyTrivia.Services
                     {
                         lobby.CurrentQuestionIndex = i;
                         lobby.State = LobbyState.Countdown;
+                        lobby.CountdownStartedAtUtc = DateTime.UtcNow;
                         foreach (var p in lobby.Players.Values)
                         {
                             p.HasAnsweredCurrentQuestion = false;

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using SpotifyTrivia.Hubs;
+using SpotifyTrivia.Models.Multiplayer;
 using SpotifyTrivia.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +23,7 @@ builder.Services.AddSingleton<ITriviaEngine, TriviaEngine>();
 builder.Services.AddSingleton<IDeezerService, DeezerService>();
 builder.Services.AddSingleton<ILobbyManager, LobbyManager>();
 builder.Services.AddSingleton<IBroadcaster, Broadcaster>();
+builder.Services.AddSingleton<LobbySettingsModel>();
 
 var app = builder.Build();
 

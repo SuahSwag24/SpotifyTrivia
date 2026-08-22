@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime;
 using System.Text;
 using Microsoft.AspNetCore.SignalR;
 using SpotifyTrivia.Models;
@@ -13,12 +14,14 @@ namespace SpotifyTrivia.Hubs
         private readonly ILobbyManager _lobbyManager;
         private readonly ISpotifyService _spotifyService;
         private readonly IBroadcaster _broadcaster;
+        private readonly LobbySettingsModel _settings;
 
-        public LobbyHub(ILobbyManager lobbyManager, ISpotifyService spotifyService, IBroadcaster broadcaster)
+        public LobbyHub(ILobbyManager lobbyManager, ISpotifyService spotifyService, IBroadcaster broadcaster, LobbySettingsModel settings)
         {
             _lobbyManager = lobbyManager;
             _spotifyService = spotifyService;
             _broadcaster = broadcaster;
+            _settings = settings;
         }
 
         public async Task JoinLobby(string lobbyCode, string playerId, string displayName)
@@ -165,6 +168,35 @@ namespace SpotifyTrivia.Hubs
             }
 
             await base.OnDisconnectedAsync(exception);
+        }
+
+        public async Task RequestGamePhase(string lobbyCode)
+        {
+            var lobby = _lobbyManager.GetLobby(lobbyCode);
+            if (lobby == null) return;
+
+            switch (lobby.State)
+            {
+                case LobbyState.Countdown:
+                    var countdownElapsed = (DateTime.UtcNow - lobby.CountdownStartedAtUtc).TotalSeconds;
+                    var countdownRemaining = (int)Math.Ceiling(Math.Max(0, _settings.CountdownSeconds - countdownElapsed));
+                    await Clients.Caller.SendAsync("CountdownStarted", new { Seconds = countdownRemaining });
+                    break;
+
+                case LobbyState.Question:
+                    var question = lobby.Questions[lobby.CurrentQuestionIndex];
+                    await Clients.Caller.SendAsync("RoundStarted", new
+                    {
+                        question.PreviewUrl,
+                        question.AlbumCoverUrl,
+                        question.AnswerChoices,
+                        StartedAtUtc = lobby.RoundStartedAtUtc,
+                        DurationSeconds = _settings.RoundDurationSeconds,
+                        QuestionNumber = lobby.CurrentQuestionIndex + 1,
+                        TotalQuestions = lobby.Questions.Count
+                    });
+                    break;
+            }
         }
 
         private bool IsHost(LobbyModel lobby)

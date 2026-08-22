@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using SpotifyTrivia.Models;
 using SpotifyTrivia.Models.Multiplayer;
 
@@ -63,15 +64,13 @@ namespace SpotifyTrivia.Services
             player = null;
             if (!_lobbies.TryGetValue(code, out var lobby)) return false;
 
-            bool isReturningPlayer = lobby.Players.ContainsKey(playerId);
-
-            if (lobby.State != LobbyState.Waiting && !isReturningPlayer)
-                return false;
-
             player = lobby.Players.GetOrAdd(playerId, _ => new PlayerModel
             {
                 PlayerId = playerId,
-                DisplayName = displayName
+                DisplayName = displayName,
+                JoinStatus = lobby.State == LobbyState.Waiting
+                    ? PlayerJoinStatus.Active
+                    : PlayerJoinStatus.PendingJoin
             });
 
             player.ConnectionId = connectionId;
@@ -213,6 +212,36 @@ namespace SpotifyTrivia.Services
                 for (int i = 0; i < lobby.Questions.Count; i++)
                 {
                     ct.ThrowIfCancellationRequested();
+
+                    List<PlayerModel> promoted = new();
+                    await lobby.StateLock.WaitAsync(ct);
+
+                    try
+                    {
+                        promoted = lobby.Players.Values
+                            .Where(p => p.JoinStatus == PlayerJoinStatus.PendingJoin)
+                            .ToList();
+
+                        foreach (var p in promoted)
+                        {
+                            p.JoinStatus = PlayerJoinStatus.Active;
+                        }
+                    }
+                    finally { lobby.StateLock.Release(); }
+
+                    if (promoted.Count > 0)
+                    {
+                        await _lobbyBroadcaster.BroadcastPlayerJoining(lobby.Code, promoted.Select(p => p.DisplayName).ToList());
+                        await Task.Delay(TimeSpan.FromSeconds(_settings.JoinGraceSeconds), ct);
+
+                        foreach (var p in promoted)
+                        {
+                            if (p.ConnectionId != null)
+                            {
+                                await _lobbyBroadcaster.SendPromotedToActive(p.ConnectionId);
+                            }
+                        }
+                    }
 
                     await lobby.StateLock.WaitAsync(ct);
                     try

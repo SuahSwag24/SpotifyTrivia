@@ -4,6 +4,12 @@ using System.Text;
 
 namespace SpotifyTrivia.Models.Multiplayer
 {
+    public enum PlayerJoinStatus
+    {
+        Active,
+        PendingJoin
+    }
+
     public class PlayerModel
     {
         public string PlayerId { get; set; } = String.Empty;
@@ -14,5 +20,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public bool? LastAnswerCorrect { get; set; }
         public bool IsConnected { get; set; } = false;
         public DateTime? LastAnswerSubmittedUtc { get; set; }
+        public PlayerJoinStatus JoinStatus { get; set; } = PlayerJoinStatus.Active;
     }
 }

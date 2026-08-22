@@ -47,6 +47,11 @@ document.addEventListener("DOMContentLoaded", () => {
         onCountdownStarted: () => { window.location.href = `/multiplayer/game/${lobbyCode}`; }
     });
 
+    connection.on("JoinStatus", (data) => {
+        setWaitingBarText(data.status);
+    });
+
+
     connection.start()
         .then(() => connection.invoke("JoinLobby", lobbyCode, playerId, "Player"))
         .catch(err => showError("Connection failed: " + err));
@@ -99,3 +104,14 @@ document.addEventListener("DOMContentLoaded", () => {
             .finally(() => { window.location.href = "/multiplayer"; });
     });
 });
+
+function setWaitingBarText(status) {
+    const bar = document.getElementById("waiting-message");
+    if (!bar) return; // host has no waiting-message element
+
+    if (status === "pendingJoin") {
+        bar.textContent = "🎧 Round in progress — you'll join next round.";
+    } else {
+        bar.textContent = "⏳ Waiting for the host to select a playlist and start the game...";
+    }
+}

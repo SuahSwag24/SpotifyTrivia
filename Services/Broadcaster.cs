@@ -82,5 +82,16 @@ namespace SpotifyTrivia.Services
         {
             return _hubContext.Clients.Group(lobbyCode).SendAsync("LobbyDisbanded");
         }
+
+        public Task BroadcastPlayerJoining(string lobbyCode, List<string> displayNames)
+        {
+            return _hubContext.Clients.Group(lobbyCode)
+                .SendAsync("PlayerJoining", new { DisplayNames = displayNames });
+        }
+
+        public Task SendPromotedToActive(string connectionId)
+        {
+            return _hubContext.Clients.Client(connectionId).SendAsync("PromotedToActive");
+        }
     }
 }

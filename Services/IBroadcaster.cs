@@ -15,5 +15,7 @@ namespace SpotifyTrivia.Services
         Task BroadcastPlayerJoined(string lobbyCode, PlayerModel player);
         Task BroadcastPlayerLeft(string lobbyCode, string playerId);
         Task BroadcastLobbyDisbanded(string lobbyCode);
+        Task BroadcastPlayerJoining(string code, List<string> list);
+        Task SendPromotedToActive(string connectionId);
     }
 }

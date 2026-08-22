@@ -10,5 +10,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public int CountdownSeconds { get; set; } = 3;
         public int RoundDurationSeconds { get; set; } = 20;
         public int RevealSeconds { get; set; } = 3;
+        public int JoinGraceSeconds { get; set; } = 3;
     }
 }

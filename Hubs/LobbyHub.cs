@@ -27,6 +27,16 @@ namespace SpotifyTrivia.Hubs
             if (!joined || player == null) return;
 
             await Groups.AddToGroupAsync(Context.ConnectionId, lobbyCode);
+
+            if (player.JoinStatus == PlayerJoinStatus.PendingJoin)
+            {
+                await Clients.Caller.SendAsync("JoinStatus", new { status = "pendingJoin" });
+            }
+            else
+            {
+                await Clients.Caller.SendAsync("JoinStatus", new { status = "active" });
+            }
+
             await _broadcaster.BroadcastPlayerJoined(lobbyCode, player);
         }
 

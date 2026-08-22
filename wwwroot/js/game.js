@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupLobbyHandlers(connection, {
         onCountdownStarted: (data) => {
             showPhase("countdown-phase");
-            runLocalCountdown(data.seconds);
+            runLocalCountdown(data.startedAtUtc, data.seconds);
         },
         onRoundStarted: (data) => {
             showPhase("question-phase");
@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
             audio.play().catch(() => console.log("Autoplay blocked — user interaction required."));
 
             renderAnswerChoices(data.answerChoices);
-            runRoundTimer(data.durationSeconds);
+            runRoundTimer(data.startedAtUtc, data.durationSeconds);
         },
         onRoundEnded: (data) => {
             showPhase("reveal-phase");
@@ -81,26 +81,36 @@ document.addEventListener("DOMContentLoaded", () => {
             .catch(err => console.error("Answer submit failed:", err));
     }
 
-    function runLocalCountdown(seconds) {
+    function runLocalCountdown(startedAtUtc, totalSeconds) {
         const el = document.getElementById("countdown-number");
-        let remaining = seconds;
-        el.textContent = remaining;
-        const interval = setInterval(() => {
-            remaining--;
+        const startTime = new Date(startedAtUtc).getTime();
+        let interval;
+
+        function tick() {
+            const elapsed = (Date.now() - startTime) / 1000;
+            const remaining = Math.max(0, Math.ceil(totalSeconds - elapsed));
             el.textContent = remaining;
             if (remaining <= 0) clearInterval(interval);
-        }, 1000);
+        }
+
+        tick();
+        interval = setInterval(tick, 1000);
     }
 
-    function runRoundTimer(seconds) {
+    function runRoundTimer(startedAtUtc, totalSeconds) {
         const el = document.getElementById("round-timer");
-        let remaining = seconds;
-        el.textContent = remaining;
-        const interval = setInterval(() => {
-            remaining--;
+        const startTime = new Date(startedAtUtc).getTime();
+        let interval;
+
+        function tick() {
+            const elapsed = (Date.now() - startTime) / 1000;
+            const remaining = Math.max(0, Math.ceil(totalSeconds - elapsed));
             el.textContent = remaining;
             if (remaining <= 0) clearInterval(interval);
-        }, 1000);
+        }
+
+        tick();
+        interval = setInterval(tick, 1000);
     }
 
     function renderScoreboard(players) {

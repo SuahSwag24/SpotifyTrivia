@@ -8,7 +8,7 @@ namespace SpotifyTrivia.Services
 {
     public interface IBroadcaster
     {
-        Task BroadcastCountdownStart(string lobbyCode, int seconds);
+        Task BroadcastCountdownStart(string lobbyCode, int seconds, DateTime startedAtUtc);
         Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds, int questionNumber, int totalQuestions);
         Task BroadcastRoundEnded(string lobbyCode, string correctAnswer, List<PlayerModel> players);
         Task BroadcastGameEnded(string lobbyCode, List<PlayerModel> leaderboardScores);

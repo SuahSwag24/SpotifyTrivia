@@ -178,9 +178,11 @@ namespace SpotifyTrivia.Hubs
             switch (lobby.State)
             {
                 case LobbyState.Countdown:
-                    var countdownElapsed = (DateTime.UtcNow - lobby.CountdownStartedAtUtc).TotalSeconds;
-                    var countdownRemaining = (int)Math.Ceiling(Math.Max(0, _settings.CountdownSeconds - countdownElapsed));
-                    await Clients.Caller.SendAsync("CountdownStarted", new { Seconds = countdownRemaining });
+                    await Clients.Caller.SendAsync("CountdownStarted", new
+                    {
+                        Seconds = _settings.CountdownSeconds,
+                        StartedAtUtc = lobby.CountdownStartedAtUtc
+                    });
                     break;
 
                 case LobbyState.Question:

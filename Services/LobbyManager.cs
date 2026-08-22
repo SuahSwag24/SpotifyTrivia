@@ -257,7 +257,7 @@ namespace SpotifyTrivia.Services
                     }
                     finally { lobby.StateLock.Release(); }
 
-                    await _lobbyBroadcaster.BroadcastCountdownStart(lobby.Code, _settings.CountdownSeconds);
+                    await _lobbyBroadcaster.BroadcastCountdownStart(lobby.Code, _settings.CountdownSeconds, lobby.CountdownStartedAtUtc);
                     await Task.Delay(TimeSpan.FromSeconds(_settings.CountdownSeconds), ct);
 
                     var question = lobby.Questions[i];

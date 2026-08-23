@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onPlayerLeft: (data) => {
             document.querySelector(`#player-list [data-player-id="${data.playerId}"]`)?.remove();
+            showToast(`${data.displayName} has left the lobby`);
         },
         onPlayerDisconnected: (data) => {
             document.querySelector(`#player-list [data-player-id="${data.playerId}"]`)?.classList.add("disconnected");

@@ -49,7 +49,10 @@ document.addEventListener("DOMContentLoaded", () => {
             renderLeaderboard(data);
         },
         onActionError: (data) => showError(data.message),
-        onLobbyDisbanded: () => { window.location.href = "/multiplayer"; }
+        onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },
+        onPlayerLeft: (data) => {
+            showToast(`${data.displayName} left the game`);
+        }
     });
 
     connection.start()

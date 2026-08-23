@@ -104,10 +104,13 @@ namespace SpotifyTrivia.Hubs
                 _lobbyManager.DisbandLobby(lobbyCode);
             }
             else
-            {
+            { 
+                lobby.Players.TryGetValue(playerId, out var player);
+                var displayName = player?.DisplayName ?? "A player";
+
                 _lobbyManager.RemovePlayer(lobbyCode, playerId);
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, lobbyCode);
-                await _broadcaster.BroadcastPlayerLeft(lobbyCode, playerId);
+                await _broadcaster.BroadcastPlayerLeft(lobbyCode, playerId, displayName);
             }
         }
 

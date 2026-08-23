@@ -73,9 +73,9 @@ namespace SpotifyTrivia.Services
             return _hubContext.Clients.Group(lobbyCode).SendAsync("PlayerJoined", payload);
         }
 
-        public Task BroadcastPlayerLeft(string lobbyCode, string playerId)
+        public Task BroadcastPlayerLeft(string lobbyCode, string playerId, string displayName)
         {
-            return _hubContext.Clients.Group(lobbyCode).SendAsync("PlayerLeft", new {PlayerId = playerId});
+            return _hubContext.Clients.Group(lobbyCode).SendAsync("PlayerLeft", new { PlayerId = playerId, DisplayName = displayName });
         }
 
         public Task BroadcastLobbyDisbanded(string lobbyCode)

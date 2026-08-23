@@ -13,7 +13,7 @@ namespace SpotifyTrivia.Services
         Task BroadcastRoundEnded(string lobbyCode, string correctAnswer, List<PlayerModel> players);
         Task BroadcastGameEnded(string lobbyCode, List<PlayerModel> leaderboardScores);
         Task BroadcastPlayerJoined(string lobbyCode, PlayerModel player);
-        Task BroadcastPlayerLeft(string lobbyCode, string playerId);
+        Task BroadcastPlayerLeft(string lobbyCode, string playerId, string displayName);
         Task BroadcastLobbyDisbanded(string lobbyCode);
         Task BroadcastPlayerJoining(string code, List<string> list);
         Task SendPromotedToActive(string connectionId);

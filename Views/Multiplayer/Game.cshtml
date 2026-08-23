@@ -152,6 +152,10 @@
 
 <div class="game-wrapper game-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId">
 
+    <div class="text-end mb-2">
+        <button id="leave-game-btn" type="button" class="btn btn-sm btn-danger">Leave Game</button>
+    </div>
+
     <!-- Phase 1: Countdown -->
     <div id="countdown-phase" class="phase-panel text-center">
         <h2 class="text-secondary uppercase fs-6 fw-bold tracking-widest">Get Ready</h2>
@@ -192,6 +196,7 @@
     <div id="finished-phase" class="phase-panel text-center" style="display:none;">
         <h2 class="display-6 fw-bold text-white mb-4">🏆 Final Results</h2>
         <ol id="final-leaderboard" class="scoreboard-list"></ol>
+        <button id="leave-results-btn" type="button" class="btn btn-danger mt-4">Return to Home</button>
     </div>
 
     <!-- Error Banner -->

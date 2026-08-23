@@ -126,7 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 list.appendChild(li);
             });
     }
-
+  
     function renderLeaderboard(players) {
         const list = document.getElementById("final-leaderboard");
         list.innerHTML = "";
@@ -139,4 +139,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 list.appendChild(li);
             });
     }
+
+    function leaveAndRedirect() {
+        connection.invoke("LeaveLobby", lobbyCode, playerId)
+            .catch(err => console.error("Leave failed:", err))
+            .finally(() => { window.location.href = "/multiplayer" });
+    }
+    document.getElementById("leave-game-btn")?.addEventListener("click", leaveAndRedirect);
+    document.getElementById("leave-results-btn")?.addEventListener("click", leaveAndRedirect);
 });

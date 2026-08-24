@@ -31,10 +31,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 li.appendChild(nameSpan);
                 list.appendChild(li);
             }
+
+            showToast(`${data.displayName} joined the lobby`, "success");
         },
         onPlayerLeft: (data) => {
             document.querySelector(`#player-list [data-player-id="${data.playerId}"]`)?.remove();
-            showToast(`${data.displayName} has left the lobby`);
+            showToast(`${data.displayName} has left the lobby`, "warning");
         },
         onPlayerDisconnected: (data) => {
             document.querySelector(`#player-list [data-player-id="${data.playerId}"]`)?.classList.add("disconnected");

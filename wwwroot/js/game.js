@@ -51,7 +51,10 @@ document.addEventListener("DOMContentLoaded", () => {
         onActionError: (data) => showError(data.message),
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },
         onPlayerLeft: (data) => {
-            showToast(`${data.displayName} left the game`);
+            showToast(`${data.displayName} left the game`, "warning");
+        },
+        onPlayerJoined: (data) => {
+            showToast(`${data.displayName} joined the game`, "success");
         }
     });
 

@@ -26,7 +26,7 @@ namespace SpotifyTrivia.Hubs
 
         public async Task JoinLobby(string lobbyCode, string playerId, string displayName)
         {
-            bool joined = _lobbyManager.TryAddPlayer(lobbyCode, playerId, displayName, Context.ConnectionId, out var player);
+            bool joined = _lobbyManager.TryAddPlayer(lobbyCode, playerId, displayName, Context.ConnectionId, out var player, out bool isNewPlayer);
             if (!joined || player == null) return;
 
             await Groups.AddToGroupAsync(Context.ConnectionId, lobbyCode);
@@ -40,7 +40,10 @@ namespace SpotifyTrivia.Hubs
                 await Clients.Caller.SendAsync("JoinStatus", new { status = "active" });
             }
 
-            await _broadcaster.BroadcastPlayerJoined(lobbyCode, player);
+            if (isNewPlayer)
+            {
+                await _broadcaster.BroadcastPlayerJoined(lobbyCode, player);
+            }
         }
 
         public async Task StartGame(string lobbyCode, int questionCount)

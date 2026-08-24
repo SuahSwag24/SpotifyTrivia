@@ -59,10 +59,15 @@ namespace SpotifyTrivia.Services
         public LobbyModel? GetLobby(string code) =>
             _lobbies.TryGetValue(code, out var lobby) ? lobby : null;
 
-        public bool TryAddPlayer(string code, string playerId, string displayName, string connectionId, out PlayerModel? player)
+        public bool TryAddPlayer(string code, string playerId, string displayName, string connectionId, out PlayerModel? player, out bool isNewPlayer)
         {
             player = null;
+            isNewPlayer = false;
             if (!_lobbies.TryGetValue(code, out var lobby)) return false;
+
+            isNewPlayer = !lobby.Players.ContainsKey(playerId);
+
+            if (lobby.State == LobbyState.Finished) return false;
 
             player = lobby.Players.GetOrAdd(playerId, _ => new PlayerModel
             {

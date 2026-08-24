@@ -33,12 +33,12 @@ function setupLobbyHandlers(connection, callbacks) {
     });
 }
 
-function showToast(message) {
+function showToast(message, toastType = "warning") {
     const stack = document.getElementById("toast-stack");
 
     const toast = document.createElement("div");
     toast.textContent = message;
-    toast.classList.add("alert", "alert-warning");
+    toast.classList.add("alert", `alert-${toastType}`);
     toast.style.opacity = "0";
     toast.style.transform = "translateY(10px)";
     toast.style.transition = "opacity 0.25s ease, transform 0.25s ease";

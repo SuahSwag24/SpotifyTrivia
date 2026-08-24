@@ -18,7 +18,7 @@ public class AuthController : Controller
     public IActionResult Login()
     {
         var clientId = _config["Spotify:ClientId"];
-        var redirectUri = "http://127.0.0.1:5177/callback";
+        var redirectUri = _config["Spotify:RedirectUri"];
 
         var scope = "user-read-private playlist-read-private playlist-read-collaborative streaming user-read-email";
 
@@ -45,7 +45,7 @@ public class AuthController : Controller
         {
             {"grant_type", "authorization_code"},
             {"code", code},
-            { "redirect_uri", "http://127.0.0.1:5177/callback" },
+            { "redirect_uri", _config["Spotify:RedirectUri"] },
             { "client_id", _config["Spotify:ClientId"]! },
             { "client_secret", _config["Spotify:ClientSecret"]! }
         };

@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const container = document.querySelector(".game-container");
     const lobbyCode = container.dataset.lobbyCode;
     const playerId = container.dataset.playerId;
+    const displayName = container.dataset.displayName;
 
     const connection = createLobbyConnection();
     const audio = document.getElementById("preview-audio");

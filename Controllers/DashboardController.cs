@@ -27,11 +27,16 @@ namespace SpotifyTrivia.Controllers
 
             var playlists = await _spotifyService.GetUserPlaylistsAsync(token);
 
+            if (string.IsNullOrEmpty(HttpContext.Session.GetString("DisplayName")))
+            {
+                HttpContext.Session.SetString("DisplayName", profile.DisplayName);
+            }
+
             var viewModel = new DashboardViewModel
             {
                 UserProfile = profile,
                 GamesPlayed = HttpContext.Session.GetInt32("GamesPlayed") ?? 0,
-                EffectiveDisplayName = HttpContext.Session.GetString("DisplayName") ?? profile.DisplayName
+                EffectiveDisplayName = HttpContext.Session.GetString("DisplayName")
             };
 
             return View(viewModel);

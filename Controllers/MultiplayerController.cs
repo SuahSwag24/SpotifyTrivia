@@ -54,6 +54,7 @@ namespace SpotifyTrivia.Controllers
             }
 
             ViewBag.PlayerId = GetOrCreatePlayerId();
+            ViewBag.DisplayName = ResolveDisplayName();
             ViewBag.LobbyCode = code;
             return View(lobby);
         }
@@ -102,7 +103,8 @@ namespace SpotifyTrivia.Controllers
                 return RedirectToAction("Index");
             }
 
-            ViewBag.PlayerId = playerId;
+            ViewBag.PlayerId = GetOrCreatePlayerId();
+            ViewBag.DisplayName = ResolveDisplayName();
             ViewBag.LobbyCode = code;
             return View(lobby);
         }

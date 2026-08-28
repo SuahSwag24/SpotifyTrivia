@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const container = document.querySelector(".lobby-container");
     const lobbyCode = container.dataset.lobbyCode;
     const playerId = container.dataset.playerId;
+    const displayName = container.dataset.displayName;
     const isHost = container.dataset.isHost === "true";
 
     const connection = createLobbyConnection();
@@ -56,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     connection.start()
-        .then(() => connection.invoke("JoinLobby", lobbyCode, playerId, "Player"))
+        .then(() => connection.invoke("JoinLobby", lobbyCode, playerId, displayName))
         .catch(err => showError("Connection failed: " + err));
 
     if (isHost) {

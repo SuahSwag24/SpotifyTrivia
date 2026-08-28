@@ -3,6 +3,8 @@
     ViewData["Title"] = "Dashboard";
 }
 
+<script src="/js/dashboard.js"></script>
+
 <style>
     /* Hero Banner */
     .dashboard-hero {
@@ -114,7 +116,7 @@
         <div class="mb-2">
             <span class="badge-spotify">@Model.UserProfile.Product Account</span>
         </div>
-        <h1 class="display-6 fw-bold text-white mb-1">Welcome back, @Model.UserProfile.DisplayName! 👋</h1>
+        <h1 class="display-6 fw-bold text-white mb-1">Greetings, <span id="hero-display-name">@Model.EffectiveDisplayName</span>!</h1>
         <p class="text-muted-custom mb-0 fs-5">Ready to test your music knowledge today?</p>
     </div>
 </div>
@@ -170,15 +172,21 @@
         </div>
     </div>
 
-    <!-- Sync Status -->
+   <!-- Sync Status -->
     <div class="col-12 col-md-4">
         <div class="quick-action-card p-4 h-100 d-flex flex-column justify-content-between">
             <div>
                 <h4 class="fw-bold text-white mb-3">Spotify Sync Status</h4>
-                <div class="d-flex justify-content-between align-items-center py-2 border-bottom border-secondary">
-                    <span class="text-muted-custom">Connected User</span>
-                    <span class="fw-bold text-white">@Model.UserProfile.DisplayName</span>
+
+                <div class="py-2 border-bottom border-secondary">
+                    <label for="display-name-input" class="text-muted-custom d-block mb-1">Display Name</label>
+                    <div class="d-flex gap-2">
+                        <input type="text" id="display-name-input" class="form-control" style="background-color:#282828; border:1px solid #3e3e3e; color:#fff;" value="@Model.EffectiveDisplayName" maxlength="20" />
+                        <button id="save-name-btn" type="button" class="btn btn-spotify" style="padding:8px 16px;">Save</button>
+                    </div>
+                    <div id="name-save-status" class="small mt-1" style="min-height:1.2em;"></div>
                 </div>
+
                 <div class="d-flex justify-content-between align-items-center py-2 mb-3">
                     <span class="text-muted-custom">Spotify Profile</span>
                     <a href="@Model.UserProfile.SpotifyUrl" target="_blank" class="spotify-link">Open Spotify ↗</a>

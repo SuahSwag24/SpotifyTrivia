@@ -36,7 +36,7 @@ namespace SpotifyTrivia.Controllers
             if (string.IsNullOrEmpty(token)) return RedirectToAction("Login", "Auth");
 
             string hostPlayerId = GetOrCreatePlayerId();
-            string hostDisplayName = "Host";
+            string hostDisplayName = ResolveDisplayName();
 
             var lobby = _lobbyManager.CreateLobby(hostPlayerId, hostDisplayName, token);
 
@@ -117,6 +117,11 @@ namespace SpotifyTrivia.Controllers
             }
 
             return playerId;
+        }
+
+        private string ResolveDisplayName()
+        {
+            return HttpContext.Session.GetString("DisplayName") ?? "Player";
         }
     }
 }

@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const lobbyCode = container.dataset.lobbyCode;
     const playerId = container.dataset.playerId;
     const displayName = container.dataset.displayName;
+    const isHost = container.dataset.isHost === "true";
 
     const connection = createLobbyConnection();
     const audio = document.getElementById("preview-audio");
@@ -48,6 +49,11 @@ document.addEventListener("DOMContentLoaded", () => {
         onGameEnded: (data) => {
             showPhase("finished-phase");
             renderLeaderboard(data);
+
+            const returnToLobbyBtn = document.getElementById("return-to-lobby-btn");
+            if (isHost) {
+                returnToLobbyBtn.style.display = "inline-block";
+            }
         },
         onActionError: (data) => showError(data.message),
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },
@@ -56,6 +62,9 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onPlayerJoined: (data) => {
             showToast(`${data.displayName} joined the game`, "success");
+        },
+        onReturnedToLobby: () => {
+            window.location.href = `/multiplayer/lobby/${lobbyCode}`;
         }
     });
 
@@ -154,4 +163,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     document.getElementById("leave-game-btn")?.addEventListener("click", leaveAndRedirect);
     document.getElementById("leave-results-btn")?.addEventListener("click", leaveAndRedirect);
+
+    document.getElementById("return-to-lobby-btn").addEventListener("click", () => {
+        connection.invoke("ReturnToLobby", lobbyCode)
+            .catch(err => showError("Failed to return to lobby: " + err));
+    })
 });

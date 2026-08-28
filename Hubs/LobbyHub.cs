@@ -208,6 +208,27 @@ namespace SpotifyTrivia.Hubs
             }
         }
 
+        public async Task ReturnToLobby(string lobbyCode)
+        {
+            var lobby = _lobbyManager.GetLobby(lobbyCode);
+            if (lobby == null) return;
+
+            if (!IsHost(lobby))
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Only the host can return to the lobby." });
+                return;
+            }
+
+            if (lobby.State != LobbyState.Finished)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Game hasn't ended yet." });
+                return;
+            }
+
+            _lobbyManager.ResetLobbyToWaiting(lobbyCode);
+            await Clients.Group(lobbyCode).SendAsync("ReturnedToLobby");
+        }
+
         private bool IsHost(LobbyModel lobby)
         {
             var mapping = _lobbyManager.GetConnectionMapping(Context.ConnectionId);

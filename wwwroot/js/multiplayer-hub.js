@@ -31,6 +31,8 @@ function setupLobbyHandlers(connection, callbacks) {
             yourBtn?.classList.add("incorrect");
         }
     });
+
+    connection.on("ReturnedToLobby", () => callbacks.onReturnedToLobby?.());
 }
 
 function showToast(message, toastType = "warning") {

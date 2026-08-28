@@ -105,6 +105,7 @@ namespace SpotifyTrivia.Controllers
 
             ViewBag.PlayerId = GetOrCreatePlayerId();
             ViewBag.DisplayName = ResolveDisplayName();
+            ViewBag.IsHost = (playerId == lobby.PlayerHostId);
             ViewBag.LobbyCode = code;
             return View(lobby);
         }

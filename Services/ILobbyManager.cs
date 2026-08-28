@@ -19,5 +19,6 @@ namespace SpotifyTrivia.Services
         (string lobbyCode, string playerId)? GetConnectionMapping(string connectionId);
         void RemoveConnectionMapping(string connectionId);
         void DisbandLobby(string code);
+        bool ResetLobbyToWaiting(string code);
     }
 }

@@ -185,6 +185,27 @@ namespace SpotifyTrivia.Services
                 _connectionMap.TryRemove(connId, out _);
             }
         }
+        
+        public bool ResetLobbyToWaiting(string code)
+        {
+            if (!_lobbies.TryGetValue(code, out var lobby)) return false;
+
+            lobby.State = LobbyState.Waiting;
+            lobby.Questions = new List<TriviaQuestionModel>();
+            lobby.CurrentQuestionIndex = 0;
+            lobby.SelectedPlaylistId = null;
+            lobby.SelectedPlaylistName = null;
+
+            foreach (var p in lobby.Players.Values)
+            {
+                p.Score = 0;
+                p.HasAnsweredCurrentQuestion = false;
+                p.LastAnswerCorrect = null;
+                p.JoinStatus = PlayerJoinStatus.Active;
+            }
+
+            return true;
+        }
 
         private string GenerateLobbyCode()
         {

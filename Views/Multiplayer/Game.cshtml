@@ -150,7 +150,7 @@
     }
 </style>
 
-<div class="game-wrapper game-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName">
+<div class="game-wrapper game-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@ViewBag.IsHost.ToString().ToLower()">
 
     <div class="text-end mb-2">
         <button id="leave-game-btn" type="button" class="btn btn-sm btn-danger">Leave Game</button>
@@ -196,7 +196,7 @@
     <div id="finished-phase" class="phase-panel text-center" style="display:none;">
         <h2 class="display-6 fw-bold text-white mb-4">🏆 Final Results</h2>
         <ol id="final-leaderboard" class="scoreboard-list"></ol>
-        <button id="leave-results-btn" type="button" class="btn btn-danger mt-4">Return to Home</button>
+        <button id="return-to-lobby-btn" type="button" class="btn btn-outline-light mt-4" style="display:none;">Return to Lobby</button>
     </div>
 
     <!-- Error Banner -->

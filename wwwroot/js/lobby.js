@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.querySelector(`#player-list [data-player-id="${data.playerId}"]`)?.classList.add("disconnected");
         },
         onPlaylistSelected: (data) => {
-            document.getElementById("selected-playlist-label").textContent = `Selected: ${data.playlistId}`;
+            document.getElementById("selected-playlist-label").textContent = `Selected: ${data.name}`;
             document.getElementById("start-game-btn").disabled = false;
         },
         onActionError: (data) => showError(data.message),
@@ -90,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("selected-playlist-label").textContent = `Selected playlist: ${playlistName}`;
             pickerContainer.style.display = "none";
 
-            connection.invoke("SelectPlaylist", lobbyCode, playlistId)
+            connection.invoke("SelectPlaylist", lobbyCode, playlistId, playlistName)
                 .catch(err => showError("Failed to select playlist: " + err));
         });
 

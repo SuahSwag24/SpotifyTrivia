@@ -117,7 +117,7 @@ namespace SpotifyTrivia.Hubs
             }
         }
 
-        public async Task SelectPlaylist(string lobbyCode, string playlistId)
+        public async Task SelectPlaylist(string lobbyCode, string playlistId, string playlistName)
         {
             var lobby = _lobbyManager.GetLobby(lobbyCode);
             if (lobby == null) return;
@@ -135,7 +135,8 @@ namespace SpotifyTrivia.Hubs
             }
 
             lobby.SelectedPlaylistId = playlistId;
-            await Clients.Group(lobbyCode).SendAsync("PlaylistSelected", new { PlaylistId = playlistId });
+            lobby.SelectedPlaylistName = playlistName;
+            await Clients.Group(lobbyCode).SendAsync("PlaylistSelected", new { PlaylistId = playlistId, Name = playlistName });
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)

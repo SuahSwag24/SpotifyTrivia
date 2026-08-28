@@ -22,5 +22,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public DateTime CountdownStartedAtUtc { get; set; }
         public string HostSpotifyAccessToken { get; set; } = string.Empty;
         public string? SelectedPlaylistId { get; set; }
+        public string? SelectedPlaylistName { get; set; }
     }
 }

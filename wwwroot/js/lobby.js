@@ -13,6 +13,8 @@ document.addEventListener("DOMContentLoaded", () => {
         errorBox.style.display = "block";
     }
 
+    const leaveBtn = document.getElementById("leave-lobby-btn");
+
     setupLobbyHandlers(connection, {
         onPlayerJoined: (data) => {
             const list = document.getElementById("player-list");
@@ -48,7 +50,11 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onActionError: (data) => showError(data.message),
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },
-        onCountdownStarted: () => { window.location.href = `/multiplayer/game/${lobbyCode}`; }
+        onCountdownStarted: () => { window.location.href = `/multiplayer/game/${lobbyCode}`; },
+        onPreparingGame: () => {
+            showToast("Preparing game, gathering song previews...", "success");
+            leaveBtn.disabled = true;
+        }
     });
 
     connection.on("JoinStatus", (data) => {
@@ -64,6 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const chooseBtn = document.getElementById("choose-playlist-btn");
         const pickerContainer = document.getElementById("playlist-picker-container");
         const startBtn = document.getElementById("start-game-btn");
+        const settingsBtn = document.getElementById("game-settings-btn");
 
         let selectedQuestionCount = 10;
 
@@ -97,8 +104,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
         startBtn.addEventListener("click", () => {
             startBtn.disabled = true;
+            chooseBtn.disabled = true;
+            settingsBtn.disabled = true;
+
+            startBtn.textContent = "Starting...";
             connection.invoke("StartGame", lobbyCode, selectedQuestionCount)
-                .catch(err => { showError("Failed to start: " + err); startBtn.disabled = false; });
+                .catch(err => {
+                    showError("Failed to start: " + err);
+                    startBtn.disabled = false;
+                    startBtn.textContent = "Start Game";
+                });
         });
     }
 

@@ -17,6 +17,12 @@ namespace SpotifyTrivia.Services
             _hubContext = hubContext;
         }
 
+        public Task BroadcastPreparingGame(string lobbyCode)
+        {
+            return _hubContext.Clients.Group(lobbyCode)
+                .SendAsync("PreparingGame");
+        }
+
         public Task BroadcastCountdownStart(string lobbyCode, int seconds, DateTime startedAtUtc)
         {
             return _hubContext.Clients.Group(lobbyCode)

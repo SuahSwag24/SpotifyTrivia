@@ -69,6 +69,8 @@ namespace SpotifyTrivia.Hubs
                 return;
             }
 
+            await _broadcaster.BroadcastPreparingGame(lobbyCode);
+
             List<TrackModel> tracks;
             try
             {

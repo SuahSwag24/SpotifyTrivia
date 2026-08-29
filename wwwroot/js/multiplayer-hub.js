@@ -14,6 +14,7 @@ function setupLobbyHandlers(connection, callbacks) {
     connection.on("ActionError", (data) => callbacks.onActionError?.(data));
 
     connection.on("CountdownStarted", (data) => callbacks.onCountdownStarted?.(data));
+    connection.on("PreparingGame", () => callbacks.onPreparingGame?.());
     connection.on("RoundStarted", (data) => callbacks.onRoundStarted?.(data));
     connection.on("RoundEnded", (data) => callbacks.onRoundEnded?.(data));
     connection.on("GameEnded", (data) => callbacks.onGameEnded?.(data));

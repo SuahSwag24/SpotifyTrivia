@@ -15,6 +15,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const leaveBtn = document.getElementById("leave-lobby-btn");
 
+    function applySelectedGameMode(mode) {
+        try {
+            const grid = document.getElementById("gamemode-grid");
+            if (!grid) return;
+
+            const cards = grid.querySelectorAll(".gamemode-card");
+            cards.forEach(card => {
+                card.classList.toggle("selected", card.dataset.mode === mode);
+            });
+        } catch (err) {
+            console.error("Error applying game mode selection:", err);
+        }
+    }
+
     setupLobbyHandlers(connection, {
         onPlayerJoined: (data) => {
             const list = document.getElementById("player-list");
@@ -48,6 +62,9 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("selected-playlist-label").textContent = `Selected: ${data.name}`;
             document.getElementById("start-game-btn").disabled = false;
         },
+        onGameModeSelected: (data) => {
+            applySelectedGameMode(data.mode);
+        },
         onActionError: (data) => showError(data.message),
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },
         onCountdownStarted: () => { window.location.href = `/multiplayer/game/${lobbyCode}`; },
@@ -71,6 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const pickerContainer = document.getElementById("playlist-picker-container");
         const startBtn = document.getElementById("start-game-btn");
         const settingsBtn = document.getElementById("game-settings-btn");
+        const gameModeGrid = document.getElementById("gamemode-grid");
 
         let selectedQuestionCount = 10;
 
@@ -101,6 +119,25 @@ document.addEventListener("DOMContentLoaded", () => {
             connection.invoke("SelectPlaylist", lobbyCode, playlistId, playlistName)
                 .catch(err => showError("Failed to select playlist: " + err));
         });
+
+        if (gameModeGrid) {
+            gameModeGrid.addEventListener("click", async (e) => {
+                const card = e.target.closest(".gamemode-card");
+                if (!card) return;
+
+                const mode = card.dataset.mode;
+                const previouslySelected = gameModeGrid.querySelector(".gamemode-card.selected");
+
+                applySelectedGameMode(mode);
+
+                try {
+                    await connection.invoke("SelectGameMode", lobbyCode, mode);
+                } catch (err) {
+                    showError("Failed to select game mode:", err);
+                    applySelectedGameMode(previouslySelected?.dataset.mode ?? null);
+                }
+            })
+        }
 
         startBtn.addEventListener("click", () => {
             startBtn.disabled = true;

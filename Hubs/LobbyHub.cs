@@ -88,7 +88,14 @@ namespace SpotifyTrivia.Hubs
                 return;
             }
 
-            await _lobbyManager.StartSessionAsync(lobbyCode, tracks, questionCount);
+            try
+            {
+                await _lobbyManager.StartSessionAsync(lobbyCode, tracks, questionCount);
+            }
+            catch (Exception ex)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = ex.Message });
+            }
         }
 
         public async Task SubmitAnswer(string lobbyCode, string playerId, int answerIndex)
@@ -229,6 +236,27 @@ namespace SpotifyTrivia.Hubs
 
             _lobbyManager.ResetLobbyToWaiting(lobbyCode);
             await Clients.Group(lobbyCode).SendAsync("ReturnedToLobby");
+        }
+
+        public async Task SelectGameMode(string lobbyCode, GameModeType mode)
+        {
+            var lobby = _lobbyManager.GetLobby(lobbyCode);
+            if (lobby == null) return;
+
+            if (!IsHost(lobby))
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Only the host can select the gamemode." });
+                return;
+            }
+
+            if (lobby.State != LobbyState.Waiting)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Game is has already started." });
+                return;
+            }
+
+            lobby.GameMode = mode;
+            await Clients.Group(lobbyCode).SendAsync("GameModeSelected", new { Mode = mode.ToString() });
         }
 
         private bool IsHost(LobbyModel lobby)

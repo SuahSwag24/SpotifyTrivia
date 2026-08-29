@@ -124,6 +124,38 @@
         transform: scale(1.2);
         background: #1ed760;
     }
+
+    .gamemode-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .gamemode-card {
+        background-color: #242424;
+        border: 1px solid #333333;
+        border-radius: 12px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .gamemode-card:hover {
+        border-color: #535353;
+    }
+
+    .gamemode-card.selected {
+        border-color: #1DB954;
+        background-color: rgba(29, 185, 84, 0.1);
+    }
+
+    .gamemode-title { color: #fff; font-weight: 700; }
+    
+    .gamemode-desc { color: #b3b3b3; font-size: 0.8rem; text-align: center; }
 </style>
 
 <div class="lobby-wrapper lobby-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@isHost.ToString().ToLower()">
@@ -158,6 +190,22 @@
         {
             <section class="host-controls" id="host-controls">
                 <h2 class="h4 text-white fw-bold mb-3">Host Settings</h2>
+
+                <div class="mb-3">
+                    <span class="text-secondary small d-block mb-2">Game Mode</span>
+                    <div id="gamemode-grid" class="gamemode-grid">
+                        <div class="gamemode-card" data-mode="ClassicGuessSong">
+                            <span class="gamemode-icon">🎵</span>
+                            <span class="gamemode-title">Classic Trivia</span>
+                            <span class="gamemode-desc">Guess the song & artist</span>
+                        </div>
+                        <div class="gamemode-card" data-mode="GuessArtist">
+                            <span class="gamemode-icon">🎤</span>
+                            <span class="gamemode-title">Artist Guessing</span>
+                            <span class="gamemode-desc">Name the artist</span>
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="p-3 mb-3 rounded-3" style="background-color: #242424; border: 1px solid #333333;">
                     <span class="text-secondary small d-block mb-1">Active Playlist</span>

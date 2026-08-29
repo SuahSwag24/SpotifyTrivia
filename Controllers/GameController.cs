@@ -4,15 +4,16 @@ using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualBasic;
 using SpotifyTrivia.Services;
+using SpotifyTrivia.Services.GameModes;
 
 namespace SpotifyTrivia.Controllers
-{
+{           
     public class GameController : Controller
     {
         private readonly ISpotifyService _spotifyService;
-        private readonly ITriviaEngine _triviaEngine;
+        private readonly IGuessArtistGameMode _triviaEngine;
 
-        public GameController(ISpotifyService spotifyService, ITriviaEngine triviaEngine)
+        public GameController(ISpotifyService spotifyService, IGuessArtistGameMode triviaEngine)
         {
             _spotifyService = spotifyService;
             _triviaEngine = triviaEngine;

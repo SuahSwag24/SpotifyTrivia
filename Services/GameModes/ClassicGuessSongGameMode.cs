@@ -3,19 +3,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using SpotifyTrivia.Models;
+using SpotifyTrivia.Models.Multiplayer;
 
-namespace SpotifyTrivia.Services
+namespace SpotifyTrivia.Services.GameModes
 {
-    public class TriviaEngine : ITriviaEngine
+    public class ClassicGuessSongGameMode : IGameMode
     {
         private readonly IDeezerService _deezerService;
 
-        public TriviaEngine(IDeezerService deezerService)
+        public ClassicGuessSongGameMode(IDeezerService deezerService)
         {
             _deezerService = deezerService;
         }
 
-        public async Task<List<TriviaQuestionModel>> CreateTriviaQuestions(List<TrackModel> tracks, int numberOfQuestions = 10)
+        public GameModeType ModeType => GameModeType.ClassicGuessSong;
+
+        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions)
         {
             if (tracks.Count < 4)
             {
@@ -46,7 +49,7 @@ namespace SpotifyTrivia.Services
                 }
 
                 string correctAnswer = $"{candidate.Title} - {candidate.Artist}";
-                
+
                 var wrongAnswers = tracks
                     .Where(t => t.Id != candidate.Id)
                     .ToList();
@@ -66,6 +69,7 @@ namespace SpotifyTrivia.Services
                     TargetTrackId = candidate.Id,
                     PreviewUrl = previewUrl,
                     AlbumCoverUrl = candidate.AlbumCoverUrl ?? string.Empty,
+                    Prompt = "Name the Song & Artist",
                     CorrectAnswer = correctAnswer,
                     AnswerChoices = choices
                 });
@@ -79,6 +83,34 @@ namespace SpotifyTrivia.Services
             }
 
             return quizQuestions;
+        }
+
+        public AnswerResultModel EvaluateAnswer(
+            TriviaQuestionModel question,
+            int choiceIndex,
+            DateTime roundStartedAtUtc,
+            DateTime answeredAtUtc,
+            double roundDurationSeconds)
+        {
+            int correctIndex = question.AnswerChoices.IndexOf(question.CorrectAnswer);
+            bool isCorrect = choiceIndex == correctIndex;
+
+            int score = 0;
+            if (isCorrect)
+            {
+                double elapsedSeconds = (answeredAtUtc - roundStartedAtUtc).TotalSeconds;
+                score = Math.Clamp((int)Math.Round(100 * (1 - elapsedSeconds / roundDurationSeconds)), 1, 100);
+            }
+
+            return new AnswerResultModel
+            {
+                Success = true,
+                WasCorrect = isCorrect,
+                SubmittedIndex = choiceIndex,
+                CorrectIndex = correctIndex,
+                CorrectAnswerText = question.CorrectAnswer,
+                AwardedScore = score
+            };
         }
 
         private void Shuffle<T>(IList<T> list)

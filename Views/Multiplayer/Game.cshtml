@@ -1,0 +1,207 @@
+@using SpotifyTrivia.Models.Multiplayer
+@model LobbyModel
+@{
+    ViewData["Title"] = "Game";
+}
+
+<script src="/js/multiplayer-hub.js"></script>
+<script src="/js/game.js"></script>
+
+<style>
+    .game-wrapper {
+        max-width: 680px;
+        margin: 0 auto;
+    }
+
+    .phase-panel {
+        background-color: #181818;
+        border: 1px solid #282828;
+        border-radius: 20px;
+        padding: 2.5rem;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Countdown Styling */
+    #countdown-number {
+        font-size: 6rem;
+        font-weight: 900;
+        color: #1DB954;
+        line-height: 1;
+        margin-top: 1rem;
+    }
+
+    /* Album Cover & Media */
+    .album-frame {
+        width: 200px;
+        height: 200px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 2px solid #282828;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+        margin: 0 auto 1.5rem auto;
+        display: block;
+    }
+
+    /* Timer Pill */
+    .timer-badge {
+        background-color: rgba(29, 185, 84, 0.15);
+        color: #1DB954;
+        border: 1px solid rgba(29, 185, 84, 0.4);
+        font-size: 1.25rem;
+        font-weight: 800;
+        border-radius: 50px;
+        padding: 4px 18px;
+        display: inline-block;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Round Counter Pill */
+    .round-counter-badge {
+        background-color: rgba(29, 185, 84, 0.15);
+        color: #1DB954;
+        border: 1px solid rgba(29, 185, 84, 0.4);
+        font-size: 1.00rem;
+        font-weight: 800;
+        border-radius: 50px;
+        padding: 4px 18px;
+        display: inline-block;
+        margin-bottom: 1.5rem;
+    }
+
+    .progress-container {
+        width: 100%;
+        margin-bottom: 1.5rem;
+    }
+
+    .progress-track {
+        height: 10px;
+        background-color: #282828;
+        border-radius: 50px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        width: 0%;
+        background-color: #1DB954;
+        border-radius: 50px;
+        transition: width 0.35s ease;
+    }
+
+    /* Answer Choices Grid */
+    #answer-choices {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.85rem;
+    }
+
+    @@media (min-width: 576px) {
+        #answer-choices {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    #answer-choices button {
+        background-color: #242424;
+        border: 1px solid #383838;
+        color: #ffffff;
+        font-weight: 600;
+        padding: 1rem;
+        border-radius: 12px;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+
+    #answer-choices button:hover {
+        background-color: #333333;
+        border-color: #1DB954;
+        transform: translateY(-2px);
+    }
+
+    .answer-btn.correct {
+        background-color: #2ecc71 !important;
+        box-shadow: 0 0 12px 3px rgba(46, 204, 113, 0.15);
+        transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .answer-btn.incorrect {
+        background-color: #e74c3c !important;
+        box-shadow: 0 0 12px 3px rgba(231, 76, 60, 0.15);
+        transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    /* Scoreboard List */
+    .scoreboard-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .scoreboard-list li {
+        background-color: #242424;
+        border: 1px solid #333333;
+        padding: 0.85rem 1.25rem;
+        border-radius: 10px;
+        margin-bottom: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 600;
+    }
+</style>
+
+<div class="game-wrapper game-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@ViewBag.IsHost.ToString().ToLower()">
+
+    <div class="text-end mb-2">
+        <button id="leave-game-btn" type="button" class="btn btn-sm btn-danger">Leave Game</button>
+    </div>
+
+    <!-- Phase 1: Countdown -->
+    <div id="countdown-phase" class="phase-panel text-center">
+        <h2 class="text-secondary uppercase fs-6 fw-bold tracking-widest">Get Ready</h2>
+        <div id="countdown-number">3</div>
+    </div>
+
+    <!-- Phase 2: Question -->
+    <div id="question-phase" class="phase-panel text-center" style="display:none;">
+        <div class="progress-container">    
+            <div>
+                <span id="round-counter" class="round-counter-badge"></span>
+            </div>
+            <div class="progress-track">
+                <div id="progress-fill" class="progress-fill"></div>
+            </div>
+        </div>
+
+        <img id="album-cover" class="album-frame" src="" alt="Album Artwork" />
+        <audio id="preview-audio" src=""></audio>
+        
+        <div>
+            <span id="round-timer" class="timer-badge">20</span>
+        </div>
+
+        <div id="answer-choices">
+            <!-- 4 dynamic buttons built by JS per question -->
+        </div>
+    </div>
+
+    <!-- Phase 3: Reveal -->
+    <div id="reveal-phase" class="phase-panel text-center" style="display:none;">
+        <h3 class="h4 fw-bold text-white mb-3">Round Summary</h3>
+        <p id="correct-answer-label" class="fs-5 text-success fw-bold mb-4"></p>
+        <ul id="reveal-scoreboard" class="scoreboard-list"></ul>
+    </div>
+
+    <!-- Phase 4: Finished -->
+    <div id="finished-phase" class="phase-panel text-center" style="display:none;">
+        <h2 class="display-6 fw-bold text-white mb-4">🏆 Final Results</h2>
+        <ol id="final-leaderboard" class="scoreboard-list"></ol>
+        <button id="return-to-lobby-btn" type="button" class="btn btn-outline-light mt-4" style="display:none;">Return to Lobby</button>
+    </div>
+
+    <!-- Error Banner -->
+    <div id="game-error" class="alert alert-danger mt-3 rounded-3" style="display:none; background-color: rgba(226, 33, 52, 0.15); border-color: rgba(226, 33, 52, 0.4); color: #f15e6c;"></div>
+
+    <!-- Toast Container -->
+    <div id="toast-stack" style="position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column' gap: 0.5rem; z-index: 1050;"></div>
+</div>

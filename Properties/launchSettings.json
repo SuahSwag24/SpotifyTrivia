@@ -1,0 +1,15 @@
+{
+  "profiles": {
+    "SpotifyTrivia": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://127.0.0.1:8080"
+      },
+      "dotnetRunMessages": true,
+      "applicationUrl": "http://127.0.0.1:8080"
+    }
+  },
+  "$schema": "https://json.schemastore.org/launchsettings.json"
+}

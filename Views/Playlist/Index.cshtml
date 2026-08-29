@@ -1,0 +1,114 @@
+@model List<SpotifyTrivia.Models.PlaylistModel>
+@{
+    ViewData["Title"] = "Select a Playlist";
+}
+
+<style>
+    /* Card Container with Hover Lift Effect */
+    .playlist-card {
+        background-color: #181818;
+        border: 1px solid #282828;
+        border-radius: 12px;
+        transition: transform 0.2s ease-in-out, border-color 0.2s ease-in-out, background-color 0.2s ease-in-out;
+    }
+
+    .playlist-card:hover {
+        background-color: #282828;
+        transform: translateY(-6px);
+        border-color: #1DB954;
+    }
+
+    /* Force 1:1 Square Aspect Ratio for Covers */
+    .playlist-img-container {
+        position: relative;
+        width: 100%;
+        padding-top: 100%;
+        background-color: #282828;
+        overflow: hidden;
+        border-radius: 8px;
+    }
+
+    .playlist-img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    /* Spotify Green Capsule Button */
+    .btn-spotify {
+        background-color: #1DB954;
+        color: #000000;
+        font-weight: 700;
+        border-radius: 50px;
+        transition: background-color 0.2s, transform 0.15s;
+    }
+
+    .btn-spotify:hover {
+        background-color: #1ed760;
+        color: #000000;
+        transform: scale(1.02);
+    }
+</style>
+
+<div class="container py-2">
+    <!-- Displays error banner if GameController redirected back due to unplayable playlist -->
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show mb-4 bg-dark text-danger border-danger" role="alert">
+            <strong>⚠️ Notice:</strong> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Section Header -->
+    <div class="mb-4">
+        <h1 class="fw-bold text-white mb-1">Select a Playlist</h1>
+        <p class="text-secondary">Pick a playlist from your library to generate a trivia game.</p>
+    </div>
+
+    <!-- Empty State Handling -->
+    @if (Model == null || !Model.Any())
+    {
+        <div class="text-center py-5 my-5 spotify-card p-5">
+            <h3 class="text-light">No Playlists Found 🎧</h3>
+            <p class="text-secondary">We couldn't find any playlists in your Spotify account, or your session timed out.</p>
+            <a href="/auth/login" class="btn btn-spotify px-4 py-2 mt-3">Re-authenticate with Spotify</a>
+        </div>
+    }
+    else
+    {
+        <!-- Responsive Grid Layout -->
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+            @foreach (var playlist in Model)
+            {
+                <div class="col">
+                    <div class="playlist-card h-100 d-flex flex-column p-3 shadow-sm">
+                        
+                        <!-- 1:1 Image with Fallback Placeholder -->
+                        <div class="playlist-img-container mb-3">
+                            <img src="@(string.IsNullOrEmpty(playlist.ImageUrl) ? "https://via.placeholder.com/300?text=No+Cover" : playlist.ImageUrl)" 
+                                 alt="@playlist.Name" 
+                                 class="playlist-img" />
+                        </div>
+
+                        <!-- Playlist Title -->
+                        <h5 class="fw-bold text-white text-truncate mb-3" title="@playlist.Name">
+                            @playlist.Name
+                        </h5>
+
+                        <!-- Action Link passing playlist.Id to GameController -->
+                        <div class="mt-auto">
+                            <a href="/game/play/@playlist.Id" class="btn btn-spotify w-100 py-2">
+                                Play Trivia 🎮
+                            </a>
+                        </div>
+
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

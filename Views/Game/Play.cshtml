@@ -1,0 +1,243 @@
+@model List<SpotifyTrivia.Models.TriviaQuestionModel>
+@{
+    ViewData["Title"] = "Spotify Trivia Game";
+}
+
+<style>
+    body {
+        background-color: #121212;
+        color: #ffffff;
+    }
+
+    .spotify-card {
+        background-color: #181818;
+        border: 1px solid #282828;
+        border-radius: 16px;
+    }
+
+    .spotify-btn-option {
+        background-color: #282828;
+        color: #ffffff;
+        border: 1px solid #3e3e3e;
+        border-radius: 12px;
+        font-weight: 600;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .spotify-btn-option:hover:not(:disabled) {
+        background-color: #3e3e3e;
+        color: #1DB954;
+        border-color: #1DB954;
+        transform: translateY(-2px);
+    }
+
+    .spotify-btn-next {
+        background-color: #1DB954;
+        color: #000000;
+        font-weight: bold;
+        border-radius: 50px;
+        transition: transform 0.2s;
+    }
+
+    .spotify-btn-next:hover {
+        background-color: #1ed760;
+        color: #000000;
+        transform: scale(1.03);
+    }
+
+    /* Album Cover Blur Effect */
+    .album-cover-container {
+        position: relative;
+        width: 180px;
+        height: 180px;
+        margin: 0 auto;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    }
+
+    .album-cover {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: filter 0.5s ease;
+    }
+
+    .album-blurred {
+        filter: blur(16px) brightness(0.6);
+    }
+
+    .album-revealed {
+        filter: blur(0) brightness(1);
+    }
+
+    .progress {
+        background-color: #282828;
+        height: 8px;
+        border-radius: 4px;
+    }
+
+    .progress-bar {
+        background-color: #1DB954;
+    }
+</style>
+
+<div class="container py-4" style="max-width: 650px;">
+
+    <!-- Progress & Score Container -->
+    <div class="d-flex justify-content-between align-items-center mb-2 fw-bold fs-6 text-secondary">
+        <span id="questionProgress">Question 1 / @Model.Count</span>
+        <span id="scoreDisplay" class="badge bg-success px-3 py-2 fs-6">Score</span>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress mb-4">
+        <div id="quizProgressBar" class="progress-bar" role="progressbar" style="width: 20%"></div>
+    </div>
+
+    <!-- Game Area -->
+    <div id="gameCard" class="spotify-card p-4 text-center shadow-lg">
+
+        <h5 class="text-secondary mb-3">Guess the track title & artist!</h5>
+
+        <!-- Album Cover (blur reveal) -->
+        <div class="album-cover-container mb-3">
+            <img id="albumArt" class="album-cover album-blurred" src="" alt="Album cover" />
+        </div>
+
+        <!-- Audio Player -->
+        <audio id="audioPlayer" controls autoplay class="w-100 mb-3">
+            <source id="audioSource" src="" type="audio/mpeg">
+        </audio>
+
+        <p id="feedback" class="fw-bold mt-2 fs-5" style="min-height: 32px;"></p>
+
+        <!-- Answer Choices -->
+        <div id="choiceContainer" class="row g-3 mt-1">
+
+        </div>
+
+        <!-- Next Question Button -->
+        <button id="nextBtn" class="btn spotify-btn-next btn-lg mt-4 w-100 d-none" onclick="nextQuestion()">
+            Next Question ->
+        </button>
+    </div>
+
+    <!-- Results Screen (default: hidden) -->
+    <div id="resultsScreen" class="spotify-card p-5 d-none text-center shadow-lg">
+        <h1 class="display-4 fw-bold text-success mb-3">Game Finished</h1>
+        <p class="fs-4 text-light">Final Results:</p>
+        <h2 id="finalScore" class="my-4 display-5 fw-bold text-white"></h2>
+        <a href="/playlists" class="btn spotify-btn-next btn-lg px-5 py-3 mt-2">Play Another Playlist</a>
+    </div>
+</div>
+
+<script>
+    const questions = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model));
+
+    let currentIndex = 0;
+    let score = 0;
+
+    // Initialize elements
+    const albumArt = document.getElementById("albumArt");
+    const audioPlayer = document.getElementById("audioPlayer");
+    const audioSource = document.getElementById("audioSource");
+    const choiceContainer = document.getElementById("choiceContainer");
+    const feedback = document.getElementById("feedback");
+    const nextBtn = document.getElementById("nextBtn");
+    const quizProgressBar = document.getElementById("quizProgressBar");
+
+    function loadQuestion() {
+        if (currentIndex >= questions.length) {
+            showResults();
+            return;
+        }
+
+        const q = questions[currentIndex];
+
+        feedback.textContent = "";
+        nextBtn.classList.add("d-none");
+
+        albumArt.src = q.AlbumCoverUrl;
+        albumArt.classList.remove("album-revealed");
+        albumArt.classList.add("album-blurred");
+
+        const progressPercent = ((currentIndex + 1) / questions.length) * 100;
+        quizProgressBar.style.width = `${progressPercent}%`;
+        document.getElementById("questionProgress").textContent = `Question ${currentIndex + 1} / ${questions.length}`;
+
+        // Load audio
+        audioSource.src = q.PreviewUrl;
+        audioPlayer.load();
+        audioPlayer.play().catch(() => console.log("Autoplay blocked by browser. Please click play instead."));
+
+        choiceContainer.innerHTML = "";
+        q.AnswerChoices.forEach(choice => {
+            const col = document.createElement("div");
+            col.className = "col-12 col-md-6";
+
+            const btn = document.createElement("button");
+            btn.className = "btn spotify-btn-option w-100 py-3 px-3 text-center";
+            btn.textContent = choice;
+            btn.onclick = () => checkAnswer(choice, q.CorrectAnswer, btn);
+
+            col.appendChild(btn);
+            choiceContainer.appendChild(col);
+        });
+    }
+
+    function checkAnswer(selected, correct, selectedBtn) {
+        const buttons = choiceContainer.querySelectorAll("button");
+        buttons.forEach(b => b.disabled = true);
+
+        albumArt.classList.remove("album-blurred");
+        albumArt.classList.add("album-revealed");
+
+        audioPlayer.pause();
+
+        if (selected === correct) {
+            score++;
+            document.getElementById("scoreDisplay").textContent = `Score: ${score}`;
+            selectedBtn.style.backgroundColor = "#1ed760";
+            selectedBtn.style.color = "#000000";
+            selectedBtn.style.borderColor = "#1ed760";
+            feedback.textContent = "Correct! 🎯";
+            feedback.className = "fw-bold mt-2 text-success fs-5";
+
+        } else {
+            selectedBtn.style.backgroundColor = "#e91429";
+            selectedBtn.style.color = "#ffffff";
+            selectedBtn.style.borderColor = "#e91429";
+            feedback.textContent = `Wrong! Answer: ${correct}`;
+            feedback.className = "fw-bold mt-2 text-danger fs-5";
+
+            buttons.forEach(b => {
+                if (b.textContent === correct) {
+                    b.style.backgroundColor = "#1ed760";
+                    b.style.color = "#000000";
+                    b.style.borderColor = "#1ed760";
+                }
+            });
+        }
+
+        nextBtn.classList.remove("d-none");
+    }
+
+    function nextQuestion() {
+        currentIndex++;
+        loadQuestion();
+    }
+
+    function showResults() {
+        document.getElementById("gameCard").classList.add("d-none");
+        document.querySelector(".progress").classList.add("d-none");
+        document.querySelector(".d-flex.justify-content-between").classList.add("d-none");
+
+        const resultsScreen = document.getElementById("resultsScreen");
+        resultsScreen.classList.remove("d-none");
+        document.getElementById("finalScore").textContent = `${score} / ${questions.length}`;
+    }
+
+    // Initialize first question on load
+    loadQuestion();
+</script>

@@ -1,0 +1,202 @@
+@model SpotifyTrivia.Models.DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<script src="/js/dashboard.js"></script>
+
+<style>
+    /* Hero Banner */
+    .dashboard-hero {
+        background: linear-gradient(135deg, #1e3264 0%, #121212 100%);
+        border: 1px solid #282828;
+        border-radius: 16px;
+        padding: 2.5rem 2rem;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Avatar Styling */
+    .avatar-img {
+        width: 110px;
+        height: 110px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 3px solid #1DB954;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+        flex-shrink: 0;
+    }
+
+    /* Spotify Badge (Fixed missing definition) */
+    .badge-spotify {
+        background-color: rgba(29, 185, 84, 0.15);
+        color: #1DB954;
+        border: 1px solid rgba(29, 185, 84, 0.4);
+        font-weight: 600;
+        text-transform: capitalize;
+        border-radius: 50px;
+        padding: 6px 14px;
+        font-size: 0.85rem;
+        display: inline-block;
+    }
+
+    /* Cards */
+    .stat-card, .quick-action-card {
+        background-color: #181818;
+        border: 1px solid #282828;
+        border-radius: 14px;
+        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .quick-action-card:hover {
+        transform: translateY(-4px);
+        border-color: #1DB954;
+        box-shadow: 0 10px 25px rgba(29, 185, 84, 0.15);
+    }
+
+    /* High Contrast Text Utility */
+    .text-muted-custom {
+        color: #b3b3b3 !important;
+    }
+
+    /* Buttons & Links */
+    .btn-spotify {
+        background-color: #1DB954;
+        color: #000000 !important;
+        font-weight: 700;
+        border-radius: 50px;
+        padding: 10px 24px;
+        border: none;
+        text-decoration: none !important;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-spotify:hover {
+        background-color: #1ed760;
+        transform: scale(1.03);
+    }
+
+    .btn-outline-custom {
+        background: transparent;
+        color: #ffffff !important;
+        border: 1px solid #535353;
+        font-weight: 600;
+        border-radius: 50px;
+        padding: 10px 20px;
+        text-decoration: none !important;
+        display: block;
+        text-align: center;
+        transition: all 0.2s ease;
+    }
+
+    .btn-outline-custom:hover {
+        border-color: #ffffff;
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .spotify-link {
+        color: #1DB954 !important;
+        text-decoration: none !important;
+        font-weight: 600;
+    }
+
+    .spotify-link:hover {
+        color: #1ed760 !important;
+        text-decoration: underline !important;
+    }
+</style>
+
+<!-- Hero Banner -->
+<div class="dashboard-hero mb-4 d-flex flex-column flex-md-row align-items-center gap-4 text-center text-md-start">
+    <img src="@Model.UserProfile.ProfileImageUrl" alt="Profile" class="avatar-img" />
+    
+    <div>
+        <div class="mb-2">
+            <span class="badge-spotify">@Model.UserProfile.Product Account</span>
+        </div>
+        <h1 class="display-6 fw-bold text-white mb-1">Greetings, <span id="hero-display-name">@Model.EffectiveDisplayName</span>!</h1>
+        <p class="text-muted-custom mb-0 fs-5">Ready to test your music knowledge today?</p>
+    </div>
+</div>
+
+<!-- Stats Grid -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-6">
+        <div class="stat-card p-4 text-center">
+            <div class="text-muted-custom small fw-bold text-uppercase mb-1">Games Played</div>
+            <div class="display-5 fw-bold text-white">@Model.GamesPlayed</div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <div class="stat-card p-4 text-center">
+            <div class="text-muted-custom small fw-bold text-uppercase mb-1">Playlists Available</div>
+            <div class="display-5 fw-bold text-info">@Model.TopPlaylists.Count</div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions Grid -->
+<div class="row g-4">
+    <!-- Single Player CTA -->
+    <div class="col-12 col-md-4">
+        <div class="quick-action-card p-4 h-100 d-flex flex-column justify-content-between">
+            <div>
+                <h3 class="fw-bold text-white mb-2">Single Player 🎧</h3>
+                <p class="text-muted-custom mb-4">Choose from your saved Spotify playlists and test how well you know your favorite tracks.</p>
+            </div>
+            <div>
+                <a href="/playlists" class="btn-spotify">
+                    <span>Browse Playlists</span>
+                    <span>➡️</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Multiplayer CTA -->
+    <div class="col-12 col-md-4">
+        <div class="quick-action-card p-4 h-100 d-flex flex-column justify-content-between">
+            <div>
+                <h3 class="fw-bold text-white mb-2">Multiplayer 👥</h3>
+                <p class="text-muted-custom mb-4">Create a lobby or join one with a code to play trivia live with friends.</p>
+            </div>
+            <div>
+                <a href="/multiplayer" class="btn-spotify">
+                    <span>Play with Friends</span>
+                    <span>➡️</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+   <!-- Sync Status -->
+    <div class="col-12 col-md-4">
+        <div class="quick-action-card p-4 h-100 d-flex flex-column justify-content-between">
+            <div>
+                <h4 class="fw-bold text-white mb-3">Spotify Sync Status</h4>
+
+                <div class="py-2 border-bottom border-secondary">
+                    <label for="display-name-input" class="text-muted-custom d-block mb-1">Display Name</label>
+                    <div class="d-flex gap-2">
+                        <input type="text" id="display-name-input" class="form-control" style="background-color:#282828; border:1px solid #3e3e3e; color:#fff;" value="@Model.EffectiveDisplayName" maxlength="20" />
+                        <button id="save-name-btn" type="button" class="btn btn-spotify" style="padding:8px 16px;">Save</button>
+                    </div>
+                    <div id="name-save-status" class="small mt-1" style="min-height:1.2em;"></div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center py-2 mb-3">
+                    <span class="text-muted-custom">Spotify Profile</span>
+                    <a href="@Model.UserProfile.SpotifyUrl" target="_blank" class="spotify-link">Open Spotify ↗</a>
+                </div>
+            </div>
+            <div>
+                <a href="/auth/login" class="btn-outline-custom">
+                    Re-authenticate Account
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

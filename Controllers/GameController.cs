@@ -2,21 +2,21 @@
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.VisualBasic;
+using SpotifyTrivia.Models.Multiplayer;
 using SpotifyTrivia.Services;
 using SpotifyTrivia.Services.GameModes;
 
 namespace SpotifyTrivia.Controllers
-{           
+{
     public class GameController : Controller
     {
         private readonly ISpotifyService _spotifyService;
-        private readonly IGuessArtistGameMode _triviaEngine;
+        private readonly IGameModeFactory _gameModeFactory;
 
-        public GameController(ISpotifyService spotifyService, IGuessArtistGameMode triviaEngine)
+        public GameController(ISpotifyService spotifyService, IGameModeFactory gameModeFactory)
         {
             _spotifyService = spotifyService;
-            _triviaEngine = triviaEngine;
+            _gameModeFactory = gameModeFactory;
         }
 
         [HttpGet("game/play/{playlistId}")]
@@ -38,7 +38,9 @@ namespace SpotifyTrivia.Controllers
                     throw new InvalidOperationException($"Playlist does not have enough tracks to play ({count} found.)");
                 }
 
-                var questions = await _triviaEngine.CreateTriviaQuestions(tracks);
+                //  TODO: Implement mode selection for single player
+                var gameMode = _gameModeFactory.GetGameMode(GameModeType.ClassicGuessSong);
+                var questions = await gameMode.GenerateQuestionsAsync(tracks, numberOfQuestions: 10);
 
                 ViewBag.SpotifyAccessToken = token;
 

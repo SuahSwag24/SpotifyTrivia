@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Text;
 using SpotifyTrivia.Models;
 
-namespace SpotifyTrivia.Services
+namespace SpotifyTrivia.Services.GameModes
 {
-    public interface ITriviaEngine
+    public interface IGuessArtistGameMode
     {
         Task<List<TriviaQuestionModel>> CreateTriviaQuestions(List<TrackModel> tracks, int numberOfQuestions = 10);
     }

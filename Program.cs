@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using SpotifyTrivia.Hubs;
 using SpotifyTrivia.Models.Multiplayer;
 using SpotifyTrivia.Services;
+using SpotifyTrivia.Services.GameModes;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,13 +18,20 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
 });
-builder.Services.AddSignalR();
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options =>
+    {
+        options.PayloadSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddSingleton<ISpotifyService, SpotifyService>();
-builder.Services.AddSingleton<ITriviaEngine, TriviaEngine>();
 builder.Services.AddSingleton<IDeezerService, DeezerService>();
 builder.Services.AddSingleton<ILobbyManager, LobbyManager>();
 builder.Services.AddSingleton<IBroadcaster, Broadcaster>();
 builder.Services.AddSingleton<LobbySettingsModel>();
+builder.Services.AddSingleton<IGameMode, ClassicGuessSongGameMode>();
+builder.Services.AddSingleton<IGameMode, GuessArtistGameMode>();
+builder.Services.AddSingleton<IGameModeFactory, GameModeFactory>();
 
 var app = builder.Build();
 

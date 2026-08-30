@@ -6,6 +6,7 @@ namespace SpotifyTrivia.Models
         public string PreviewUrl { get; set; } = string.Empty;
         public string AlbumCoverUrl { get; set; } = string.Empty;
         public string CorrectAnswer { get; set; } = string.Empty;
+        public string Prompt { get; set; } = string.Empty;
         public List<string> AnswerChoices { get; set; } = new();
     }
 }

@@ -5,6 +5,7 @@ using System.Text;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using SpotifyTrivia.Models;
 using SpotifyTrivia.Models.Multiplayer;
+using SpotifyTrivia.Services.GameModes;
 
 namespace SpotifyTrivia.Services
 {
@@ -18,15 +19,15 @@ namespace SpotifyTrivia.Services
     public class LobbyManager : ILobbyManager
     {
         private readonly ConcurrentDictionary<string, LobbyModel> _lobbies = new();
-        private readonly ITriviaEngine _triviaEngine;
+        private readonly IGameModeFactory _gameModeFactory;
         private readonly IBroadcaster _lobbyBroadcaster;
         private readonly LobbySettingsModel _settings;
         private readonly ConcurrentDictionary<string, (string lobbyCode, string playerId)> _connectionMap = new();
         private readonly ILogger<LobbyManager> _logger;
         
-        public LobbyManager(ITriviaEngine triviaEngine, IBroadcaster lobbyBroadcaster, ILogger<LobbyManager> logger)
+        public LobbyManager(IGameModeFactory gameModeFactory, IBroadcaster lobbyBroadcaster, ILogger<LobbyManager> logger)
         {
-            _triviaEngine = triviaEngine;
+            _gameModeFactory = gameModeFactory;
             _lobbyBroadcaster = lobbyBroadcaster;
             _settings = new LobbySettingsModel();
             _logger = logger;
@@ -105,26 +106,29 @@ namespace SpotifyTrivia.Services
                 if (!lobby.Players.TryGetValue(playerId, out var player)) return new AnswerResultModel { Success = false };
                 if (player.HasAnsweredCurrentQuestion) return new AnswerResultModel { Success = false };
 
+                var answeredAtUtc = DateTime.UtcNow;
+
                 var currentQuestion = lobby.Questions[lobby.CurrentQuestionIndex];
-                int correctIndex = currentQuestion.AnswerChoices.IndexOf(currentQuestion.CorrectAnswer);
-                bool isCorrect = choiceIndex == correctIndex;
+                var gameMode = _gameModeFactory.GetGameMode(lobby.GameMode);
+
+                var result = gameMode.EvaluateAnswer(
+                    currentQuestion,
+                    choiceIndex,
+                    lobby.RoundStartedAtUtc,
+                    answeredAtUtc,
+                    _settings.RoundDurationSeconds
+                );
 
                 player.HasAnsweredCurrentQuestion = true;
-                player.LastAnswerCorrect = isCorrect;
+                player.LastAnswerCorrect = result.WasCorrect;
                 player.LastAnswerSubmittedUtc = DateTime.UtcNow;
 
-                if (isCorrect)
+                if (result.WasCorrect)
                 {
-                    player.Score += CalculateScore(lobby.RoundStartedAtUtc, player.LastAnswerSubmittedUtc.Value, _settings.RoundDurationSeconds);
+                    player.Score += result.AwardedScore;
                 }
 
-                return new AnswerResultModel
-                {
-                    Success = true,
-                    WasCorrect = isCorrect,
-                    SubmittedIndex = choiceIndex,
-                    CorrectIndex = correctIndex
-                };
+                return result;
             }
             finally
             {
@@ -153,7 +157,9 @@ namespace SpotifyTrivia.Services
         {
             if (!_lobbies.TryGetValue(code, out var lobby)) return;
 
-            lobby.Questions = await _triviaEngine.CreateTriviaQuestions(tracks, questionCount);
+            var mode = _gameModeFactory.GetGameMode(lobby.GameMode);
+
+            lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount);
             lobby.SessionLoopCts = new CancellationTokenSource();
 
             _ = RunSessionLoop(lobby, lobby.SessionLoopCts.Token);

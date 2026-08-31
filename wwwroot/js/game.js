@@ -177,18 +177,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
         songResults.forEach((song, i) => {
             const li = document.createElement("li");
+            li.className = "song-recap-item";
 
-            const marks = sortedPlayers.map(p => {
+            const me = sortedPlayers.find(p => p.playerId === playerId);
+            const myAnswer = me?.answerHistory[i];
+            const myVerdict = myAnswer?.wasCorrect ? "✅" : "❌";
+
+            const tooltipRows = sortedPlayers.map(p => {
                 const answer = p.answerHistory[i];
                 const icon = answer.wasCorrect ? "✅" : "❌";
-                return `<span title="${p.displayName}">${icon}</span>`;
-            }).join(" ");
+                return `<div class="verdict-row"><span>${p.displayName}</span><span>${icon}</span></div>`;
+            }).join("");
 
             li.innerHTML = `
-                <a href="${song.spotifyUrl}" target="_blank" style="color:#1DB954; text-decoration:none;">
-                    ${song.songTitle} <span style="color:#b3b3b3;">— ${song.artistName}</span>
-                </a>
-                <span>${marks}</span>
+                <div class="song-recap-info">
+                    <a href="${song.spotifyUrl}" target="_blank" class="song-recap-title">${song.songTitle}</a>
+                    <span class="song-recap-artist">${song.artistName}</span>
+                </div>
+                <div class="song-recap-verdict">
+                    <span class="my-verdict">${myVerdict}</span>
+                    <div class="verdict-tooltip">${tooltipRows}</div>
+                </div>
             `;
             list.appendChild(li);
         });

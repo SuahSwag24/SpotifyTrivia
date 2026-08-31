@@ -148,6 +148,68 @@
         align-items: center;
         font-weight: 600;
     }
+
+    .song-recap-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+    }
+
+    .song-recap-info {
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+    }
+
+    .song-recap-title {
+        color: #1DB954;
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    .song-recap-artist {
+        font-size: 12px;
+        color: #b3b3b3;
+        font-weight: 400;
+    }
+
+    .song-recap-verdict {
+        position: relative;
+        cursor: default;
+    }
+
+    .my-verdict {
+        font-size: 1.1rem;
+    }
+
+    .verdict-tooltip {
+        display: none;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 6px;
+        background-color: #242424;
+        border: 1px solid #383838;
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        min-width: 160px;
+        z-index: 10;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .song-recap-verdict:hover .verdict-tooltip {
+        display: block;
+    }
+
+    .verdict-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        font-size: 0.85rem;
+        padding: 2px 0;
+        color: #ffffff;
+    }
 </style>
 
 <div class="game-wrapper game-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@ViewBag.IsHost.ToString().ToLower()">

@@ -66,9 +66,12 @@ namespace SpotifyTrivia.Services.GameModes
                     TargetTrackId = candidate.Id,
                     PreviewUrl = previewUrl,
                     AlbumCoverUrl = candidate.AlbumCoverUrl ?? string.Empty,
+                    SongTitle = candidate.Title,
+                    ArtistName = candidate.Artist,
                     Prompt = "Guess the Artist",
                     CorrectAnswer = correctAnswer,
-                    AnswerChoices = choices
+                    AnswerChoices = choices,
+                    SpotifyUrl = candidate.SpotifyUrl ?? ""
                 });
             }
 

@@ -46,9 +46,10 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("correct-answer-label").textContent = `Correct answer: ${data.correctAnswer}`;
             renderScoreboard(data.players);
         },
-        onGameEnded: (data) => {
+        onGameEnded: (leaderboard, songResults) => {
             showPhase("finished-phase");
-            renderLeaderboard(data);
+            renderLeaderboard(leaderboard);
+            renderSongListBoard(leaderboard, songResults);
 
             const returnToLobbyBtn = document.getElementById("return-to-lobby-btn");
             if (isHost) {
@@ -168,4 +169,28 @@ document.addEventListener("DOMContentLoaded", () => {
         connection.invoke("ReturnToLobby", lobbyCode)
             .catch(err => showError("Failed to return to lobby: " + err));
     })
+
+    function renderSongListBoard(leaderboard, songResults) {
+        const sortedPlayers = leaderboard.slice().sort((a, b) => b.score - a.score);
+        const list = document.getElementById("song-list-board");
+        list.innerHTML = "";
+
+        songResults.forEach((song, i) => {
+            const li = document.createElement("li");
+
+            const marks = sortedPlayers.map(p => {
+                const answer = p.answerHistory[i];
+                const icon = answer.wasCorrect ? "✅" : "❌";
+                return `<span title="${p.displayName}">${icon}</span>`;
+            }).join(" ");
+
+            li.innerHTML = `
+                <a href="${song.spotifyUrl}" target="_blank" style="color:#1DB954; text-decoration:none;">
+                    ${song.songTitle} <span style="color:#b3b3b3;">— ${song.artistName}</span>
+                </a>
+                <span>${marks}</span>
+            `;
+            list.appendChild(li);
+        });
+    }
 });

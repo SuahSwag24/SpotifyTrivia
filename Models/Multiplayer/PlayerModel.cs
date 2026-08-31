@@ -21,5 +21,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public bool IsConnected { get; set; } = false;
         public DateTime? LastAnswerSubmittedUtc { get; set; }
         public PlayerJoinStatus JoinStatus { get; set; } = PlayerJoinStatus.Active;
+        public List<AnswerResultModel> AnswerHistory { get; set; } = new();
     }
 }

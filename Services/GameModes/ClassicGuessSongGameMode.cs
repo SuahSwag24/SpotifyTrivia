@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using SpotifyTrivia.Models;
@@ -69,11 +70,15 @@ namespace SpotifyTrivia.Services.GameModes
                     TargetTrackId = candidate.Id,
                     PreviewUrl = previewUrl,
                     AlbumCoverUrl = candidate.AlbumCoverUrl ?? string.Empty,
+                    SongTitle = candidate.Title,
+                    ArtistName = candidate.Artist,
                     Prompt = "Name the Song & Artist",
                     CorrectAnswer = correctAnswer,
-                    AnswerChoices = choices
+                    AnswerChoices = choices,
+                    SpotifyUrl = candidate.SpotifyUrl ?? ""
                 });
 
+                //  TODO: Duplication prevention (same for Guess Artist)
                 usedTrackIds.Add(candidate.Id);
             }
 

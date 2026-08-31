@@ -61,16 +61,17 @@ namespace SpotifyTrivia.Services
             return _hubContext.Clients.Group(lobbyCode).SendAsync("RoundEnded", payload);
         }
 
-        public Task BroadcastGameEnded(string lobbyCode, List<PlayerModel> finalLeaderboard)
+        public Task BroadcastGameEnded(string lobbyCode, List<PlayerModel> finalLeaderboard, List<object> songResults)
         {
-            var payload = finalLeaderboard.Select(p => new
+            var leaderboardPayload = finalLeaderboard.Select(p => new
             {
                 p.PlayerId,
                 p.DisplayName,
-                p.Score
+                p.Score,
+                p.AnswerHistory
             });
 
-            return _hubContext.Clients.Group(lobbyCode).SendAsync("GameEnded", payload);
+            return _hubContext.Clients.Group(lobbyCode).SendAsync("GameEnded", leaderboardPayload, songResults);
         }
 
         public Task BroadcastPlayerJoined(string lobbyCode, PlayerModel player)

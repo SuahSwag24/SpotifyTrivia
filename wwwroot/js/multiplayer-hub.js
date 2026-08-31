@@ -18,7 +18,7 @@ function setupLobbyHandlers(connection, callbacks) {
     connection.on("PreparingGame", () => callbacks.onPreparingGame?.());
     connection.on("RoundStarted", (data) => callbacks.onRoundStarted?.(data));
     connection.on("RoundEnded", (data) => callbacks.onRoundEnded?.(data));
-    connection.on("GameEnded", (data) => callbacks.onGameEnded?.(data));
+    connection.on("GameEnded", (leaderboard, songResults) => callbacks.onGameEnded?.(leaderboard, songResults));
 
     connection.on("AnswerResult", (data) => {
         const allButtons = document.querySelectorAll("#answer-choices .answer-btn");

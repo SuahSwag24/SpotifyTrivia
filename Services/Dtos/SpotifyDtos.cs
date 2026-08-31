@@ -32,7 +32,8 @@ namespace SpotifyTrivia.Services.Dtos
         [property: JsonPropertyName("name")] string Name,
         [property: JsonPropertyName("artists")] List<SpotifyArtistDto>? Artists,
         [property: JsonPropertyName("album")] SpotifyAlbumDto? Album,
-        [property: JsonPropertyName("preview_url")] string? PreviewUrl
+        [property: JsonPropertyName("preview_url")] string? PreviewUrl,
+        [property: JsonPropertyName("external_urls")] SpotifyExternalUrlsDto? ExternalUrls
     );
 
     //  Shared DTOs

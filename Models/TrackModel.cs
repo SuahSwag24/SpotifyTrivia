@@ -7,5 +7,6 @@ namespace SpotifyTrivia.Models
         public string Artist { get; set; } = string.Empty;
         public string? AlbumCoverUrl { get; set; }
         public string? PreviewUrl { get; set; }
+        public string? SpotifyUrl { get; set; }
     }
 }

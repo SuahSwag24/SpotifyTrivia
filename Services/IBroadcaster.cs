@@ -12,7 +12,7 @@ namespace SpotifyTrivia.Services
         Task BroadcastCountdownStart(string lobbyCode, int seconds, DateTime startedAtUtc);
         Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds, int questionNumber, int totalQuestions);
         Task BroadcastRoundEnded(string lobbyCode, string correctAnswer, List<PlayerModel> players);
-        Task BroadcastGameEnded(string lobbyCode, List<PlayerModel> leaderboardScores);
+        Task BroadcastGameEnded(string lobbyCode, List<PlayerModel> leaderboardScores, List<object> songResult);
         Task BroadcastPlayerJoined(string lobbyCode, PlayerModel player);
         Task BroadcastPlayerLeft(string lobbyCode, string playerId, string displayName);
         Task BroadcastLobbyDisbanded(string lobbyCode);

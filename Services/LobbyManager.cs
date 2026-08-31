@@ -128,6 +128,8 @@ namespace SpotifyTrivia.Services
                     player.Score += result.AwardedScore;
                 }
 
+                player.AnswerHistory.Add(result);
+
                 return result;
             }
             finally
@@ -257,6 +259,20 @@ namespace SpotifyTrivia.Services
                         foreach (var p in promoted)
                         {
                             p.JoinStatus = PlayerJoinStatus.Active;
+
+                            //  Fill missed round history
+                            for (int missed = 0; missed < i; missed++)
+                            {
+                                p.AnswerHistory.Add(new AnswerResultModel
+                                {
+                                    Success = true,
+                                    WasCorrect = false,
+                                    SubmittedIndex = -1,
+                                    CorrectIndex = lobby.Questions[missed].AnswerChoices.IndexOf(lobby.Questions[missed].CorrectAnswer),
+                                    CorrectAnswerText = lobby.Questions[missed].CorrectAnswer,
+                                    AwardedScore = 0
+                                });
+                            }
                         }
                     }
                     finally { lobby.StateLock.Release(); }
@@ -305,7 +321,26 @@ namespace SpotifyTrivia.Services
                     await Task.Delay(TimeSpan.FromSeconds(_settings.RoundDurationSeconds), ct);
 
                     await lobby.StateLock.WaitAsync(ct);
-                    try { lobby.State = LobbyState.Reveal; }
+                    try 
+                    { 
+                        lobby.State = LobbyState.Reveal; 
+
+                        foreach (var p in lobby.Players.Values)
+                        {
+                            if (!p.HasAnsweredCurrentQuestion)
+                            {
+                                p.AnswerHistory.Add(new AnswerResultModel
+                                {
+                                    Success = true,
+                                    WasCorrect = false,
+                                    SubmittedIndex = -1,
+                                    CorrectIndex = question.AnswerChoices.IndexOf(question.CorrectAnswer),
+                                    CorrectAnswerText = question.CorrectAnswer,
+                                    AwardedScore = 0
+                                });
+                            }
+                        }
+                    }
                     finally { lobby.StateLock.Release(); }
 
                     await _lobbyBroadcaster.BroadcastRoundEnded(lobby.Code, question.CorrectAnswer, lobby.Players.Values.ToList());
@@ -334,7 +369,16 @@ namespace SpotifyTrivia.Services
                     var leaderboard = lobby.Players.Values
                         .OrderByDescending(p => p.Score)
                         .ToList();
-                    await _lobbyBroadcaster.BroadcastGameEnded(lobby.Code, leaderboard);
+
+                    var songResults = lobby.Questions.Select(q => (object) new
+                    {
+                        songTitle = q.SongTitle,
+                        artistName = q.ArtistName,
+                        spotifyUrl = q.SpotifyUrl,
+                        albumCoverUrl = q.AlbumCoverUrl
+                    }).ToList();
+
+                    await _lobbyBroadcaster.BroadcastGameEnded(lobby.Code, leaderboard, songResults);
                     break;
 
                 case LobbySessionEndReason.Disbanded:

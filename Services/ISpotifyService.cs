@@ -12,5 +12,6 @@ namespace SpotifyTrivia.Services
         Task<List<TrackModel>> GetLikedSongsAsync(string accessToken);
         Task<List<TrackModel>> GetRecentlyPlayedSongsAsync(string accessToken);
         Task<UserProfileModel> GetUserProfileAsync(string accessToken);
+        Task<string?> GetUserIdAsync(string accessToken);
     }
 }

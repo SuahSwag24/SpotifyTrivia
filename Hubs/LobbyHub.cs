@@ -33,6 +33,11 @@ namespace SpotifyTrivia.Hubs
             if (!string.IsNullOrEmpty(accessToken))
             {
                 player.SpotifyAccessToken = accessToken;
+
+                if (string.IsNullOrEmpty(player.SpotifyUserId))
+                {
+                    player.SpotifyUserId = await _spotifyService.GetUserIdAsync(accessToken);
+                }
             }
 
             await Groups.AddToGroupAsync(Context.ConnectionId, lobbyCode);
@@ -116,6 +121,19 @@ namespace SpotifyTrivia.Hubs
                 else
                 {
                     tracks = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.SelectedPlaylistId);
+
+                    var spotifyIdToPlayerId = lobby.Players.Values
+                        .Where(p => !string.IsNullOrEmpty(p.SpotifyUserId))
+                        .ToDictionary(p => p.SpotifyUserId!, p => p.PlayerId);
+
+                    foreach (var track in tracks)
+                    {
+                        if (!string.IsNullOrEmpty(track.AddedBySpotifyUserId) &&
+                            spotifyIdToPlayerId.TryGetValue(track.AddedBySpotifyUserId, out var matchedPlayerId))
+                        {
+                            track.ContributedByPlayerIds.Add(matchedPlayerId);
+                        }
+                    }
                 }
             }
             catch (Exception)

@@ -12,6 +12,7 @@ namespace SpotifyTrivia.Models.Multiplayer
 
     public class PlayerModel
     {
+        public string? SpotifyUserId { get; set; }
         public string PlayerId { get; set; } = String.Empty;
         public string DisplayName { get; set; } = String.Empty;
         public string? ConnectionId { get; set; }

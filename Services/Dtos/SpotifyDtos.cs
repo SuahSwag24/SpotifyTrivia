@@ -24,7 +24,8 @@ namespace SpotifyTrivia.Services.Dtos
     );
 
     internal record SpotifyPlaylistTracksDto(
-        [property: JsonPropertyName("item")] SpotifyTrackDto? Track
+        [property: JsonPropertyName("item")] SpotifyTrackDto? Track,
+        [property: JsonPropertyName("added_by")] SpotifyAddedByDto? AddedBy
     );
 
     internal record SpotifyTrackDto(
@@ -34,6 +35,10 @@ namespace SpotifyTrivia.Services.Dtos
         [property: JsonPropertyName("album")] SpotifyAlbumDto? Album,
         [property: JsonPropertyName("preview_url")] string? PreviewUrl,
         [property: JsonPropertyName("external_urls")] SpotifyExternalUrlsDto? ExternalUrls
+    );
+
+    internal record SpotifyAddedByDto(
+        [property: JsonPropertyName("id")] string? Id
     );
 
     //  Shared DTOs
@@ -51,6 +56,7 @@ namespace SpotifyTrivia.Services.Dtos
 
     //  User Profile DTOs
     internal record SpotifyUserProfileDto(
+        [property: JsonPropertyName("id")] string? Id,
         [property: JsonPropertyName("display_name")] string? DisplayName,
         [property: JsonPropertyName("images")] List<SpotifyImageDto>? Images,
         [property: JsonPropertyName("product")] string? Product,

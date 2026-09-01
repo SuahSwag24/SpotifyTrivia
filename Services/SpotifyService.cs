@@ -84,7 +84,8 @@ namespace SpotifyTrivia.Services
                     Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
                     AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
                     PreviewUrl = $"spotify:track:{i.Track.Id}",
-                    SpotifyUrl = i.Track.ExternalUrls?.Spotify
+                    SpotifyUrl = i.Track.ExternalUrls?.Spotify,
+                    AddedBySpotifyUserId = i.AddedBy?.Id
                 }).ToList() ?? new List<TrackModel>();
         }
 
@@ -184,6 +185,22 @@ namespace SpotifyTrivia.Services
                 Product = dto?.Product ?? "standard",
                 SpotifyUrl = dto?.ExternalUrls?.Spotify ?? "#"
             };
+        }
+
+        public async Task<string?> GetUserIdAsync(string accessToken)
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+
+            var response = await client.GetAsync("https://api.spotify.com/v1/me");
+            if (!response.IsSuccessStatusCode) return null;
+
+            var json = await response.Content.ReadAsStringAsync();
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var profile = JsonSerializer.Deserialize<SpotifyUserProfileDto>(json, jsonOptions);
+
+            return profile?.Id;
         }
     }
 }

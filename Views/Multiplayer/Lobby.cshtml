@@ -251,7 +251,7 @@
                             <span id="question-count-display" class="fw-bold text-white fs-5">10</span>
                         </div>
                         
-                        <!-- Range Slider: 5 to 20 -->
+                        <!-- Question Count Range Slider: 5 to 20 -->
                         <input type="range" 
                                id="question-count-slider" 
                                class="custom-range-spotify" 
@@ -260,6 +260,26 @@
                                step="1" 
                                value="10" 
                                oninput="document.getElementById('question-count-display').innerText = this.value" />
+                               
+                        <div class="d-flex justify-content-between text-secondary mb-4" style="font-size: 0.75rem;">
+                            <span>5</span>
+                            <span>20</span>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label for="round-duration-slider" class="form-label text-secondary fw-bold mb-0">Round Duration (seconds)</label>
+                            <span id="round-duration-display" class="fw-bold text-white fs-5">10</span>
+                        </div>
+                        
+                        <!-- Round Duration Slider: 5 to 20 seconds -->
+                        <input type="range" 
+                               id="round-duration-slider" 
+                               class="custom-range-spotify" 
+                               min="5" 
+                               max="20" 
+                               step="1" 
+                               value="10" 
+                               oninput="document.getElementById('round-duration-display').innerText = this.value" />
                                
                         <div class="d-flex justify-content-between text-secondary" style="font-size: 0.75rem;">
                             <span>5</span>

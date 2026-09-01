@@ -91,13 +91,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const gameModeGrid = document.getElementById("gamemode-grid");
 
         let selectedQuestionCount = 10;
+        let selectedRoundDurationSeconds = 10;
 
         const questionSlider = document.getElementById("question-count-slider");
         const questionDisplay = document.getElementById("question-count-display");
+
+        const roundDurationSlider = document.getElementById("round-duration-slider");
+        const roundDurationDisplay = document.getElementById("round-duration-display");
+
         const saveSettingsBtn = document.getElementById("save-settings-btn");
 
         saveSettingsBtn.addEventListener("click", () => {
             selectedQuestionCount = parseInt(questionSlider.value, 10);
+            selectedRoundDurationSeconds = parseInt(roundDurationSlider.value, 10);
         })
 
         chooseBtn.addEventListener("click", async () => {
@@ -145,7 +151,7 @@ document.addEventListener("DOMContentLoaded", () => {
             settingsBtn.disabled = true;
 
             startBtn.textContent = "Starting...";
-            connection.invoke("StartGame", lobbyCode, selectedQuestionCount)
+            connection.invoke("StartGame", lobbyCode, selectedQuestionCount, selectedRoundDurationSeconds)
                 .catch(err => {
                     showError("Failed to start: " + err);
                     startBtn.disabled = false;

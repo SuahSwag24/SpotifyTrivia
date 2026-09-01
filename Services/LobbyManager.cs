@@ -116,7 +116,7 @@ namespace SpotifyTrivia.Services
                     choiceIndex,
                     lobby.RoundStartedAtUtc,
                     answeredAtUtc,
-                    _settings.RoundDurationSeconds
+                    lobby.RoundDurationSeconds
                 );
 
                 player.HasAnsweredCurrentQuestion = true;
@@ -155,7 +155,7 @@ namespace SpotifyTrivia.Services
             }
         }
 
-        public async Task StartSessionAsync(string code, List<TrackModel> tracks, int questionCount)
+        public async Task StartSessionAsync(string code, List<TrackModel> tracks, int questionCount, int roundDurationSeconds)
         {
             if (!_lobbies.TryGetValue(code, out var lobby)) return;
 
@@ -163,6 +163,8 @@ namespace SpotifyTrivia.Services
 
             lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount);
             lobby.SessionLoopCts = new CancellationTokenSource();
+
+            lobby.RoundDurationSeconds = roundDurationSeconds > 0 ? roundDurationSeconds : _settings.RoundDurationSeconds;
 
             _ = RunSessionLoop(lobby, lobby.SessionLoopCts.Token);
         }
@@ -317,8 +319,8 @@ namespace SpotifyTrivia.Services
                     }
                     finally { lobby.StateLock.Release(); }
 
-                    await _lobbyBroadcaster.BroadcastRoundStarted(lobby.Code, question, lobby.RoundStartedAtUtc, _settings.RoundDurationSeconds, questionNumber: i + 1, totalQuestions: lobby.Questions.Count);
-                    await Task.Delay(TimeSpan.FromSeconds(_settings.RoundDurationSeconds), ct);
+                    await _lobbyBroadcaster.BroadcastRoundStarted(lobby.Code, question, lobby.RoundStartedAtUtc, lobby.RoundDurationSeconds, questionNumber: i + 1, totalQuestions: lobby.Questions.Count);
+                    await Task.Delay(TimeSpan.FromSeconds(lobby.RoundDurationSeconds), ct);
 
                     await lobby.StateLock.WaitAsync(ct);
                     try 

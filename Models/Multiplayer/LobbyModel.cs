@@ -24,5 +24,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public string? SelectedPlaylistId { get; set; }
         public string? SelectedPlaylistName { get; set; }
         public GameModeType GameMode { get; set; } = GameModeType.ClassicGuessSong;
+        public int RoundDurationSeconds { get; set; }
     }
 }

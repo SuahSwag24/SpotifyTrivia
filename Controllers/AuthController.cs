@@ -20,7 +20,7 @@ public class AuthController : Controller
         var clientId = _config["Spotify:ClientId"];
         var redirectUri = _config["Spotify:RedirectUri"];
 
-        var scope = "user-read-private playlist-read-private playlist-read-collaborative streaming user-read-email";
+        var scope = "user-read-private playlist-read-private playlist-read-collaborative streaming user-read-email user-library-read user-read-recently-played";
 
         var spotifyAuthUrl = $"https://accounts.spotify.com/authorize?" +
             $"response_type=code" +

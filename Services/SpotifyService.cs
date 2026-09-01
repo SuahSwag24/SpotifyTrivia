@@ -88,6 +88,78 @@ namespace SpotifyTrivia.Services
             }).ToList() ?? new List<TrackModel>();
         }
 
+        public async Task<List<TrackModel>> GetLikedSongsAsync(string accessToken)
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+
+            var response = await client.GetAsync("https://api.spotify.com/v1/me/tracks?limit=50");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Spotify API returned status code {response.StatusCode} when fetching tracks: {errorBody}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+
+            var result = JsonSerializer.Deserialize<SpotifySavedTracksResponse>(json, jsonOptions);
+
+            return result?.Items?
+                .Where(i => i.Track != null)
+                .Select(i => new TrackModel
+                {
+                    Id = i.Track!.Id,
+                    Title = i.Track.Name,
+                    Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
+                    AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
+                    PreviewUrl = $"spotify:track:{i.Track.Id}",
+                    SpotifyUrl = i.Track.ExternalUrls?.Spotify
+                }).ToList() ?? new List<TrackModel>();
+        }
+
+        public async Task<List<TrackModel>> GetRecentlyPlayedSongsAsync(string accessToken)
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+
+            var response = await client.GetAsync("https://api.spotify.com/v1/me/player/recently-played?limit=50");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Spotify API returned status code {response.StatusCode} when fetching tracks: {errorBody}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            var jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+
+            var result = JsonSerializer.Deserialize<SpotifyRecentlyPlayedResponse>(json, jsonOptions);
+
+            return result?.Items?
+                .Where(i => i.Track != null)
+                .Select(i => new TrackModel
+                {
+                    Id = i.Track!.Id,
+                    Title = i.Track.Name,
+                    Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
+                    AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
+                    PreviewUrl = $"spotify:track:{i.Track.Id}",
+                    SpotifyUrl = i.Track.ExternalUrls?.Spotify
+                }).ToList() ?? new List<TrackModel>();
+        }
+
         public async Task<UserProfileModel> GetUserProfileAsync(string accessToken)
         {
             var client = _httpClientFactory.CreateClient();

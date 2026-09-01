@@ -95,6 +95,54 @@ else
 {
     <div class="playlist-picker-wrapper">
         <div class="row row-cols-2 row-cols-sm-3 row-cols-md-4 g-3" id="playlist-picker-grid">
+            <div class="col">
+                <div class="playlist-card h-100 d-flex flex-column">
+                    <div class="playlist-img-container mb-2">
+                        <img src=""
+                                alt="Liked Songs"
+                                class="playlist-img"
+                                loading="lazy" />
+                    </div>
+
+                    <h6 class="fw-bold text-white text-truncate mb-2" title="Liked Songs">
+                        Liked Songs (All players)
+                    </h6>
+
+                    <div class="mt-auto">
+                        <button type="button"
+                                class="btn btn-spotify-picker w-100 py-2 playlist-select-btn"
+                                data-playlist-id="__liked_songs__"
+                                data-playlist-name="Liked Songs">
+                            Select 🎮
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="playlist-card h-100 d-flex flex-column">
+                    <div class="playlist-img-container mb-2">
+                        <img src=""
+                                alt="Recent Songs"
+                                class="playlist-img"
+                                loading="lazy" />
+                    </div>
+
+                    <h6 class="fw-bold text-white text-truncate mb-2" title="Recent Songs">
+                        Recent Songs (All players)
+                    </h6>
+
+                    <div class="mt-auto">
+                        <button type="button"
+                                class="btn btn-spotify-picker w-100 py-2 playlist-select-btn"
+                                data-playlist-id="__recent_songs__"
+                                data-playlist-name="Recent Songs">
+                            Select 🎮
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
             @foreach (var playlist in Model)
             {
                 <div class="col">

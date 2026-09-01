@@ -29,6 +29,12 @@ namespace SpotifyTrivia.Hubs
             bool joined = _lobbyManager.TryAddPlayer(lobbyCode, playerId, displayName, Context.ConnectionId, out var player, out bool isNewPlayer);
             if (!joined || player == null) return;
 
+            var accessToken = Context.GetHttpContext()?.Session.GetString("SpotifyAccessToken");
+            if (!string.IsNullOrEmpty(accessToken))
+            {
+                player.SpotifyAccessToken = accessToken;
+            }
+
             await Groups.AddToGroupAsync(Context.ConnectionId, lobbyCode);
 
             if (player.JoinStatus == PlayerJoinStatus.PendingJoin)
@@ -74,7 +80,28 @@ namespace SpotifyTrivia.Hubs
             List<TrackModel> tracks;
             try
             {
-                tracks = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.SelectedPlaylistId);
+                if (lobby.SelectedPlaylistId == "__liked_songs__")
+                {
+                    var perPlayerTracks = await Task.WhenAll(
+                        lobby.Players.Values
+                            .Where(p => !string.IsNullOrEmpty(p.SpotifyAccessToken))
+                            .Select(p => _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken!))
+                    );
+                    tracks = perPlayerTracks.SelectMany(t => t).GroupBy(t => t.Id).Select(g => g.First()).ToList();
+                }
+                else if (lobby.SelectedPlaylistId == "__recent_songs__")
+                {
+                    var perPlayerTracks = await Task.WhenAll(
+                        lobby.Players.Values
+                            .Where(p => !string.IsNullOrEmpty(p.SpotifyAccessToken))
+                            .Select(p => _spotifyService.GetRecentlyPlayedSongsAsync(p.SpotifyAccessToken!))
+                    );
+                    tracks = perPlayerTracks.SelectMany(t => t).GroupBy(t => t.Id).Select(g => g.First()).ToList();
+                }
+                else
+                {
+                    tracks = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.SelectedPlaylistId);
+                }
             }
             catch (Exception)
             {
@@ -82,9 +109,16 @@ namespace SpotifyTrivia.Hubs
                 return;
             }
 
+            string sourceLabel = lobby.SelectedPlaylistId switch
+            {
+                "__liked_songs__" => "liked songs",
+                "__recent_songs__" => "recently played songs",
+                _ => "playlist"
+            };
+
             if (tracks == null || tracks.Count < 4)
             {
-                await Clients.Caller.SendAsync("ActionError", new { Message = "Playlist doesn't have enough tracks to play." });
+                await Clients.Caller.SendAsync("ActionError", new { Message = $"Not enough tracks found across players' {sourceLabel} to start a game." });
                 return;
             }
 

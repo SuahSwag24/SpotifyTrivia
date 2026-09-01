@@ -22,5 +22,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public DateTime? LastAnswerSubmittedUtc { get; set; }
         public PlayerJoinStatus JoinStatus { get; set; } = PlayerJoinStatus.Active;
         public List<AnswerResultModel> AnswerHistory { get; set; } = new();
+        public string? SpotifyAccessToken { get; set; }
     }
 }

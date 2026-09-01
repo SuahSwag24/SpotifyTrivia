@@ -60,4 +60,22 @@ namespace SpotifyTrivia.Services.Dtos
     internal record SpotifyExternalUrlsDto(
         [property: JsonPropertyName("spotify")] string? Spotify
     );
+
+    //  Saved Tracks DTOs
+    internal record SpotifySavedTracksResponse(
+        [property: JsonPropertyName("items")] List<SpotifySavedTrackItemDto>? Items
+    );
+
+    internal record SpotifySavedTrackItemDto(
+        [property: JsonPropertyName("track")] SpotifyTrackDto? Track
+    );
+
+    //  Recently Played DTOs
+    internal record SpotifyRecentlyPlayedResponse(
+        [property: JsonPropertyName("items")] List<SpotifyRecentlyPlayedItemDto>? Items
+    );
+
+    internal record SpotifyRecentlyPlayedItemDto(
+        [property: JsonPropertyName("track")] SpotifyTrackDto? Track
+    );
 }

@@ -187,7 +187,7 @@ namespace SpotifyTrivia.Services
             };
         }
 
-        public async Task<string?> GetUserIdAsync(string accessToken)
+        public async Task<string?> GetSpotifyUserIdAsync(string accessToken)
         {
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Authorization =

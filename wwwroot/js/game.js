@@ -189,10 +189,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 return `<div class="verdict-row"><span>${p.displayName}</span><span>${icon}</span></div>`;
             }).join("");
 
+            const contributorLabel = buildContributorLabel(song.contributedBy);
+
             li.innerHTML = `
                 <div class="song-recap-info">
                     <a href="${song.spotifyUrl}" target="_blank" class="song-recap-title">${song.songTitle}</a>
                     <span class="song-recap-artist">${song.artistName}</span>
+                    ${contributorLabel}
                 </div>
                 <div class="song-recap-verdict">
                     <span class="my-verdict">${myVerdict}</span>
@@ -201,5 +204,19 @@ document.addEventListener("DOMContentLoaded", () => {
             `;
             list.appendChild(li);
         });
+    }
+
+    function buildContributorLabel(contributedBy) {
+        if (!contributedBy || contributedBy.length === 0) return "";
+
+        const MAX_NAMES_SHOWN = 3;
+
+        if (contributedBy.length <= MAX_NAMES_SHOWN) {
+            return `<span class="song-recap-source">From ${contributedBy.join(", ")}</span>`;
+        }
+
+        const shown = contributedBy.slice(0, MAX_NAMES_SHOWN);
+        const remaining = contributedBy.length - MAX_NAMES_SHOWN;
+        return `<span class="song-recap-source">From ${shown.join(", ")} +${remaining} more</span>`;
     }
 });

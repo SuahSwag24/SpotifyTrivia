@@ -80,23 +80,38 @@ namespace SpotifyTrivia.Hubs
             List<TrackModel> tracks;
             try
             {
-                if (lobby.SelectedPlaylistId == "__liked_songs__")
+                if (lobby.SelectedPlaylistId == "__liked_songs__" || lobby.SelectedPlaylistId == "__recent_songs__")
                 {
-                    var perPlayerTracks = await Task.WhenAll(
-                        lobby.Players.Values
-                            .Where(p => !string.IsNullOrEmpty(p.SpotifyAccessToken))
-                            .Select(p => _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken!))
+                    var eligiblePlayers = lobby.Players.Values
+                        .Where(p => !string.IsNullOrEmpty(p.SpotifyAccessToken))
+                        .ToList();
+
+                    var perPlayerResults = await Task.WhenAll(
+                        eligiblePlayers.Select(async p =>
+                        {
+                            var playerTracks = lobby.SelectedPlaylistId == "__liked_songs__"
+                                ? await _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken!)
+                                : await _spotifyService.GetRecentlyPlayedSongsAsync(p.SpotifyAccessToken!);
+
+                            foreach (var t in playerTracks)
+                            {
+                                t.ContributedByPlayerIds.Add(p.PlayerId);
+                            }
+
+                            return playerTracks;
+                        })
                     );
-                    tracks = perPlayerTracks.SelectMany(t => t).GroupBy(t => t.Id).Select(g => g.First()).ToList();
-                }
-                else if (lobby.SelectedPlaylistId == "__recent_songs__")
-                {
-                    var perPlayerTracks = await Task.WhenAll(
-                        lobby.Players.Values
-                            .Where(p => !string.IsNullOrEmpty(p.SpotifyAccessToken))
-                            .Select(p => _spotifyService.GetRecentlyPlayedSongsAsync(p.SpotifyAccessToken!))
-                    );
-                    tracks = perPlayerTracks.SelectMany(t => t).GroupBy(t => t.Id).Select(g => g.First()).ToList();
+
+                    tracks = perPlayerResults
+                        .SelectMany(t => t)
+                        .GroupBy(t => t.Id)
+                        .Select(g =>
+                        {
+                            var merged = g.First();
+                            merged.ContributedByPlayerIds = g.SelectMany(t => t.ContributedByPlayerIds).Distinct().ToList();
+                            return merged;
+                        })
+                        .ToList();
                 }
                 else
                 {

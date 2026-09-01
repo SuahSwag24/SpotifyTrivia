@@ -11,5 +11,6 @@ namespace SpotifyTrivia.Models
         public string Prompt { get; set; } = string.Empty;
         public List<string> AnswerChoices { get; set; } = new();
         public string SpotifyUrl { get; set; } = string.Empty;
+        public List<string> ContributedByPlayerIds { get; set; } = new();
     }
 }

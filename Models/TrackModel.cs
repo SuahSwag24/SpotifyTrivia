@@ -8,5 +8,6 @@ namespace SpotifyTrivia.Models
         public string? AlbumCoverUrl { get; set; }
         public string? PreviewUrl { get; set; }
         public string? SpotifyUrl { get; set; }
+        public List<string> ContributedByPlayerIds { get; set; } = new();
     }
 }

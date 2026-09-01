@@ -75,7 +75,8 @@ namespace SpotifyTrivia.Services.GameModes
                     Prompt = "Name the Song & Artist",
                     CorrectAnswer = correctAnswer,
                     AnswerChoices = choices,
-                    SpotifyUrl = candidate.SpotifyUrl ?? ""
+                    SpotifyUrl = candidate.SpotifyUrl ?? "",
+                    ContributedByPlayerIds = candidate.ContributedByPlayerIds
                 });
 
                 //  TODO: Duplication prevention (same for Guess Artist)

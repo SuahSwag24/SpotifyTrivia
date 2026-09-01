@@ -76,16 +76,16 @@ namespace SpotifyTrivia.Services
             var result = JsonSerializer.Deserialize<SpotifyPlaylistTracksResponse>(json, jsonOptions);
 
             return result?.Items?
-            .Where(i => i.Track != null)
-            .Select(i => new TrackModel
-            {
-                Id = i.Track!.Id,
-                Title = i.Track.Name,
-                Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
-                AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
-                PreviewUrl = $"spotify:track:{i.Track.Id}",
-                SpotifyUrl = i.Track.ExternalUrls?.Spotify
-            }).ToList() ?? new List<TrackModel>();
+                .Where(i => i.Track != null)
+                .Select(i => new TrackModel
+                {
+                    Id = i.Track!.Id,
+                    Title = i.Track.Name,
+                    Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
+                    AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
+                    PreviewUrl = $"spotify:track:{i.Track.Id}",
+                    SpotifyUrl = i.Track.ExternalUrls?.Spotify
+                }).ToList() ?? new List<TrackModel>();
         }
 
         public async Task<List<TrackModel>> GetLikedSongsAsync(string accessToken)

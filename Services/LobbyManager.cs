@@ -372,12 +372,16 @@ namespace SpotifyTrivia.Services
                         .OrderByDescending(p => p.Score)
                         .ToList();
 
-                    var songResults = lobby.Questions.Select(q => (object) new
+                    var songResults = lobby.Questions.Select(q => (object)new
                     {
                         songTitle = q.SongTitle,
                         artistName = q.ArtistName,
                         spotifyUrl = q.SpotifyUrl,
-                        albumCoverUrl = q.AlbumCoverUrl
+                        albumCoverUrl = q.AlbumCoverUrl,
+                        contributedBy = q.ContributedByPlayerIds
+                            .Select(id => lobby.Players.TryGetValue(id, out var p) ? p.DisplayName : null)
+                            .Where(name => name != null)
+                            .ToList()
                     }).ToList();
 
                     await _lobbyBroadcaster.BroadcastGameEnded(lobby.Code, leaderboard, songResults);

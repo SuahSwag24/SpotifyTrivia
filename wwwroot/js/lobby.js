@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const leaveBtn = document.getElementById("leave-lobby-btn");
+    let resetStartControls = () => { };
 
     function applySelectedGameMode(mode) {
         try {
@@ -65,7 +66,10 @@ document.addEventListener("DOMContentLoaded", () => {
         onGameModeSelected: (data) => {
             applySelectedGameMode(data.mode);
         },
-        onActionError: (data) => showError(data.message),
+        onActionError: (data) => {
+            resetStartControls();
+            showError(data.message);
+        },
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },
         onCountdownStarted: () => { window.location.href = `/multiplayer/game/${lobbyCode}`; },
         onPreparingGame: () => {
@@ -100,6 +104,13 @@ document.addEventListener("DOMContentLoaded", () => {
         const roundDurationDisplay = document.getElementById("round-duration-display");
 
         const saveSettingsBtn = document.getElementById("save-settings-btn");
+
+        resetStartControls = () => {
+            startBtn.disabled = false;
+            chooseBtn.disabled = false;
+            settingsBtn.disabled = false;
+            startBtn.textContent = "Start Game";
+        };
 
         saveSettingsBtn.addEventListener("click", () => {
             selectedQuestionCount = parseInt(questionSlider.value, 10);
@@ -154,8 +165,7 @@ document.addEventListener("DOMContentLoaded", () => {
             connection.invoke("StartGame", lobbyCode, selectedQuestionCount, selectedRoundDurationSeconds)
                 .catch(err => {
                     showError("Failed to start: " + err);
-                    startBtn.disabled = false;
-                    startBtn.textContent = "Start Game";
+                    resetStartControls();
                 });
         });
     }

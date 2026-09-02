@@ -34,57 +34,62 @@ Before running the project, make sure you have:
 
 Note that **Spotify Premium is not required**.
 
+## Development Tools
+
+An IDE is not required to run this project. The .NET SDK and command line are sufficient.
+
+You may use any of the following development environments:
+
+- Visual Studio 2022 with an updated version that supports .NET 10
+- Visual Studio Code with the C# Dev Kit extension
+- Any editor with the .NET 10 SDK installed
+
 ## Spotify Setup
 
 1. Go to the Spotify Developer Dashboard.
 2. Create a new app.
 3. Copy the Client ID and Client Secret.
-4. Add a redirect URI matching your local app URL, for example:
+4. Add a redirect URI matching the URL configured in `Properties/launchSettings.json`, for example:
 
 ```text
 http://127.0.0.1:8080/callback
 ```
 
-5. Save the values in your local configuration.
+5. Save the redirect URI in Spotify's app settings.
 
 ## Configuration
 
-The app reads Spotify settings from configuration. You can set them using either:
+Store the Spotify Client ID and Client Secret as .NET user secrets. Do not commit credentials to `appsettings.json`, `appsettings.Development.json`, or any other tracked file.
 
-- appsettings.Development.json
-- user secrets
-- environment variables
-
-Example configuration:
-
-```json
-{
-  "Spotify": {
-    "ClientId": "your-client-id",
-    "ClientSecret": "your-client-secret",
-    "RedirectUri": "http://127.0.0.1:8080/callback"
-  }
-}
-```
-
-User secrets option:
+From the project root, initialize user secrets if needed and set the Spotify values:
 
 ```bash
+dotnet user-secrets init
 dotnet user-secrets set "Spotify:ClientId" "your-client-id"
 dotnet user-secrets set "Spotify:ClientSecret" "your-client-secret"
 dotnet user-secrets set "Spotify:RedirectUri" "http://127.0.0.1:8080/callback"
 ```
 
-## Running the App
+The project is configured with a `UserSecretsId`, so ASP.NET Core loads these values automatically when running in the Development environment. User secrets are stored outside the repository on your machine.
 
-From the project root:
+## Executing the App
+
+The launch profile in `Properties/launchSettings.json` sets the Development environment and binds the app to:
+
+```text
+http://127.0.0.1:8080
+```
+
+The Spotify redirect URI must use the same host and port with `/callback` appended.
+
+From the project root, restore dependencies and run the application:
 
 ```bash
 dotnet restore
 dotnet run
 ```
 
-The app is configured to run at:
+Open the application at:
 
 ```text
 http://127.0.0.1:8080

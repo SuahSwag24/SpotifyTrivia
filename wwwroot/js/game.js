@@ -144,15 +144,17 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     }
   
-    function renderLeaderboard(players) {
-        const list = document.getElementById("final-leaderboard");
+    function renderScoreboard(players) {
+        const list = document.getElementById("reveal-scoreboard");
         list.innerHTML = "";
         players
             .slice()
             .sort((a, b) => b.score - a.score)
             .forEach(p => {
                 const li = document.createElement("li");
-                li.textContent = `${p.displayName} — ${p.score}`;
+                const resultTag = p.lastAnswerCorrect === true ? "✅" : (p.lastAnswerCorrect === false ? "❌" : "—");
+                const penaltyTag = p.lastAnswerPenalized ? ` <span class="penalty-tag">(-50% own song)</span>` : "";
+                li.innerHTML = `${resultTag} ${p.displayName} — ${p.score}${penaltyTag}`;
                 list.appendChild(li);
             });
     }

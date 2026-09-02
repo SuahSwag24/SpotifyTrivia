@@ -11,6 +11,7 @@ namespace SpotifyTrivia.Services.GameModes
     public class ClassicGuessSongGameMode : IGameMode
     {
         private readonly IDeezerService _deezerService;
+        private const double SELFCONTRIBUTIONPENALTYMULTIPLIER = 0.5;
 
         public ClassicGuessSongGameMode(IDeezerService deezerService)
         {
@@ -96,16 +97,17 @@ namespace SpotifyTrivia.Services.GameModes
             int choiceIndex,
             DateTime roundStartedAtUtc,
             DateTime answeredAtUtc,
-            double roundDurationSeconds)
+            double roundDurationSeconds,
+            string playerId)
         {
             int correctIndex = question.AnswerChoices.IndexOf(question.CorrectAnswer);
             bool isCorrect = choiceIndex == correctIndex;
+            bool isSelfContributed = isCorrect && question.ContributedByPlayerIds.Contains(playerId);
 
             int score = 0;
             if (isCorrect)
             {
-                double elapsedSeconds = (answeredAtUtc - roundStartedAtUtc).TotalSeconds;
-                score = Math.Clamp((int)Math.Round(100 * (1 - elapsedSeconds / roundDurationSeconds)), 1, 100);
+                score = CalculateScore(roundStartedAtUtc, answeredAtUtc, roundDurationSeconds, isSelfContributed);
             }
 
             return new AnswerResultModel
@@ -115,7 +117,8 @@ namespace SpotifyTrivia.Services.GameModes
                 SubmittedIndex = choiceIndex,
                 CorrectIndex = correctIndex,
                 CorrectAnswerText = question.CorrectAnswer,
-                AwardedScore = score
+                AwardedScore = score,
+                WasSelfContributionPenalty = isSelfContributed
             };
         }
 
@@ -130,6 +133,19 @@ namespace SpotifyTrivia.Services.GameModes
                 int k = Random.Shared.Next(n + 1);
                 (list[k], list[n]) = (list[n], list[k]);
             }
+        }
+
+        private int CalculateScore(DateTime roundStartedAtUtc, DateTime playerAnsweredAtUtc, double roundDurationSeconds, bool isSelfContributed)
+        {
+            double elapsedSeconds = (playerAnsweredAtUtc - roundStartedAtUtc).TotalSeconds;
+            double score = 100 * (1 - elapsedSeconds / roundDurationSeconds);
+
+            if (isSelfContributed)
+            {
+                score *= SELFCONTRIBUTIONPENALTYMULTIPLIER;
+            }
+
+            return Math.Clamp((int)Math.Round(score), 1, 100);
         }
     }
 }

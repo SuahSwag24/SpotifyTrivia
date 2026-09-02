@@ -15,6 +15,7 @@ namespace SpotifyTrivia.Services.GameModes
             int choiceIndex,
             DateTime roundStartedAtUtc,
             DateTime answeredAtUtc,
-            double roundDurationSeconds);
+            double roundDurationSeconds,
+            string playerId);
     }
 }

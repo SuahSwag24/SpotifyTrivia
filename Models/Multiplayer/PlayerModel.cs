@@ -24,5 +24,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public PlayerJoinStatus JoinStatus { get; set; } = PlayerJoinStatus.Active;
         public List<AnswerResultModel> AnswerHistory { get; set; } = new();
         public string? SpotifyAccessToken { get; set; }
+        public bool LastAnswerPenalized { get; set; }
     }
 }

@@ -116,12 +116,14 @@ namespace SpotifyTrivia.Services
                     choiceIndex,
                     lobby.RoundStartedAtUtc,
                     answeredAtUtc,
-                    lobby.RoundDurationSeconds
+                    lobby.RoundDurationSeconds,
+                    playerId
                 );
 
                 player.HasAnsweredCurrentQuestion = true;
                 player.LastAnswerCorrect = result.WasCorrect;
                 player.LastAnswerSubmittedUtc = DateTime.UtcNow;
+                player.LastAnswerPenalized = result.WasSelfContributionPenalty;
 
                 if (result.WasCorrect)
                 {
@@ -231,14 +233,6 @@ namespace SpotifyTrivia.Services
             return code;
         }
 
-        private int CalculateScore(DateTime roundStartedAtUtc, DateTime playerAnsweredAtUtc, double roundDurationSeconds)
-        {
-            double elapsedSeconds = (playerAnsweredAtUtc -  roundStartedAtUtc).TotalSeconds;
-
-            double score = 100 * (1 - elapsedSeconds / roundDurationSeconds);
-            return Math.Clamp((int)Math.Round(score), 1, 100);
-        }
-
         private async Task RunSessionLoop(LobbyModel lobby, CancellationToken ct)
         {
             LobbySessionEndReason endReason = LobbySessionEndReason.CompletedNormally;
@@ -303,6 +297,7 @@ namespace SpotifyTrivia.Services
                         {
                             p.HasAnsweredCurrentQuestion = false;
                             p.LastAnswerCorrect = null;
+                            p.LastAnswerPenalized = false;
                         }
                     }
                     finally { lobby.StateLock.Release(); }

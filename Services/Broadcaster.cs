@@ -55,6 +55,7 @@ namespace SpotifyTrivia.Services
                     p.DisplayName,
                     p.Score,
                     p.LastAnswerCorrect,
+                    p.LastAnswerPenalized
                 })
             };
 

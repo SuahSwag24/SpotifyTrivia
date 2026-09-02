@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using System.Text;
 
 namespace SpotifyTrivia.Models.Multiplayer
@@ -12,5 +13,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public int CorrectIndex { get; set; }
         public string? CorrectAnswerText { get; set; }
         public int AwardedScore { get; set; }
+        public bool WasSelfContributionPenalty { get; set; }
     }
 }

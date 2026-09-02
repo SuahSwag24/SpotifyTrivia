@@ -264,7 +264,8 @@ namespace SpotifyTrivia.Hubs
                     await Clients.Caller.SendAsync("CountdownStarted", new
                     {
                         Seconds = _settings.CountdownSeconds,
-                        StartedAtUtc = lobby.CountdownStartedAtUtc
+                        StartedAtUtc = lobby.CountdownStartedAtUtc,
+                        Prompt = lobby.Questions[lobby.CurrentQuestionIndex].Prompt
                     });
                     break;
 

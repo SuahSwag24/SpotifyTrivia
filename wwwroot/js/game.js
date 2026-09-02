@@ -23,6 +23,8 @@ document.addEventListener("DOMContentLoaded", () => {
         onCountdownStarted: (data) => {
             showPhase("countdown-phase");
             runLocalCountdown(data.startedAtUtc, data.seconds);
+
+            document.getElementById("prompt-text").textContent = `${data.prompt}`;
         },
         onRoundStarted: (data) => {
             showPhase("question-phase");

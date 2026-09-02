@@ -36,7 +36,7 @@ namespace SpotifyTrivia.Hubs
 
                 if (string.IsNullOrEmpty(player.SpotifyUserId))
                 {
-                    player.SpotifyUserId = await _spotifyService.GetUserIdAsync(accessToken);
+                    player.SpotifyUserId = await _spotifyService.GetSpotifyUserIdAsync(accessToken);
                 }
             }
 

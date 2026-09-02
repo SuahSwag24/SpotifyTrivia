@@ -28,6 +28,9 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onRoundStarted: (data) => {
             showPhase("question-phase");
+            document.querySelectorAll("#side-player-list .player-pill-item")
+                .forEach(li => li.classList.remove("has-answered", "answer-correct", "answer-incorrect"));
+
 
             const roundPercent = Math.min(100, Math.round(((data.questionNumber - 1) / data.totalQuestions) * 100))
 
@@ -60,14 +63,25 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onActionError: (data) => showError(data.message),
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },
-        onPlayerLeft: (data) => {
-            showToast(`${data.displayName} left the game`, "warning");
-        },
         onPlayerJoined: (data) => {
             showToast(`${data.displayName} joined the game`, "success");
+            if (!document.querySelector(`#side-player-list [data-player-id="${data.playerId}"]`)) {
+                const li = document.createElement("li");
+                li.className = "player-pill-item";
+                li.dataset.playerId = data.playerId;
+                li.innerHTML = `<span class="player-dot"></span><span class="player-name">${data.displayName}</span>`;
+                document.getElementById("side-player-list").appendChild(li);
+            }
+        },
+        onPlayerLeft: (data) => {
+            showToast(`${data.displayName} left the game`, "warning");
+            document.querySelector(`#side-player-list [data-player-id="${data.playerId}"]`)?.remove();
         },
         onReturnedToLobby: () => {
             window.location.href = `/multiplayer/lobby/${lobbyCode}`;
+        },
+        onPlayerAnswered: (data) => {
+            document.querySelector(`#side-player-list [data-player-id="${data.playerId}"]`)?.classList.add("has-answered");
         }
     });
 

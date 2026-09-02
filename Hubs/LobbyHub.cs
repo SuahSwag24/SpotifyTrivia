@@ -169,7 +169,9 @@ namespace SpotifyTrivia.Hubs
         {
             var result = await _lobbyManager.RecordPlayerAnswerAsync(lobbyCode, playerId, answerIndex);
             if (!result.Success) return;
+
             await Clients.Caller.SendAsync("AnswerResult", result);
+            await Clients.Groups(lobbyCode).SendAsync("PlayerAnswered", new { playerId });
         }
 
         public async Task LeaveLobby(string lobbyCode, string playerId)

@@ -9,7 +9,7 @@
 
 <style>
     .game-wrapper {
-        max-width: 680px;
+        max-width: 920px;
         margin: 0 auto;
     }
 
@@ -222,7 +222,86 @@
         font-size: 0.75rem;
         font-weight: 600;
     }
-    </style>
+
+    .side-player-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .side-player-list li {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        margin-bottom: 0.35rem;
+        background-color: #242424;
+        border: 1px solid #333333;
+        transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .player-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #555;
+        flex-shrink: 0;
+        transition: background-color 0.3s ease;
+    }
+
+    /* Neutral answered glow (during question phase) */
+    .side-player-list li.has-answered {
+        border-color: #b3b3b3;
+        box-shadow: 0 0 8px 2px rgba(179, 179, 179, 0.35);
+    }
+    
+    .side-player-list li.has-answered .player-dot {
+        background-color: #b3b3b3;
+    }
+
+    #question-phase {
+        position: relative;
+    }
+
+    .question-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    @@media (min-width: 992px) {
+        .side-player-panel {
+            position: absolute;
+            left: calc(100% + 24px); /* 24px gap from the main card */
+            top: 0;
+            width: 220px;
+            text-align: left;
+            background-color: #181818;
+            border: 1px solid #282828;
+            border-radius: 16px;
+            padding: 1rem;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+        }
+    }
+
+    .side-player-panel {
+        text-align: left;
+        background-color: #202020;
+        border: 1px solid #2f2f2f;
+        border-radius: 12px;
+        padding: 1rem;
+    }
+
+    .player-name {
+        font-size: 0.875rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+
+</style>
 
 <div class="game-wrapper game-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@ViewBag.IsHost.ToString().ToLower()">
 
@@ -238,27 +317,47 @@
     </div>
 
     <!-- Phase 2: Question -->
-    <div id="question-phase" class="phase-panel text-center" style="display:none;">
-        <div class="progress-container">    
-            <div>
-                <span id="round-counter" class="round-counter-badge"></span>
-            </div>
-            <div class="progress-track">
-                <div id="progress-fill" class="progress-fill"></div>
-            </div>
-        </div>
+    <div id="question-phase" class="phase-panel" style="display:none;">
+        <div class="question-layout">
+            <!-- Left Column: Playing Field -->
+            <div class="question-main text-center">
+                <div class="progress-container">    
+                    <div>
+                        <span id="round-counter" class="round-counter-badge"></span>
+                    </div>
+                    <div class="progress-track">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                </div>
 
-        <img id="album-cover" class="album-frame" src="" alt="Album Artwork" />
-        <audio id="preview-audio" src=""></audio>
-        
-        <div>
-            <span id="round-timer" class="timer-badge">20</span>
-        </div>
+                <img id="album-cover" class="album-frame" src="" alt="Album Artwork" />
+                <audio id="preview-audio" src=""></audio>
+                
+                <div>
+                    <span id="round-timer" class="timer-badge">20</span>
+                </div>
 
-        <div id="answer-choices">
-            <!-- 4 dynamic buttons built by JS per question -->
+                <div id="answer-choices">
+                    <!-- 4 dynamic buttons built by JS per question -->
+                </div>
+            </div>
+
+            <!-- Right Column: Player Status Panel -->
+            <div class="side-player-panel">
+                <h6 class="text-secondary fw-bold text-uppercase mb-2" style="font-size:0.75rem;">Players</h6>
+                <ul id="side-player-list" class="side-player-list">
+                    @foreach (var player in Model.Players.Values)
+                    {
+                        <li class="player-pill-item" data-player-id="@player.PlayerId">
+                            <span class="player-dot"></span>
+                            <span class="player-name">@player.DisplayName</span>
+                        </li>
+                    }
+                </ul>
+            </div>
         </div>
     </div>
+
 
     <!-- Phase 3: Reveal -->
     <div id="reveal-phase" class="phase-panel text-center" style="display:none;">

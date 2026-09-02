@@ -13,6 +13,7 @@ function setupLobbyHandlers(connection, callbacks) {
     connection.on("GameModeSelected", (data) => callbacks.onGameModeSelected?.(data));
     connection.on("LobbyDisbanded", () => callbacks.onLobbyDisbanded?.());
     connection.on("ActionError", (data) => callbacks.onActionError?.(data));
+    connection.on("PlayerAnswered", (data) => callbacks.onPlayerAnswered?.(data));
 
     connection.on("CountdownStarted", (data) => callbacks.onCountdownStarted?.(data));
     connection.on("PreparingGame", () => callbacks.onPreparingGame?.());

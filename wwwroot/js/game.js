@@ -8,6 +8,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const connection = createLobbyConnection();
     const audio = document.getElementById("preview-audio");
 
+    const previousScores = new Map();
+
     const errorBox = document.getElementById("game-error");
     function showError(message) {
         errorBox.textContent = message;
@@ -23,6 +25,8 @@ document.addEventListener("DOMContentLoaded", () => {
         onCountdownStarted: (data) => {
             showPhase("countdown-phase");
             runLocalCountdown(data.startedAtUtc, data.seconds);
+
+            previousScores.clear();
 
             document.getElementById("prompt-text").textContent = `${data.prompt}`;
         },
@@ -148,23 +152,77 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderScoreboard(players) {
         const list = document.getElementById("reveal-scoreboard");
+
+        const oldPositions = new Map(
+            [...list.children].map(li => [li.dataset.playerId, li.getBoundingClientRect()])
+        );
+
         list.innerHTML = "";
 
-        players
-            .slice()
-            .sort((a, b) => b.score - a.score)
-            .forEach((p, index) => {
-                const li = document.createElement("li");
-                li.dataset.playerId = p.playerId;
-                li.classList.add("reveal-row");
-                li.style.animationDelay = `${index * 70}ms`;
+        const sorted = players.slice().sort((a, b) => b.score - a.score);
 
-                const resultTag = p.lastAnswerCorrect === true ? "✅" : (p.lastAnswerCorrect === false ? "❌" : "—");
-                const penaltyTag = p.lastAnswerPenalized ? ` <span class="penalty-tag">(-50% own song)</span>` : "";
-                li.innerHTML = `${resultTag} ${p.displayName} — ${p.score}${penaltyTag}`;
+        sorted.forEach((p, index) => {
+            const li = document.createElement("li");
+            li.dataset.playerId = p.playerId;
+            li.classList.add("reveal-row");
+            li.style.animationDelay = `${index * 70}ms`;
 
-                list.appendChild(li);
+            const resultTag = p.lastAnswerCorrect === true ? "✅" : (p.lastAnswerCorrect === false ? "❌" : "—");
+            const penaltyTag = p.lastAnswerPenalized ? ` <span class="penalty-tag">(-50% own song)</span>` : "";
+
+            const prevScore = previousScores.has(p.playerId)
+                ? previousScores.get(p.playerId)
+                : p.score - (p.scoreDelta ?? 0);
+            const delta = p.score - prevScore;
+            const deltaTag = delta !== 0 ? ` <span class="score-delta">${delta > 0 ? "+" : ""}${delta}</span>` : "";
+
+            li.innerHTML = `
+                <span class="row-left">${resultTag} ${p.displayName}</span>
+                <span class="row-right">
+                    <span class="score-value">${prevScore}</span>${deltaTag}${penaltyTag}
+                </span>
+            `;
+
+            list.appendChild(li);
+        });
+
+        const rowsToAnimate = [];
+        [...list.children].forEach(li => {
+            const oldRect = oldPositions.get(li.dataset.playerId);
+            if (!oldRect) return;
+
+            const newRect = li.getBoundingClientRect();
+            const deltaY = oldRect.top - newRect.top;
+            if (deltaY === 0) return;
+
+            li.style.animation = "none";
+            li.style.opacity = "1";
+            li.style.transform = `translateY(${deltaY}px)`;
+            li.style.transition = "none";
+
+            rowsToAnimate.push(li);
+        });
+
+        setTimeout(() => {
+            rowsToAnimate.forEach(li => {
+                li.style.transform = "translateY(0)";
+                li.style.transition = "transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)";
             });
+
+            sorted.forEach(p => {
+                const li = list.querySelector(`[data-player-id="${p.playerId}"]`);
+                const scoreEl = li?.querySelector(".score-value");
+                const prevScore = previousScores.has(p.playerId)
+                    ? previousScores.get(p.playerId)
+                    : p.score - (p.scoreDelta ?? 0);
+
+                if (scoreEl && prevScore !== p.score) {
+                    animateScoreCount(scoreEl, prevScore, p.score);
+                }
+            });
+
+            sorted.forEach(p => previousScores.set(p.playerId, p.score));
+        }, 500);
     }
 
     function renderLeaderboard(players) {
@@ -241,5 +299,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const shown = contributedBy.slice(0, MAX_NAMES_SHOWN);
         const remaining = contributedBy.length - MAX_NAMES_SHOWN;
         return `<span class="song-recap-source">From ${shown.join(", ")} +${remaining} more</span>`;
+    }
+
+    function animateScoreCount(el, from, to, duration = 600) {
+        const start = performance.now();
+        function tick(now) {
+            const progress = Math.min((now - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+            el.textContent = Math.round(from + (to - from) * eased);
+            if (progress < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
     }
 });

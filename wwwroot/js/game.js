@@ -149,28 +149,20 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderScoreboard(players) {
         const list = document.getElementById("reveal-scoreboard");
         list.innerHTML = "";
+
         players
             .slice()
             .sort((a, b) => b.score - a.score)
-            .forEach(p => {
+            .forEach((p, index) => {
                 const li = document.createElement("li");
-                const resultTag = p.lastAnswerCorrect === true ? "✅" : (p.lastAnswerCorrect === false ? "❌" : "—");
-                li.textContent = `${resultTag} ${p.displayName} — ${p.score}`;
-                list.appendChild(li);
-            });
-    }
-  
-    function renderScoreboard(players) {
-        const list = document.getElementById("reveal-scoreboard");
-        list.innerHTML = "";
-        players
-            .slice()
-            .sort((a, b) => b.score - a.score)
-            .forEach(p => {
-                const li = document.createElement("li");
+                li.dataset.playerId = p.playerId;
+                li.classList.add("reveal-row");
+                li.style.animationDelay = `${index * 70}ms`;
+
                 const resultTag = p.lastAnswerCorrect === true ? "✅" : (p.lastAnswerCorrect === false ? "❌" : "—");
                 const penaltyTag = p.lastAnswerPenalized ? ` <span class="penalty-tag">(-50% own song)</span>` : "";
                 li.innerHTML = `${resultTag} ${p.displayName} — ${p.score}${penaltyTag}`;
+
                 list.appendChild(li);
             });
     }

@@ -214,6 +214,8 @@ namespace SpotifyTrivia.Services
                 p.HasAnsweredCurrentQuestion = false;
                 p.LastAnswerCorrect = null;
                 p.JoinStatus = PlayerJoinStatus.Active;
+                p.LastAnswerPenalized = false;
+                p.AnswerHistory.Clear();
             }
 
             return true;

@@ -15,13 +15,15 @@ namespace SpotifyTrivia.Hubs
         private readonly ISpotifyService _spotifyService;
         private readonly IBroadcaster _broadcaster;
         private readonly LobbySettingsModel _settings;
+        private readonly ILogger<LobbyHub> _logger;
 
-        public LobbyHub(ILobbyManager lobbyManager, ISpotifyService spotifyService, IBroadcaster broadcaster, LobbySettingsModel settings)
+        public LobbyHub(ILobbyManager lobbyManager, ISpotifyService spotifyService, IBroadcaster broadcaster, LobbySettingsModel settings, ILogger<LobbyHub> logger)
         {
             _lobbyManager = lobbyManager;
             _spotifyService = spotifyService;
             _broadcaster = broadcaster;
             _settings = settings;
+            _logger = logger;
         }
 
         public async Task JoinLobby(string lobbyCode, string playerId, string displayName)
@@ -94,16 +96,24 @@ namespace SpotifyTrivia.Hubs
                     var perPlayerResults = await Task.WhenAll(
                         eligiblePlayers.Select(async p =>
                         {
-                            var playerTracks = lobby.SelectedPlaylistId == "__liked_songs__"
-                                ? await _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken!)
-                                : await _spotifyService.GetRecentlyPlayedSongsAsync(p.SpotifyAccessToken!);
-
-                            foreach (var t in playerTracks)
+                            try
                             {
-                                t.ContributedByPlayerIds.Add(p.PlayerId);
-                            }
+                                var playerTracks = lobby.SelectedPlaylistId == "__liked_songs__"
+                                    ? await _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken!)
+                                    : await _spotifyService.GetRecentlyPlayedSongsAsync(p.SpotifyAccessToken!);
 
-                            return playerTracks;
+                                foreach (var t in playerTracks)
+                                {
+                                    t.ContributedByPlayerIds.Add(p.PlayerId);
+                                }
+
+                                return playerTracks;
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Failed to load track source for player {PlayerId} in lobby {LobbyCode}", p.PlayerId, lobby.Code);
+                                return new List<TrackModel>();
+                            }
                         })
                     );
 

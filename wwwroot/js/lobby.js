@@ -80,11 +80,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     connection.on("JoinStatus", (data) => {
         setWaitingBarText(data.status);
+        if (isHost && startBtn) startBtn.disabled = false;
     });
 
 
     connection.start()
-        .then(() => connection.invoke("JoinLobby", lobbyCode, playerId, displayName))
+        .then(() => {
+            if (isHost) document.getElementById("start-game-btn").disabled = true;
+            return connection.invoke("JoinLobby", lobbyCode, playerId, displayName)
+        })
         .catch(err => showError("Connection failed: " + err));
 
     if (isHost) {

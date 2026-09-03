@@ -167,6 +167,19 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     }
 
+    function renderLeaderboard(players) {
+        const list = document.getElementById("final-leaderboard");
+        list.innerHTML = "";
+        players
+            .slice()
+            .sort((a, b) => b.score - a.score)
+            .forEach(p => {
+                const li = document.createElement("li");
+                li.textContent = `${p.displayName} — ${p.score}`;
+                list.appendChild(li);
+            });
+    }
+
     function leaveAndRedirect() {
         connection.invoke("LeaveLobby", lobbyCode, playerId)
             .catch(err => console.error("Leave failed:", err))
@@ -195,7 +208,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const tooltipRows = sortedPlayers.map(p => {
                 const answer = p.answerHistory[i];
-                const icon = answer.wasCorrect ? "✅" : "❌";
+                const icon = answer ? (answer.wasCorrect ? "✅" : "❌") : "—";
                 return `<div class="verdict-row"><span>${p.displayName}</span><span>${icon}</span></div>`;
             }).join("");
 

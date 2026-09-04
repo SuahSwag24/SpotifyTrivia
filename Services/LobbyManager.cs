@@ -68,7 +68,7 @@ namespace SpotifyTrivia.Services
 
             isNewPlayer = !lobby.Players.ContainsKey(playerId);
 
-            if (lobby.State == LobbyState.Finished) return false;
+            if (lobby.State == LobbyState.Finished && isNewPlayer) return false;
 
             player = lobby.Players.GetOrAdd(playerId, _ => new PlayerModel
             {

@@ -254,6 +254,48 @@ namespace SpotifyTrivia.Hubs
                         TotalQuestions = lobby.Questions.Count
                     });
                     break;
+
+                case LobbyState.Finished:
+                    var leaderboard = lobby.Players.Values.OrderByDescending(p => p.Score).ToList();
+
+                    var leaderboardPayload = leaderboard.Select(p => new
+                    {
+                        p.PlayerId,
+                        p.DisplayName,
+                        p.Score,
+                        p.AnswerHistory
+                    });
+
+                    var songResult = lobby.Questions.Select(q => (object)new
+                    {
+                        songTitle = q.SongTitle,
+                        artistName = q.ArtistName,
+                        spotifyUrl = q.SpotifyUrl,
+                        albumCoverUrl = q.AlbumCoverUrl,
+                        contributedBy = q.ContributedByPlayerIds
+                            .Select(id => lobby.Players.TryGetValue(id, out var p) ? p.DisplayName : null)
+                            .Where(name => name != null)
+                            .ToList()
+                    }).ToList();
+
+                    await Clients.Caller.SendAsync("GameEnded", leaderboardPayload, songResult);
+                    break;
+
+                case LobbyState.Reveal:
+                    var revealQuestion = lobby.Questions[lobby.CurrentQuestionIndex];
+                    await Clients.Caller.SendAsync("RoundEnded", new
+                    {
+                        CorrectAnswer = revealQuestion.CorrectAnswer,
+                        Players = lobby.Players.Values.Select(p => new
+                        {
+                            p.PlayerId,
+                            p.DisplayName,
+                            p.Score,
+                            p.LastAnswerCorrect,
+                            p.LastAnswerPenalized
+                        })
+                    });
+                    break;
             }
         }
 

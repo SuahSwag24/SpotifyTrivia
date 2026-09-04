@@ -210,7 +210,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const resultTag = p.lastAnswerCorrect === true ? "✅" : (p.lastAnswerCorrect === false ? "❌" : "—");
             const penaltyTag = p.lastAnswerPenalized ? ` <span class="penalty-tag">(-50% own song)</span>` : "";
 
-            const prevScore = previousScores.has(p.playerId) ? previousScores.get(p.playerId) : p.score;
+            const prevScore = previousScores.has(p.playerId) ? previousScores.get(p.playerId) : p.score - (p.scoreDelta ?? 0);
             const delta = p.score - prevScore;
             const deltaTag = delta > 0 ? ` <span class="score-delta">+${delta}</span>` : "";
 

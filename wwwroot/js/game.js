@@ -21,6 +21,21 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById(id).style.display = "block";
     }
 
+    const continueGameBtn = document.getElementById("continue-game-btn");
+    continueGameBtn.addEventListener("click", () => {
+        if (!isHost) return;
+        
+        continueGameBtn.disabled = true;
+        continueGameBtn.textContent = "Loading next round...";
+
+        connection.invoke("ContinueGame", lobbyCode)
+            .catch(err => {
+                showError("Failed to continue: " + err);
+                continueGameBtn.disabled = false;
+                continueGameBtn.textContent = "Continue Game";
+            })
+    })
+
     setupLobbyHandlers(connection, {
         onCountdownStarted: (data) => {
             showPhase("countdown-phase");
@@ -61,11 +76,24 @@ document.addEventListener("DOMContentLoaded", () => {
             renderSongListBoard(leaderboard, songResults);
 
             const returnToLobbyBtn = document.getElementById("return-to-lobby-btn");
+
             if (isHost) {
                 returnToLobbyBtn.style.display = "inline-block";
+                continueGameBtn.style.display = "inline-block";
+                continueGameBtn.disabled = false;
+                continueGameBtn.textContent = "Continue Playing";
             }
         },
-        onActionError: (data) => showError(data.message),
+        onActionError: (data) => {
+            const continueGameBtn = document.getElementById("continue-game-btn");
+            if (continueGameBtn && data.message.includes("No more unplayed tracks")) {
+                continueGameBtn.disabled = true;
+                continueGameBtn.textContent = "No More Songs Left.";
+                return;
+            }
+
+            showError(data.message)
+        },
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },
         onPlayerJoined: (data) => {
             showToast(`${data.displayName} joined the game`, "success");

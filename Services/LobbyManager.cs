@@ -163,11 +163,30 @@ namespace SpotifyTrivia.Services
 
             var mode = _gameModeFactory.GetGameMode(lobby.GameMode);
 
-            lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount);
+            lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount, lobby.PlayedTrackIds);
             lobby.SessionLoopCts = new CancellationTokenSource();
 
             lobby.RoundDurationSeconds = roundDurationSeconds > 0 ? roundDurationSeconds : _settings.RoundDurationSeconds;
 
+            _ = RunSessionLoop(lobby, lobby.SessionLoopCts.Token);
+        }
+
+        public async Task ContinueSessionAsync(string code, List<TrackModel> tracks)
+        {
+            if (!_lobbies.TryGetValue(code, out var lobby)) return;
+
+            var mode = _gameModeFactory.GetGameMode(lobby.GameMode);
+            lobby.Questions = await mode.GenerateQuestionsAsync(tracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds);
+            
+            foreach (var p in lobby.Players.Values)
+            {
+                p.AnswerHistory.Clear();
+                p.HasAnsweredCurrentQuestion = false;
+                p.LastAnswerPenalized = false;
+                p.LastAnswerCorrect = null;
+            }
+
+            lobby.SessionLoopCts = new CancellationTokenSource();
             _ = RunSessionLoop(lobby, lobby.SessionLoopCts.Token);
         }
 

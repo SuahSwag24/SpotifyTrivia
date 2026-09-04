@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.SignalR;
 using SpotifyTrivia.Models;
 using SpotifyTrivia.Models.Multiplayer;
 using SpotifyTrivia.Services;
+using SpotifyTrivia.Services.Dtos;
+using SpotifyTrivia.Services.GameModes;
 
 namespace SpotifyTrivia.Hubs
 {
@@ -164,6 +166,9 @@ namespace SpotifyTrivia.Hubs
                 await Clients.Caller.SendAsync("ActionError", new { Message = $"Not enough tracks found across players' {sourceLabel} to start a game." });
                 return;
             }
+
+            lobby.RoundDurationSeconds = roundDurationSeconds;
+            lobby.NumberOfQuestions = questionCount;
 
             try
             {
@@ -339,10 +344,162 @@ namespace SpotifyTrivia.Hubs
             await Clients.Group(lobbyCode).SendAsync("GameModeSelected", new { Mode = mode.ToString() });
         }
 
+        public async Task ContinueGame(string lobbyCode)
+        {
+            var lobby = _lobbyManager.GetLobby(lobbyCode);
+            if (lobby == null) return;
+
+            if (!IsHost(lobby))
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Only host can continue the game." });
+                return;
+            }
+
+            if (lobby.State != LobbyState.Finished)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "The game has not ended yet." });
+                return;
+            }
+
+            await _broadcaster.BroadcastPreparingGame(lobbyCode);
+
+            List<TrackModel> tracks;
+            try
+            {
+                if (lobby.SelectedPlaylistId == "__liked_songs__")
+                {
+                    tracks = await FetchLikedSongsForAllPlayers(lobby);
+                }
+                else if (lobby.SelectedPlaylistId == "__recent_songs__")
+                {
+                    tracks = await FetchRecentlyPlayedSongsForAllPlayers(lobby);
+                }
+                else
+                {
+                    tracks = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.SelectedPlaylistId!);
+
+                    var spotifyIdToPlayerId = lobby.Players.Values
+                        .Where(p => !string.IsNullOrEmpty(p.SpotifyUserId))
+                        .ToDictionary(p => p.SpotifyUserId!, p => p.PlayerId);
+
+                    foreach (var track in tracks)
+                    {
+                        if (!string.IsNullOrEmpty(track.AddedBySpotifyUserId) &&
+                            spotifyIdToPlayerId.TryGetValue(track.AddedBySpotifyUserId, out var matchedPlayerId))
+                        {
+                            track.ContributedByPlayerIds.Add(matchedPlayerId);
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Couldn't reload playlist." });
+                return;
+            }
+
+            try
+            {
+                await _lobbyManager.ContinueSessionAsync(lobbyCode, tracks);
+            }
+            catch (PlaylistExhaustedException)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "No more unplayed tracks" });
+            }
+            catch (Exception ex)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = ex.Message });
+            }
+        }
+
         private bool IsHost(LobbyModel lobby)
         {
             var mapping = _lobbyManager.GetConnectionMapping(Context.ConnectionId);
             return mapping != null && mapping.Value.playerId == lobby.PlayerHostId;
+        }
+
+        private async Task<List<TrackModel>> FetchLikedSongsForAllPlayers(LobbyModel lobby)
+        {
+            var eligiblePlayers = lobby.Players.Values
+                .Where(p => !string.IsNullOrEmpty(p.SpotifyAccessToken))
+                .ToList();
+
+            var perPlayerResult = await Task.WhenAll(
+                eligiblePlayers.Select(async p =>
+                {
+                    try
+                    {
+                        var playerTracks = await _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken!);
+
+                        foreach (var t in playerTracks)
+                        {
+                            t.ContributedByPlayerIds.Add(p.PlayerId);
+                        }
+
+                        return playerTracks;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to load track source for player {PlayerId} in Lobby {Lobby}", p.PlayerId, lobby.Code);
+                        return new List<TrackModel>();
+                    }
+                })
+            );
+
+            List<TrackModel> tracks = perPlayerResult
+                .SelectMany(t => t)
+                .GroupBy(t => t.Id)
+                .Select(g =>
+                {
+                    var merged = g.First();
+                    merged.ContributedByPlayerIds = g.SelectMany(t => t.ContributedByPlayerIds).Distinct().ToList();
+                    return merged;
+                })
+                .ToList();
+
+            return tracks;
+        }
+
+        private async Task<List<TrackModel>> FetchRecentlyPlayedSongsForAllPlayers(LobbyModel lobby)
+        {
+            var eligiblePlayers = lobby.Players.Values
+                .Where(p => !string.IsNullOrEmpty(p.SpotifyAccessToken))
+                .ToList();
+
+            var perPlayerResult = await Task.WhenAll(
+                eligiblePlayers.Select(async p =>
+                {
+                    try
+                    {
+                        var playerTracks = await _spotifyService.GetRecentlyPlayedSongsAsync(p.SpotifyAccessToken!);
+
+                        foreach (var t in playerTracks)
+                        {
+                            t.ContributedByPlayerIds.Add(p.PlayerId);
+                        }
+
+                        return playerTracks;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to load track source for player {PlayerId} in Lobby {Lobby}", p.PlayerId, lobby.Code);
+                        return new List<TrackModel>();
+                    }
+                })
+            );
+
+            List<TrackModel> tracks = perPlayerResult
+                .SelectMany(t => t)
+                .GroupBy(t => t.Id)
+                .Select(g =>
+                {
+                    var merged = g.First();
+                    merged.ContributedByPlayerIds = g.SelectMany(t => t.ContributedByPlayerIds).Distinct().ToList();
+                    return merged;
+                })
+                .ToList();
+
+            return tracks;
         }
     }
 }

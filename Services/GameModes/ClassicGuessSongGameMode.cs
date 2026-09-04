@@ -20,20 +20,22 @@ namespace SpotifyTrivia.Services.GameModes
 
         public GameModeType ModeType => GameModeType.ClassicGuessSong;
 
-        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions)
+        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds)
         {
-            if (tracks.Count < 4)
+            var shuffledPool = new List<TrackModel>(tracks)
+                .Where(t => !excludedTrackIds.Contains(t.Id))
+                .ToList();
+
+            if (shuffledPool.Count < 4)
             {
-                throw new InvalidOperationException("Not enough tracks in the current playlist");
+                throw new PlaylistExhaustedException("Not enough remaining unplayed tracks to generate more questions.");
             }
 
-            var shuffledPool = new List<TrackModel>(tracks);
             Shuffle(shuffledPool);
 
             int maxAttempts = Math.Min(shuffledPool.Count, numberOfQuestions * 3);
 
             var quizQuestions = new List<TriviaQuestionModel>();
-            var usedTrackIds = new HashSet<string>();
 
             for (int i = 0; i < maxAttempts; i++)
             {
@@ -80,13 +82,12 @@ namespace SpotifyTrivia.Services.GameModes
                     ContributedByPlayerIds = candidate.ContributedByPlayerIds
                 });
 
-                //  TODO: Duplication prevention (same for Guess Artist)
-                usedTrackIds.Add(candidate.Id);
+                excludedTrackIds.Add(candidate.Id);
             }
 
-            if (quizQuestions.Count == 0)
+            if (quizQuestions.Count < numberOfQuestions)
             {
-                throw new InvalidOperationException("Couldn't find playable previews for any tracks in this playlist.");
+                throw new PlaylistExhaustedException("Not enough playable tracks remaining to generate a full round.");
             }
 
             return quizQuestions;

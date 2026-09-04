@@ -19,11 +19,15 @@ namespace SpotifyTrivia.Services.GameModes
 
         public GameModeType ModeType => GameModeType.GuessArtist;
 
-        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions)
+        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds)
         {
-            if (tracks.Count < 4)
+            var shuffledPool = new List<TrackModel>(tracks)
+                .Where(t => excludedTrackIds.Contains(t.Id))
+                .ToList();
+
+            if (shuffledPool.Count < 4)
             {
-                throw new InvalidOperationException("Not enough tracks in the current playlist");
+                throw new PlaylistExhaustedException("Not enough remaining unplayed tracks to generate more questions.");
             }
 
             // Need at least 4 distinct artists, otherwise distractors can't be built
@@ -33,7 +37,6 @@ namespace SpotifyTrivia.Services.GameModes
                 throw new InvalidOperationException("Not enough distinct artists in this playlist for Guess Artist mode.");
             }
 
-            var shuffledPool = new List<TrackModel>(tracks);
             Shuffle(shuffledPool);
 
             int maxAttempts = Math.Min(shuffledPool.Count, numberOfQuestions * 3);
@@ -75,11 +78,13 @@ namespace SpotifyTrivia.Services.GameModes
                     SpotifyUrl = candidate.SpotifyUrl ?? "",
                     ContributedByPlayerIds = candidate.ContributedByPlayerIds
                 });
+
+                excludedTrackIds.Add(candidate.Id);
             }
 
-            if (quizQuestions.Count == 0)
+            if (quizQuestions.Count < numberOfQuestions)
             {
-                throw new InvalidOperationException("Couldn't generate any Guess Artist questions for this playlist.");
+                throw new PlaylistExhaustedException("Not enough playable tracks remaining to generate a full round.");
             }
 
             return quizQuestions;

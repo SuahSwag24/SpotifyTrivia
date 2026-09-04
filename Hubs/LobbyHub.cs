@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime;
 using System.Text;
 using Microsoft.AspNetCore.SignalR;
@@ -89,63 +90,17 @@ namespace SpotifyTrivia.Hubs
             List<TrackModel> tracks;
             try
             {
-                if (lobby.SelectedPlaylistId == "__liked_songs__" || lobby.SelectedPlaylistId == "__recent_songs__")
+                if (lobby.SelectedPlaylistId == "__liked_songs__")
                 {
-                    var eligiblePlayers = lobby.Players.Values
-                        .Where(p => !string.IsNullOrEmpty(p.SpotifyAccessToken))
-                        .ToList();
-
-                    var perPlayerResults = await Task.WhenAll(
-                        eligiblePlayers.Select(async p =>
-                        {
-                            try
-                            {
-                                var playerTracks = lobby.SelectedPlaylistId == "__liked_songs__"
-                                    ? await _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken!)
-                                    : await _spotifyService.GetRecentlyPlayedSongsAsync(p.SpotifyAccessToken!);
-
-                                foreach (var t in playerTracks)
-                                {
-                                    t.ContributedByPlayerIds.Add(p.PlayerId);
-                                }
-
-                                return playerTracks;
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogError(ex, "Failed to load track source for player {PlayerId} in lobby {LobbyCode}", p.PlayerId, lobby.Code);
-                                return new List<TrackModel>();
-                            }
-                        })
-                    );
-
-                    tracks = perPlayerResults
-                        .SelectMany(t => t)
-                        .GroupBy(t => t.Id)
-                        .Select(g =>
-                        {
-                            var merged = g.First();
-                            merged.ContributedByPlayerIds = g.SelectMany(t => t.ContributedByPlayerIds).Distinct().ToList();
-                            return merged;
-                        })
-                        .ToList();
+                    tracks = await FetchLikedSongsForAllPlayers(lobby);
+                }
+                else if (lobby.SelectedPlaylistId == "__recent_songs__")
+                {
+                    tracks = await FetchRecentlyPlayedSongsForAllPlayers(lobby);
                 }
                 else
                 {
-                    tracks = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.SelectedPlaylistId);
-
-                    var spotifyIdToPlayerId = lobby.Players.Values
-                        .Where(p => !string.IsNullOrEmpty(p.SpotifyUserId))
-                        .ToDictionary(p => p.SpotifyUserId!, p => p.PlayerId);
-
-                    foreach (var track in tracks)
-                    {
-                        if (!string.IsNullOrEmpty(track.AddedBySpotifyUserId) &&
-                            spotifyIdToPlayerId.TryGetValue(track.AddedBySpotifyUserId, out var matchedPlayerId))
-                        {
-                            track.ContributedByPlayerIds.Add(matchedPlayerId);
-                        }
-                    }
+                    tracks = await PreparePlaylistTracks(lobby);
                 }
             }
             catch (Exception)
@@ -376,20 +331,7 @@ namespace SpotifyTrivia.Hubs
                 }
                 else
                 {
-                    tracks = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.SelectedPlaylistId!);
-
-                    var spotifyIdToPlayerId = lobby.Players.Values
-                        .Where(p => !string.IsNullOrEmpty(p.SpotifyUserId))
-                        .ToDictionary(p => p.SpotifyUserId!, p => p.PlayerId);
-
-                    foreach (var track in tracks)
-                    {
-                        if (!string.IsNullOrEmpty(track.AddedBySpotifyUserId) &&
-                            spotifyIdToPlayerId.TryGetValue(track.AddedBySpotifyUserId, out var matchedPlayerId))
-                        {
-                            track.ContributedByPlayerIds.Add(matchedPlayerId);
-                        }
-                    }
+                    tracks = await PreparePlaylistTracks(lobby);
                 }
             }
             catch (Exception)
@@ -498,6 +440,26 @@ namespace SpotifyTrivia.Hubs
                     return merged;
                 })
                 .ToList();
+
+            return tracks;
+        }
+
+        private async Task<List<TrackModel>> PreparePlaylistTracks(LobbyModel lobby)
+        {
+            List<TrackModel> tracks = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.SelectedPlaylistId!);
+
+            var spotifyIdToPlayerId = lobby.Players.Values
+                .Where(p => !string.IsNullOrEmpty(p.SpotifyUserId))
+                .ToDictionary(p => p.SpotifyUserId!, p => p.PlayerId);
+
+            foreach (var track in tracks)
+            {
+                if (!string.IsNullOrEmpty(track.AddedBySpotifyUserId) &&
+                    spotifyIdToPlayerId.TryGetValue(track.AddedBySpotifyUserId, out var matchedPlayerId))
+                {
+                    track.ContributedByPlayerIds.Add(matchedPlayerId);
+                }
+            }
 
             return tracks;
         }

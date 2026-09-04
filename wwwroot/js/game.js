@@ -167,17 +167,29 @@ document.addEventListener("DOMContentLoaded", () => {
             li.classList.add("reveal-row");
             li.style.animationDelay = `${index * 70}ms`;
 
+            if (p.playerId === playerId) {
+                li.classList.add("is-current-player");
+            }
+
+            let stateClass = "state-noanswer";
+            if (p.lastAnswerCorrect === true) stateClass = "state-correct";
+            else if (p.lastAnswerCorrect === false) stateClass = "state-incorrect";
+            li.classList.add(stateClass);
+
+            const rank = index + 1;
+            const rankClass = rank === 1 ? "rank-gold" : rank === 2 ? "rank-silver" : rank === 3 ? "rank-bronze" : "";
+
             const resultTag = p.lastAnswerCorrect === true ? "✅" : (p.lastAnswerCorrect === false ? "❌" : "—");
             const penaltyTag = p.lastAnswerPenalized ? ` <span class="penalty-tag">(-50% own song)</span>` : "";
 
-            const prevScore = previousScores.has(p.playerId)
-                ? previousScores.get(p.playerId)
-                : p.score - (p.scoreDelta ?? 0);
+            const prevScore = previousScores.has(p.playerId) ? previousScores.get(p.playerId) : p.score;
             const delta = p.score - prevScore;
-            const deltaTag = delta !== 0 ? ` <span class="score-delta">${delta > 0 ? "+" : ""}${delta}</span>` : "";
+            const deltaTag = delta > 0 ? ` <span class="score-delta">+${delta}</span>` : "";
 
             li.innerHTML = `
-                <span class="row-left">${resultTag} ${p.displayName}</span>
+                <span class="row-left">
+                    <span class="rank-badge ${rankClass}">#${rank}</span> ${resultTag} ${p.displayName}
+                </span>
                 <span class="row-right">
                     <span class="score-value">${prevScore}</span>${deltaTag}${penaltyTag}
                 </span>

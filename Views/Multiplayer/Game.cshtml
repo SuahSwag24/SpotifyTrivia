@@ -320,6 +320,44 @@
         margin-left: 4px;
     }
 
+    .scoreboard-list li.is-current-player {
+        box-shadow: inset 0 0 0 2px rgba(29, 185, 84, 0.5);
+    }
+
+    .scoreboard-list li.state-correct {
+        background-color: rgba(46, 204, 113, 0.22);
+        border-left: 3px solid #2ecc71;
+    }
+
+    .scoreboard-list li.state-incorrect {
+        background-color: rgba(231, 76, 60, 0.22);
+        border-left: 3px solid #e74c3c;
+    }
+
+    .scoreboard-list li.state-noanswer {
+        background-color: transparent;
+        border-left: 3px solid transparent;
+    }
+
+    .rank-badge {
+        display: inline-block;
+        min-width: 24px;
+        font-weight: 800;
+        color: #b3b3b3;
+    }
+
+    .rank-gold {
+        color: #FFD700;
+    }
+
+    .rank-silver {
+        color: #C0C0C0;
+    }
+
+    .rank-bronze {
+        color: #CD7F32;
+    }
+
 </style>
 
 <div class="game-wrapper game-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@ViewBag.IsHost.ToString().ToLower()">

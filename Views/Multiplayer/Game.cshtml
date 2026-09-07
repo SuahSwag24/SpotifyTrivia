@@ -358,6 +358,26 @@
         color: #CD7F32;
     }
 
+    .volume-control {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background-color: #181818;
+        border: 1px solid #282828;
+        border-radius: 50px;
+        padding: 0.5rem 1rem;
+        z-index: 1000;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    #volume-slider {
+        width: 100px;
+        accent-color: #1DB954;
+    }
+
 </style>
 
 <div class="game-wrapper game-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@ViewBag.IsHost.ToString().ToLower()">
@@ -442,4 +462,9 @@
 
     <!-- Toast Container -->
     <div id="toast-stack" style="position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column' gap: 0.5rem; z-index: 1050;"></div>
+</div>
+
+<div id="volume-control" class="volume-control">
+    <span id="volume-icon">🔊</span>
+    <input type="range" id="volume-slider" min="0" max="100" value="70" />
 </div>

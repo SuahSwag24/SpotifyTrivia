@@ -10,6 +10,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const previousScores = new Map();
 
+    const volumeSlider = document.getElementById("volume-slider");
+    const volumeIcon = document.getElementById("volume-slider");
+
+    const savedVolume = localStorage.getItem("triviaVolume");
+    const initialVolume = savedVolume !== null ? parseInt(savedVolume, 10) : 30;
+
     const errorBox = document.getElementById("game-error");
     function showError(message) {
         errorBox.textContent = message;
@@ -350,5 +356,20 @@ document.addEventListener("DOMContentLoaded", () => {
             if (progress < 1) requestAnimationFrame(tick);
         }
         requestAnimationFrame(tick);
+    }
+
+    volumeSlider.value = initialVolume;
+    audio.volume = initialVolume / 100;
+    updateVolumeIcon(initialVolume);
+
+    volumeSlider.addEventListener("input", () => {
+        const value = parseInt(volumeSlider.value, 10);
+        audio.volume = value / 100;
+        localStorage.setItem("triviaVolume", value);
+        updateVolumeIcon(value);
+    });
+
+    function updateVolumeIcon(value) {
+        volumeIcon.textContent = value === 0 ? "🔇" : value < 50 ? "🔉" : "🔊";
     }
 });

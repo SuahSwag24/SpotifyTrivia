@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     connection.start()
-        .then(() => connection.invoke("JoinLobby", lobbyCode, playerId, "Player"))
+        .then(() => connection.invoke("JoinLobby", lobbyCode, playerId, displayName))
         .then(() => connection.invoke("RequestGamePhase", lobbyCode))
         .catch(err => console.error(err));
 

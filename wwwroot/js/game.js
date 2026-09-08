@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const previousScores = new Map();
 
     const volumeSlider = document.getElementById("volume-slider");
-    const volumeIcon = document.getElementById("volume-slider");
+    const volumeIcon = document.getElementById("volume-icon");
 
     const savedVolume = localStorage.getItem("triviaVolume");
     const initialVolume = savedVolume !== null ? parseInt(savedVolume, 10) : 30;

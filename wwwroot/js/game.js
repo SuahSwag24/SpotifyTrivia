@@ -123,6 +123,40 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
+    connection.onreconnecting((error) => {
+        console.warn("SignalR reconnecting...", {
+            error,
+            lobbyCode,
+            playerId,
+            connectionState: connection.state
+        });
+        showToast("Connection lost, reconnecting...", "warning");
+    });
+
+    connection.onreconnected(async (connectionId) => {
+        console.log("SignalR reconnected", {
+            connectionId,
+            lobbyCode,
+            playerId
+        });
+        try {
+            await connection.invoke("JoinLobby", lobbyCode, playerId, displayName);
+            showToast("Reconnected!", "success");
+        } catch (err) {
+            console.error("Failed to re-join after reconnect attempt:", err);
+        }
+    });
+
+    connection.onclose((error) => {
+        console.error("SignalR connection closed permanently:", {
+            error,
+            lobbyCode,
+            playerId,
+            connectionState: connection.state
+        });
+        showError("Connection lost. Please refresh the page.");
+    });
+
     connection.start()
         .then(() => connection.invoke("JoinLobby", lobbyCode, playerId, displayName))
         .then(() => connection.invoke("RequestGamePhase", lobbyCode))

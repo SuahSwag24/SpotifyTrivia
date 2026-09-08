@@ -369,6 +369,7 @@ namespace SpotifyTrivia.Services
             catch (OperationCanceledException)
             {
                 endReason = LobbySessionEndReason.Disbanded;
+                _logger.LogInformation("Lobby session loop canceled for lobby {Code}", lobby.Code);
             }
             catch (Exception ex)
             {
@@ -376,6 +377,7 @@ namespace SpotifyTrivia.Services
                 _logger.LogError(ex, "Lobby session loop failed unexpectedly for lobby {Code}", lobby.Code);
             }
 
+            _logger.LogInformation("Lobby session loop ending for lobby {Code} with reason {Reason}", lobby.Code, endReason);
             await HandleSessionEnd(lobby, endReason);
         }
 
@@ -408,6 +410,7 @@ namespace SpotifyTrivia.Services
                     break;
 
                 case LobbySessionEndReason.Error:
+                    _logger.LogWarning("Disbanding lobby {Code} because its session loop failed", lobby.Code);
                     await _lobbyBroadcaster.BroadcastLobbyDisbanded(lobby.Code);
                     _lobbies.TryRemove(lobby.Code, out _);
                     break;

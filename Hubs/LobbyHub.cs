@@ -34,6 +34,9 @@ namespace SpotifyTrivia.Hubs
             bool joined = _lobbyManager.TryAddPlayer(lobbyCode, playerId, displayName, Context.ConnectionId, out var player, out bool isNewPlayer);
             if (!joined || player == null) return;
 
+            _logger.LogInformation("Player {PlayerId} joined lobby {LobbyCode} on connection {ConnectionId}; host={IsHost}, newPlayer={IsNewPlayer}",
+                playerId, lobbyCode, Context.ConnectionId, playerId == _lobbyManager.GetLobby(lobbyCode)?.PlayerHostId, isNewPlayer);
+
             var accessToken = Context.GetHttpContext()?.Session.GetString("SpotifyAccessToken");
             if (!string.IsNullOrEmpty(accessToken))
             {
@@ -190,35 +193,62 @@ namespace SpotifyTrivia.Hubs
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             var mapping = _lobbyManager.GetConnectionMapping(Context.ConnectionId);
+            _logger.LogInformation(exception,
+                "SignalR disconnected: connection {ConnectionId}, mapped={HasMapping}",
+                Context.ConnectionId, mapping.HasValue);
+
             if (mapping != null)
             {
                 var (lobbyCode, playerId) = mapping.Value;
                 var lobby = _lobbyManager.GetLobby(lobbyCode);
 
-                if (lobby != null && lobby.PlayerHostId == playerId)
+                if (lobby != null && lobby.Players.TryGetValue(playerId, out var player))
                 {
-                    _lobbyManager.MarkPlayerConnection(lobbyCode, playerId, isConnected: false, Context.ConnectionId);
-                    _lobbyManager.RemoveConnectionMapping(Context.ConnectionId);
-
-                    _ = Task.Run(async () =>
+                    if (player.ConnectionId != Context.ConnectionId)
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(5));
+                        _logger.LogInformation(
+                            "Ignoring stale disconnect for player {PlayerId} on connection {ConnectionId} — current active connection is {CurrentConnectionId}",
+                            playerId, Context.ConnectionId, player.ConnectionId);
+                        _lobbyManager.RemoveConnectionMapping(Context.ConnectionId);
+                        await base.OnDisconnectedAsync(exception);
+                        return;
+                    }
 
-                        var stillLobby = _lobbyManager.GetLobby(lobbyCode);
-                        if (stillLobby == null) return; // already cleaned up
+                    if (lobby.PlayerHostId == playerId)
+                    {
+                        _logger.LogWarning("Host {PlayerId} disconnected from lobby {LobbyCode}; starting grace period", playerId, lobbyCode);
+                        _lobbyManager.MarkPlayerConnection(lobbyCode, playerId, isConnected: false, Context.ConnectionId);
+                        _lobbyManager.RemoveConnectionMapping(Context.ConnectionId);
 
-                        if (stillLobby.Players.TryGetValue(playerId, out var hostPlayer) && !hostPlayer.IsConnected)
+                        _ = Task.Run(async () =>
                         {
-                            await _broadcaster.BroadcastLobbyDisbanded(lobbyCode);
-                            _lobbyManager.DisbandLobby(lobbyCode);
-                        }
-                    });
-                }
-                else
-                {
-                    _lobbyManager.MarkPlayerConnection(lobbyCode, playerId, isConnected: false, Context.ConnectionId);
-                    _lobbyManager.RemoveConnectionMapping(Context.ConnectionId);
-                    await Clients.Group(lobbyCode).SendAsync("PlayerDisconnected", new { PlayerId = playerId });
+                            await Task.Delay(TimeSpan.FromSeconds(25));
+
+                            var stillLobby = _lobbyManager.GetLobby(lobbyCode);
+                            if (stillLobby == null)
+                            {
+                                _logger.LogInformation("Host grace cleanup skipped for lobby {LobbyCode}; lobby was already removed", lobbyCode);
+                                return;
+                            }
+
+                            if (stillLobby.Players.TryGetValue(playerId, out var hostPlayer) && !hostPlayer.IsConnected)
+                            {
+                                _logger.LogWarning("Host grace period expired for lobby {LobbyCode}; disbanding because host {PlayerId} did not reconnect", lobbyCode, playerId);
+                                await _broadcaster.BroadcastLobbyDisbanded(lobbyCode);
+                                _lobbyManager.DisbandLobby(lobbyCode);
+                            }
+                            else
+                            {
+                                _logger.LogInformation("Host grace cleanup skipped for lobby {LobbyCode}; host reconnected", lobbyCode);
+                            }
+                        });
+                    }
+                    else
+                    {
+                        _lobbyManager.MarkPlayerConnection(lobbyCode, playerId, isConnected: false, Context.ConnectionId);
+                        _lobbyManager.RemoveConnectionMapping(Context.ConnectionId);
+                        await Clients.Group(lobbyCode).SendAsync("PlayerDisconnected", new { PlayerId = playerId });
+                    }
                 }
             }
 

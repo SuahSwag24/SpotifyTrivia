@@ -70,6 +70,8 @@ namespace SpotifyTrivia.Services
 
             if (lobby.State == LobbyState.Finished && isNewPlayer) return false;
 
+            if (isNewPlayer && lobby.Players.Count >= lobby.MaxPlayers) return false;
+
             player = lobby.Players.GetOrAdd(playerId, _ => new PlayerModel
             {
                 PlayerId = playerId,

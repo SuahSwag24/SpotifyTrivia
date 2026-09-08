@@ -50,10 +50,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 list.appendChild(li);
             }
 
+            document.getElementById("player-count").textContent = document.querySelectorAll("#player-list .player-pill-item").length;
+
             showToast(`${data.displayName} joined the lobby`, "success");
         },
         onPlayerLeft: (data) => {
             document.querySelector(`#player-list [data-player-id="${data.playerId}"]`)?.remove();
+            document.getElementById("player-count").textContent = document.querySelectorAll("#player-list .player-pill-item").length;
             showToast(`${data.displayName} has left the lobby`, "warning");
         },
         onPlayerDisconnected: (data) => {

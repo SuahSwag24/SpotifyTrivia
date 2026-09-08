@@ -172,7 +172,9 @@
 
     <!-- Players Roster -->
     <div class="lobby-card">
-        <h2 class="h4 text-white fw-bold mb-3">Connected Players</h2>
+        <h2 class="h4 text-white fw-bold mb-3">
+            Connected Players (@Model.Players.Count/@Model.MaxPlayers)
+        </h2>
         <ul id="player-list" class="player-pill-list">
             @foreach (var player in Model.Players.Values)
             {

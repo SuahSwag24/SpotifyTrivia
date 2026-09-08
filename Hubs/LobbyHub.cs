@@ -32,7 +32,19 @@ namespace SpotifyTrivia.Hubs
         public async Task JoinLobby(string lobbyCode, string playerId, string displayName)
         {
             bool joined = _lobbyManager.TryAddPlayer(lobbyCode, playerId, displayName, Context.ConnectionId, out var player, out bool isNewPlayer);
-            if (!joined || player == null) return;
+            
+            if (!joined || player == null)
+            {
+                var lobby = _lobbyManager.GetLobby(lobbyCode);
+
+                string reason = lobby switch
+                {
+                    null => "Lobby not found",
+                    { State: LobbyState.Finished } => "This game has already ended.",
+                    { } when lobby.Players.Count >= lobby.MaxPlayers => "This lobby is full.",
+                    _ => "Unable to join this lobby"
+                };
+            }
 
             _logger.LogInformation("Player {PlayerId} joined lobby {LobbyCode} on connection {ConnectionId}; host={IsHost}, newPlayer={IsNewPlayer}",
                 playerId, lobbyCode, Context.ConnectionId, playerId == _lobbyManager.GetLobby(lobbyCode)?.PlayerHostId, isNewPlayer);

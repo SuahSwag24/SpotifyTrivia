@@ -74,6 +74,12 @@ namespace SpotifyTrivia.Controllers
                 return RedirectToAction("Index");
             }
 
+            if (lobby.Players.Count >= lobby.MaxPlayers)
+            {
+                TempData["ErrorMessage"] = "This lobby is full.";
+                return RedirectToAction("Index");
+            }
+
             return RedirectToAction("Lobby", new { code });
         }
 

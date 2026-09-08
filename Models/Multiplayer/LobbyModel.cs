@@ -27,5 +27,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public int RoundDurationSeconds { get; set; }
         public int NumberOfQuestions { get; set; }
         public HashSet<string> PlayedTrackIds { get; set; } = new();
+        public int MaxPlayers { get; set; } = 10;
     }
 }

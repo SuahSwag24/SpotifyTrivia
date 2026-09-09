@@ -196,6 +196,9 @@
                 <a href="/login" class="btn-outline-custom">
                     Re-authenticate Account
                 </a>
+                <form asp-controller="Auth" asp-action="Logout" method="post" class="mt-2">
+                    <button type="submit" class="btn-outline-custom w-100">Log out</button>
+                </form>
             </div>
         </div>
     </div>

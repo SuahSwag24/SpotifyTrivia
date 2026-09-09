@@ -15,7 +15,7 @@ public class AuthController : Controller
     }
 
     [HttpGet("login")]
-    public IActionResult Login()
+    public IActionResult Login(bool force = false)
     {
         var clientId = _config["Spotify:ClientId"];
         var redirectUri = _config["Spotify:RedirectUri"];
@@ -26,7 +26,8 @@ public class AuthController : Controller
             $"response_type=code" +
             $"&client_id={Uri.EscapeDataString(clientId!)}" +
             $"&scope={Uri.EscapeDataString(scope)}" +
-            $"&redirect_uri={Uri.EscapeDataString(redirectUri)}";
+            $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
+            (force ? "&show_dialog=true" : string.Empty);
 
         return Redirect(spotifyAuthUrl);
     }
@@ -79,5 +80,21 @@ public class AuthController : Controller
         }
 
         return RedirectToAction("Index", "Dashboard");
+    }
+
+    [HttpPost("logout")]
+    [ValidateAntiForgeryToken]
+    public IActionResult Logout()
+    {
+        HttpContext.Session.Clear();
+        Response.Cookies.Delete(".AspNetCore.Session");
+
+        return RedirectToAction(nameof(Login), new { force = true });
+    }
+
+    [HttpGet("logged-out")]
+    public IActionResult LoggedOut()
+    {
+        return View();
     }
 }

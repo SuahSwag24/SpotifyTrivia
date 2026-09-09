@@ -220,7 +220,7 @@
             <div class="lobby-card">
                 <h2 class="h4 text-white fw-bold mb-3 d-flex justify-content-between">
                     <span>Connected Players</span>
-                    <span class="text-secondary">@Model.Players.Count / @Model.MaxPlayers</span>
+                    <span id="player-count" class="text-secondary" data-max-players="@Model.MaxPlayers">@Model.Players.Count / @Model.MaxPlayers</span>
                 </h2>
                 <div class="player-list-container">
                     <ul id="player-list" class="player-pill-list">
@@ -305,12 +305,10 @@
         <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
             <div class="modal-content" style="background-color: #181818; border: 1px solid #282828;">
                 <div class="modal-header flex-column align-items-stretch" style="border-bottom: 1px solid #282828;">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-0">
                         <h5 class="modal-title text-white fw-bold">Select a Playlist</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <!-- Added Search Bar -->
-                    <input type="text" id="playlist-search-input" class="form-control custom-search-input" placeholder="Search your playlists...">
                 </div>
                 
                 <div class="modal-body p-3" style="background-color: #121212;">

@@ -318,8 +318,9 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     }
 
-    function leaveAndRedirect() {
-        if (!confirmLeave(isHost)) return;
+    async function leaveAndRedirect() {
+        const confirmed = await showLeaveConfirmation(isHost);
+        if (!confirmed) return;
 
         const leaveButtons = [
             document.getElementById("leave-game-btn"),

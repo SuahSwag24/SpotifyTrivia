@@ -180,8 +180,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    leaveBtn.addEventListener("click", () => {
-        if (!confirmLeave(isHost)) return;
+    leaveBtn.addEventListener("click", async () => {
+        const confirmed = await showLeaveConfirmation(isHost);
+        if (!confirmed) return;
 
         leaveBtn.disabled = true;
 

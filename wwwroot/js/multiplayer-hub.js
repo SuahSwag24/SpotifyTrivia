@@ -38,10 +38,39 @@ function setupLobbyHandlers(connection, callbacks) {
     connection.on("ReturnedToLobby", () => callbacks.onReturnedToLobby?.());
 }
 
-function confirmLeave(isHost) {
-    const message = isHost
-        ? "Leaving will disband the lobby. Are you sure?"
-        : "Are you sure to leave the game?";
+function showLeaveConfirmation(isHost) {
+    const modalElement = document.getElementById("leave-confirmation-modal");
+    const confirmButton = document.getElementById("confirm-leave-btn");
+    const messageElement = document.getElementById("leave-confirmation-message");
 
-    return window.confirm(message);
+    messageElement.textContent = isHost
+        ? "Leaving will disband the lobby. Are you sure?"
+        : "Are you sure you want to leave the game?";
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+
+    return new Promise(resolve => {
+        let resolved = false;
+
+        function finish(result) {
+            if (resolved) return;
+
+            resolved = true;
+            confirmButton.onclick = null;
+            resolve(result);
+        }
+
+        confirmButton.onclick = () => {
+            finish(true);
+            modal.hide();
+        };
+
+        modalElement.addEventListener(
+            "hidden.bs.modal",
+            () => finish(false),
+            { once: true }
+        );
+
+        modal.show();
+    })
 }

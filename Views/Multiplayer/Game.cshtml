@@ -494,3 +494,33 @@
     <span id="volume-icon">🔊</span>
     <input type="range" id="volume-slider" class="custom-range-spotify volume-slider-compact" min="0" max="100" value="30" />
 </div>
+
+<div class="modal fade" id="leave-confirmation-modal" tabindex="-1"
+     aria-labelledby="leave-confirmation-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content leave-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="leave-confirmation-title">Leave game?</h5>
+                <button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <p id="leave-confirmation-message" class="mb-0">
+                    Are you sure you want to leave?
+                </p>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-light"
+                        data-bs-dismiss="modal">
+                    Stay
+                </button>
+                <button type="button" id="confirm-leave-btn"
+                        class="btn btn-danger">
+                    Leave Game
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

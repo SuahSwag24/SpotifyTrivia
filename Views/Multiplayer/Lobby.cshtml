@@ -9,8 +9,9 @@
 <script src="/js/lobby.js"></script>
 
 <style>
+    /* Increased max-width to comfortably fit two columns */
     .lobby-wrapper {
-        max-width: 850px;
+        max-width: 1000px;
         margin: 0 auto;
     }
 
@@ -19,7 +20,7 @@
         border: 1px solid #282828;
         border-radius: 16px;
         padding: 2rem;
-        margin-bottom: 1.5rem;
+        height: 100%; /* Ensures columns match height */
     }
 
     .code-badge {
@@ -33,11 +34,18 @@
         display: inline-block;
     }
 
+    /* Fixed height and internal scrolling for players */
+    .player-list-container {
+        max-height: 350px;
+        overflow-y: auto;
+        padding-right: 10px;
+    }
+
     .player-pill-list {
         list-style: none;
         padding: 0;
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         gap: 0.75rem;
         margin: 0;
     }
@@ -54,6 +62,7 @@
         gap: 0.5rem;
     }
 
+    /* Buttons */
     .btn-spotify {
         background-color: #1DB954;
         color: #000000 !important;
@@ -89,16 +98,23 @@
         background-color: rgba(255, 255, 255, 0.1);
     }
 
-    .waiting-pulse {
-        animation: pulseText 1.8s infinite ease-in-out;
-        color: #b3b3b3;
+    /* Custom Search Input */
+    .custom-search-input {
+        background-color: #242424;
+        border: 1px solid #333333;
+        color: #fff;
+        border-radius: 50px;
+        padding: 0.75rem 1.25rem;
+    }
+    
+    .custom-search-input:focus {
+        background-color: #2a2a2a;
+        border-color: #1DB954;
+        color: #fff;
+        box-shadow: none;
     }
 
-    @@keyframes pulseText {
-        0%, 100% { opacity: 0.5; }
-        50% { opacity: 1; }
-    }
-
+    /* Sliders */
     .custom-range-spotify {
         -webkit-appearance: none;
         width: 100%;
@@ -125,9 +141,10 @@
         background: #1ed760;
     }
 
+    /* Game Modes */
     .gamemode-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         gap: 0.75rem;
     }
 
@@ -153,145 +170,193 @@
         background-color: rgba(29, 185, 84, 0.1);
     }
 
-    .gamemode-title { color: #fff; font-weight: 700; }
-    
-    .gamemode-desc { color: #b3b3b3; font-size: 0.8rem; text-align: center; }
+    .gamemode-title { color: #fff; font-weight: 700; font-size: 0.95rem; }
+    .gamemode-desc { color: #b3b3b3; font-size: 0.75rem; text-align: center; }
+
+    .waiting-pulse {
+        animation: pulseText 1.8s infinite ease-in-out;
+        color: #b3b3b3;
+    }
+
+    @@keyframes pulseText {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 1; }
+    }
+
+    /* Custom Scrollbar for Dark Theme */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #181818;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #3e3e3e;
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #535353;
+    }
 </style>
 
 <div class="lobby-wrapper lobby-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@isHost.ToString().ToLower()">
+    
     <!-- Header Code Bar -->
-    <div class="lobby-card text-center text-md-start d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
+    <div class="lobby-card mb-4 text-center text-md-start d-flex flex-column flex-md-row justify-content-between align-items-center gap-3" style="height: auto;">
         <div>
             <span class="text-secondary small fw-bold text-uppercase d-block mb-1">Game Room</span>
             <h1 class="h2 text-white fw-bold mb-0">Lobby Code: <span id="lobby-code-display" class="code-badge">@Model.Code</span></h1>
         </div>
         <div>
-            <button id="leave-lobby-btn" type="button" class="btn btn-danger">Leave Lobby</button>
+            <button id="leave-lobby-btn" type="button" class="btn btn-danger rounded-pill fw-bold px-4">Leave Lobby</button>
         </div>
     </div>
 
-    <!-- Players Roster -->
-    <div class="lobby-card">
-        <h2 class="h4 text-white fw-bold mb-3">
-            Connected Players (@Model.Players.Count/@Model.MaxPlayers)
-        </h2>
-        <ul id="player-list" class="player-pill-list">
-            @foreach (var player in Model.Players.Values)
-            {
-                <li class="player-pill-item" data-player-id="@player.PlayerId">
-                    <span>👤</span>
-                    <span class="text-truncate">@player.DisplayName</span>
-                </li>
-            }
-        </ul>
-    </div>
-
-    <!-- Controls / Status -->
-    <div class="lobby-card">
-        @if (isHost)
-        {
-            <section class="host-controls" id="host-controls">
-                <h2 class="h4 text-white fw-bold mb-3">Host Settings</h2>
-
-                <div class="mb-3">
-                    <span class="text-secondary small d-block mb-2">Game Mode</span>
-                    <div id="gamemode-grid" class="gamemode-grid">
-                        <div class="gamemode-card" data-mode="ClassicGuessSong">
-                            <span class="gamemode-icon">🎵</span>
-                            <span class="gamemode-title">Classic Trivia</span>
-                            <span class="gamemode-desc">Guess the song & artist</span>
-                        </div>
-                        <div class="gamemode-card" data-mode="GuessArtist">
-                            <span class="gamemode-icon">🎤</span>
-                            <span class="gamemode-title">Artist Guessing</span>
-                            <span class="gamemode-desc">Name the artist</span>
-                        </div>
-                    </div>
+    <!-- 2-Column Layout Grid -->
+    <div class="row g-4 mb-4">
+        
+        <!-- Left Column: Players Roster -->
+        <div class="col-lg-6">
+            <div class="lobby-card">
+                <h2 class="h4 text-white fw-bold mb-3 d-flex justify-content-between">
+                    <span>Connected Players</span>
+                    <span class="text-secondary">@Model.Players.Count / @Model.MaxPlayers</span>
+                </h2>
+                <div class="player-list-container">
+                    <ul id="player-list" class="player-pill-list">
+                        @foreach (var player in Model.Players.Values)
+                        {
+                            <li class="player-pill-item" data-player-id="@player.PlayerId">
+                                <span>👤</span>
+                                <span class="text-truncate">@player.DisplayName</span>
+                            </li>
+                        }
+                    </ul>
                 </div>
-                
-                <div class="p-3 mb-3 rounded-3" style="background-color: #242424; border: 1px solid #333333;">
-                    <span class="text-secondary small d-block mb-1">Active Playlist</span>
-                    <p id="selected-playlist-label" class="fw-bold text-white mb-0">No playlist selected</p>
-                </div>
-
-                <div id="playlist-picker-container" class="mb-3" style="display:none;"></div>
-
-                <div class="d-flex flex-wrap gap-2">
-                    <button id="choose-playlist-btn" type="button" class="btn btn-outline-custom">Choose Playlist</button>
-                    <button id="start-game-btn" type="button" class="btn btn-spotify" disabled>Start Game</button>
-                    <button id="game-settings-btn" type="button" class="btn btn-outline-custom" data-bs-toggle="modal" data-bs-target="#settingsModal">Settings</button>
-                </div>
-            </section>
-        }
-        else
-        {
-            <div class="text-center py-3">
-                <p id="waiting-message" class="waiting-pulse fs-5 mb-0">⏳ Waiting for the host to select a playlist and start the game...</p>
             </div>
-        }
+        </div>
+
+        <!-- Right Column: Controls / Status -->
+        <div class="col-lg-6">
+            <div class="lobby-card">
+                @if (isHost)
+                {
+                    <section class="host-controls d-flex flex-column h-100" id="host-controls">
+                        <h2 class="h4 text-white fw-bold mb-4">Host Settings</h2>
+
+                        <div class="mb-4">
+                            <span class="text-secondary small fw-bold text-uppercase d-block mb-2">1. Select Game Mode</span>
+                            <div id="gamemode-grid" class="gamemode-grid">
+                                <div class="gamemode-card" data-mode="ClassicGuessSong">
+                                    <span class="fs-4">🎵</span>
+                                    <span class="gamemode-title">Classic Trivia</span>
+                                    <span class="gamemode-desc">Guess song & artist</span>
+                                </div>
+                                <div class="gamemode-card" data-mode="GuessArtist">
+                                    <span class="fs-4">🎤</span>
+                                    <span class="gamemode-title">Artist Guessing</span>
+                                    <span class="gamemode-desc">Name the artist</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4 flex-grow-1">
+                            <span class="text-secondary small fw-bold text-uppercase d-block mb-2">2. Active Playlist</span>
+                            <div class="p-3 rounded-3 d-flex justify-content-between align-items-center" style="background-color: #242424; border: 1px solid #333333;">
+                                <div class="text-truncate pe-2">
+                                    <p id="selected-playlist-label" class="fw-bold text-white mb-0 text-truncate">No playlist selected</p>
+                                </div>
+                                <!-- Triggers the new Playlist Modal -->
+                                <button id="choose-playlist-btn" type="button" class="btn btn-sm btn-outline-custom text-nowrap" data-bs-toggle="modal" data-bs-target="#playlistModal">
+                                    Browse...
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2 mt-auto pt-3" style="border-top: 1px solid #282828;">
+                            <button id="start-game-btn" type="button" class="btn btn-spotify flex-grow-1" disabled>Start Game</button>
+                            <button id="game-settings-btn" type="button" class="btn btn-outline-custom" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                                ⚙️ Settings
+                            </button>
+                        </div>
+                    </section>
+                }
+                else
+                {
+                    <div class="d-flex h-100 flex-column justify-content-center align-items-center text-center py-5">
+                        <div class="spinner-border text-success mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+                        <p id="waiting-message" class="waiting-pulse fs-5 mb-0 fw-bold">Waiting for host to setup...</p>
+                    </div>
+                }
+            </div>
+        </div>
     </div>
 
     <div id="lobby-error" class="alert alert-danger rounded-3" style="display:none; background-color: rgba(226, 33, 52, 0.15); border-color: rgba(226, 33, 52, 0.4); color: #f15e6c;"></div>
-        <!-- Toast Container -->
-    <div id="toast-stack" style="position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column' gap: 0.5rem; z-index: 1050;"></div>
+    
+    <!-- Toast Container -->
+    <div id="toast-stack" style="position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 0.5rem; z-index: 1050;"></div>
 </div>
 
-<!-- Settings Modal (Host Only) -->
 @if (isHost)
 {
+    <!-- Playlist Selection Modal (NEW) -->
+    <div class="modal fade" id="playlistModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+            <div class="modal-content" style="background-color: #181818; border: 1px solid #282828;">
+                <div class="modal-header flex-column align-items-stretch" style="border-bottom: 1px solid #282828;">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="modal-title text-white fw-bold">Select a Playlist</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <!-- Added Search Bar -->
+                    <input type="text" id="playlist-search-input" class="form-control custom-search-input" placeholder="Search your playlists...">
+                </div>
+                
+                <div class="modal-body p-3" style="background-color: #121212;">
+                    <!-- JS should populate the grid inside this container -->
+                    <div id="playlist-picker-container" class="playlist-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
+                        <!-- Playlist cards go here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Settings Modal -->
     <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" style="background-color: #181818; border: 1px solid #282828;">
                 <div class="modal-header" style="border-bottom: 1px solid #282828;">
-                    <h5 class="modal-title text-white fw-bold" id="settingsModalLabel">Game Settings</h5>
+                    <h5 class="modal-title text-white fw-bold" id="settingsModalLabel">Game Rules</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body pb-4">
-                    <div class="mb-2">
+                    <div class="mb-4">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <label for="question-count-slider" class="form-label text-secondary fw-bold mb-0">Number of Questions</label>
-                            <span id="question-count-display" class="fw-bold text-white fs-5">10</span>
+                            <span id="question-count-display" class="fw-bold text-white fs-4">10</span>
                         </div>
-                        
-                        <!-- Question Count Range Slider: 5 to 20 -->
-                        <input type="range" 
-                               id="question-count-slider" 
-                               class="custom-range-spotify" 
-                               min="5" 
-                               max="20" 
-                               step="1" 
-                               value="10" 
-                               oninput="document.getElementById('question-count-display').innerText = this.value" />
-                               
-                        <div class="d-flex justify-content-between text-secondary mb-4" style="font-size: 0.75rem;">
-                            <span>5</span>
-                            <span>20</span>
-                        </div>
-
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label for="round-duration-slider" class="form-label text-secondary fw-bold mb-0">Round Duration (seconds)</label>
-                            <span id="round-duration-display" class="fw-bold text-white fs-5">10</span>
-                        </div>
-                        
-                        <!-- Round Duration Slider: 5 to 20 seconds -->
-                        <input type="range" 
-                               id="round-duration-slider" 
-                               class="custom-range-spotify" 
-                               min="5" 
-                               max="20" 
-                               step="1" 
-                               value="10" 
-                               oninput="document.getElementById('round-duration-display').innerText = this.value" />
-                               
+                        <input type="range" id="question-count-slider" class="custom-range-spotify" min="5" max="20" step="1" value="10" oninput="document.getElementById('question-count-display').innerText = this.value" />
                         <div class="d-flex justify-content-between text-secondary" style="font-size: 0.75rem;">
-                            <span>5</span>
-                            <span>20</span>
+                            <span>5</span><span>20</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label for="round-duration-slider" class="form-label text-secondary fw-bold mb-0">Round Duration</label>
+                            <span id="round-duration-display" class="fw-bold text-white fs-4">10s</span>
+                        </div>
+                        <input type="range" id="round-duration-slider" class="custom-range-spotify" min="5" max="20" step="1" value="10" oninput="document.getElementById('round-duration-display').innerText = this.value + 's'" />
+                        <div class="d-flex justify-content-between text-secondary" style="font-size: 0.75rem;">
+                            <span>5s</span><span>20s</span>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid #282828;">
                     <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-spotify" id="save-settings-btn" data-bs-dismiss="modal">Save</button>
+                    <button type="button" class="btn btn-spotify px-4" id="save-settings-btn" data-bs-dismiss="modal">Save Changes</button>
                 </div>
             </div>
         </div>

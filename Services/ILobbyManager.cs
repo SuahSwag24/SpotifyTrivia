@@ -9,7 +9,7 @@ namespace SpotifyTrivia.Services
 {
     public interface ILobbyManager
     {
-        LobbyModel CreateLobby(string hostPlayerId, string hostPlayerName, string hostAccessToken);
+        LobbyModel CreateLobby(string hostPlayerId, string hostPlayerName, string hostAccessToken, string? hostRefreshToken);
         LobbyModel? GetLobby(string code);
         bool TryAddPlayer(string code, string playerId, string displayName, string connectionId, out PlayerModel? player, out bool isNewPlayer);
         void RemovePlayer(string code, string playerId);

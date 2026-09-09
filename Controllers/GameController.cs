@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
+using SpotifyTrivia.Models;
 using SpotifyTrivia.Models.Multiplayer;
 using SpotifyTrivia.Services;
 using SpotifyTrivia.Services.GameModes;
@@ -22,15 +23,18 @@ namespace SpotifyTrivia.Controllers
         [HttpGet("game/play/{playlistId}")]
         public async Task<IActionResult> Play(string playlistId)
         {
-            var token = HttpContext.Session.GetString("SpotifyAccessToken");
-            if (string.IsNullOrEmpty(token))
+            var accessToken = HttpContext.Session.GetString("SpotifyAccessToken");
+            var refreshToken = HttpContext.Session.GetString("SpotifyRefreshToken");
+
+            if (string.IsNullOrEmpty(accessToken))
             {
                 return RedirectToAction("Login", "Auth");
             }
 
             try
             {
-                var tracks = await _spotifyService.GetPlaylistTracksAsync(token, playlistId);
+                var result = await _spotifyService.GetPlaylistTracksAsync(accessToken, null, playlistId);
+                var tracks = result.Data ?? new List<TrackModel>();
 
                 if (tracks == null || tracks.Count < 4)
                 {
@@ -42,7 +46,7 @@ namespace SpotifyTrivia.Controllers
                 var gameMode = _gameModeFactory.GetGameMode(GameModeType.ClassicGuessSong);
                 var questions = await gameMode.GenerateQuestionsAsync(tracks, numberOfQuestions: 10, new HashSet<string>());
 
-                ViewBag.SpotifyAccessToken = token;
+                ViewBag.SpotifyAccessToken = accessToken;
 
                 return View(questions);
             }

@@ -23,7 +23,16 @@ namespace SpotifyTrivia.Controllers
                 return RedirectToAction("Login", "Auth");
             }
 
-            var profile = await _spotifyService.GetUserProfileAsync(token);
+            var profileResult = await _spotifyService.GetUserProfileAsync(
+                token, HttpContext.Session.GetString("SpotifyRefreshToken"));
+
+            if (profileResult.RefreshedAccessToken != null)
+            {
+                token = profileResult.RefreshedAccessToken;
+                HttpContext.Session.SetString("SpotifyAccessToken", token);
+            }
+
+            var profile = profileResult.Data ?? new UserProfileModel { DisplayName = "Spotify User" };
 
             var playlists = await _spotifyService.GetUserPlaylistsAsync(token);
 

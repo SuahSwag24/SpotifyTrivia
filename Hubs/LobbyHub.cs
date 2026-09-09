@@ -50,13 +50,24 @@ namespace SpotifyTrivia.Hubs
                 playerId, lobbyCode, Context.ConnectionId, playerId == _lobbyManager.GetLobby(lobbyCode)?.PlayerHostId, isNewPlayer);
 
             var accessToken = Context.GetHttpContext()?.Session.GetString("SpotifyAccessToken");
+            var refreshToken = Context.GetHttpContext()?.Session.GetString("SpotifyRefreshToken");
+
             if (!string.IsNullOrEmpty(accessToken))
             {
                 player.SpotifyAccessToken = accessToken;
+                player.SpotifyRefreshToken = refreshToken;
 
                 if (string.IsNullOrEmpty(player.SpotifyUserId))
                 {
-                    player.SpotifyUserId = await _spotifyService.GetSpotifyUserIdAsync(accessToken);
+                    var userIdResult = await _spotifyService.GetSpotifyUserIdAsync(accessToken, refreshToken);
+
+                    if (userIdResult.RefreshedAccessToken != null)
+                    {
+                        player.SpotifyAccessToken = userIdResult.RefreshedAccessToken;
+                        Context.GetHttpContext()?.Session.SetString("SpotifyAccessToken", userIdResult.RefreshedAccessToken);
+                    }
+
+                    player.SpotifyUserId = userIdResult.Data;
                 }
             }
 
@@ -455,7 +466,14 @@ namespace SpotifyTrivia.Hubs
                 {
                     try
                     {
-                        var playerTracks = await _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken!);
+                        var result = await _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken, p.SpotifyRefreshToken);
+
+                        if (result.RefreshedAccessToken != null)
+                        {
+                            p.SpotifyAccessToken = result.RefreshedAccessToken;
+                        }
+
+                        var playerTracks = result.Data ?? new List<TrackModel>();
 
                         foreach (var t in playerTracks)
                         {
@@ -497,7 +515,14 @@ namespace SpotifyTrivia.Hubs
                 {
                     try
                     {
-                        var playerTracks = await _spotifyService.GetRecentlyPlayedSongsAsync(p.SpotifyAccessToken!);
+                        var result = await _spotifyService.GetRecentlyPlayedSongsAsync(p.SpotifyAccessToken, p.SpotifyRefreshToken);
+
+                        if (result.RefreshedAccessToken != null)
+                        {
+                            p.SpotifyAccessToken = result.RefreshedAccessToken;
+                        }
+
+                        var playerTracks = result.Data ?? new List<TrackModel>();
 
                         foreach (var t in playerTracks)
                         {
@@ -530,7 +555,19 @@ namespace SpotifyTrivia.Hubs
 
         private async Task<List<TrackModel>> PreparePlaylistTracks(LobbyModel lobby)
         {
-            List<TrackModel> tracks = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.SelectedPlaylistId!);
+            var result = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.HostSpotifyRefreshToken, lobby.SelectedPlaylistId!);
+
+            if (result.RefreshedAccessToken != null)
+            {
+                lobby.HostSpotifyAccessToken = result.RefreshedAccessToken;
+                if (lobby.Players.TryGetValue(lobby.PlayerHostId, out var host))
+                {
+                    host.SpotifyAccessToken = result.RefreshedAccessToken;
+                }
+                Context.GetHttpContext()?.Session.SetString("SpotifyAccessToken", result.RefreshedAccessToken);
+            }
+
+            var tracks = result.Data ?? new List<TrackModel>();
 
             var spotifyIdToPlayerId = lobby.Players.Values
                 .Where(p => !string.IsNullOrEmpty(p.SpotifyUserId))

@@ -33,7 +33,7 @@ namespace SpotifyTrivia.Services
             _logger = logger;
         }
 
-        public LobbyModel CreateLobby(string hostPlayerId, string hostPlayerName, string hostAccessToken)
+        public LobbyModel CreateLobby(string hostPlayerId, string hostPlayerName, string hostAccessToken, string? hostRefreshToken)
         {
             string code = GenerateLobbyCode();
 
@@ -43,12 +43,15 @@ namespace SpotifyTrivia.Services
                 PlayerHostId = hostPlayerId,
                 HostDisplayName = hostPlayerName,
                 HostSpotifyAccessToken = hostAccessToken,
+                HostSpotifyRefreshToken = hostRefreshToken
             };
 
             var host = new PlayerModel
             {
                 PlayerId = hostPlayerId,
                 DisplayName = hostPlayerName,
+                SpotifyAccessToken = hostAccessToken,
+                SpotifyRefreshToken = hostRefreshToken
             };
 
             lobby.Players[hostPlayerId] = host;

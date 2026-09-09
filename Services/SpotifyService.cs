@@ -12,10 +12,14 @@ namespace SpotifyTrivia.Services
     public class SpotifyService : ISpotifyService
     {
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ILogger<SpotifyService> _logger;
+        private readonly IConfiguration _config;
 
-        public SpotifyService(IHttpClientFactory httpClientFactory)
+        public SpotifyService(IHttpClientFactory httpClientFactory, ILogger<SpotifyService> logger, IConfiguration config)
         {
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
+            _logger = logger;
+            _config = config;
         }
 
         public async Task<List<PlaylistModel>> GetUserPlaylistsAsync(string accessToken)
@@ -52,13 +56,11 @@ namespace SpotifyTrivia.Services
                 ImageUrl = dto.Images?.FirstOrDefault()?.Url
             }).ToList();
         }
-        public async Task<List<TrackModel>> GetPlaylistTracksAsync(string accessToken, string playlistId)
+        public async Task<SpotifyApiResult<List<TrackModel>>> GetPlaylistTracksAsync(string accessToken, string? refreshToken, string playlistId)
         {
             var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-
-            var response = await client.GetAsync($"https://api.spotify.com/v1/playlists/{playlistId}/items");
+            var (response, refreshedToken) = await SendWithRefreshAsync(
+                client, $"https://api.spotify.com/v1/playlists/{playlistId}/items", accessToken, refreshToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -67,15 +69,10 @@ namespace SpotifyTrivia.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
-
-            var jsonOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var result = JsonSerializer.Deserialize<SpotifyPlaylistTracksResponse>(json, jsonOptions);
 
-            return result?.Items?
+            var tracks = result?.Items?
                 .Where(i => i.Track != null)
                 .Select(i => new TrackModel
                 {
@@ -87,32 +84,24 @@ namespace SpotifyTrivia.Services
                     SpotifyUrl = i.Track.ExternalUrls?.Spotify,
                     AddedBySpotifyUserId = i.AddedBy?.Id
                 }).ToList() ?? new List<TrackModel>();
+
+            return new SpotifyApiResult<List<TrackModel>> { Data = tracks, RefreshedAccessToken = refreshedToken };
         }
 
-        public async Task<List<TrackModel>> GetLikedSongsAsync(string accessToken)
+        public async Task<SpotifyApiResult<List<TrackModel>>> GetLikedSongsAsync(string accessToken, string? refreshToken)
         {
             var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-
-            var response = await client.GetAsync("https://api.spotify.com/v1/me/tracks?limit=50");
+            var (response, refreshedToken) = await SendWithRefreshAsync(
+                client, "https://api.spotify.com/v1/me/tracks?limit=50", accessToken, refreshToken);
 
             if (!response.IsSuccessStatusCode)
-            {
-                var errorBody = await response.Content.ReadAsStringAsync();
-                throw new Exception($"Spotify API returned status code {response.StatusCode} when fetching tracks: {errorBody}");
-            }
+                return new SpotifyApiResult<List<TrackModel>> { Data = new List<TrackModel>(), RefreshedAccessToken = refreshedToken };
 
             var json = await response.Content.ReadAsStringAsync();
-
-            var jsonOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var result = JsonSerializer.Deserialize<SpotifySavedTracksResponse>(json, jsonOptions);
 
-            return result?.Items?
+            var tracks = result?.Items?
                 .Where(i => i.Track != null)
                 .Select(i => new TrackModel
                 {
@@ -123,15 +112,15 @@ namespace SpotifyTrivia.Services
                     PreviewUrl = $"spotify:track:{i.Track.Id}",
                     SpotifyUrl = i.Track.ExternalUrls?.Spotify
                 }).ToList() ?? new List<TrackModel>();
+
+            return new SpotifyApiResult<List<TrackModel>> { Data = tracks, RefreshedAccessToken = refreshedToken };
         }
 
-        public async Task<List<TrackModel>> GetRecentlyPlayedSongsAsync(string accessToken)
+        public async Task<SpotifyApiResult<List<TrackModel>>> GetRecentlyPlayedSongsAsync(string accessToken, string? refreshToken)
         {
             var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-
-            var response = await client.GetAsync("https://api.spotify.com/v1/me/player/recently-played?limit=50");
+            var (response, refreshedToken) = await SendWithRefreshAsync(
+                client, "https://api.spotify.com/v1/me/player/recently-played?limit=50", accessToken, refreshToken);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -140,15 +129,10 @@ namespace SpotifyTrivia.Services
             }
 
             var json = await response.Content.ReadAsStringAsync();
-
-            var jsonOptions = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var result = JsonSerializer.Deserialize<SpotifyRecentlyPlayedResponse>(json, jsonOptions);
 
-            return result?.Items?
+            var tracks = result?.Items?
                 .Where(i => i.Track != null)
                 .Select(i => new TrackModel
                 {
@@ -159,48 +143,106 @@ namespace SpotifyTrivia.Services
                     PreviewUrl = $"spotify:track:{i.Track.Id}",
                     SpotifyUrl = i.Track.ExternalUrls?.Spotify
                 }).ToList() ?? new List<TrackModel>();
+
+            return new SpotifyApiResult<List<TrackModel>> { Data = tracks, RefreshedAccessToken = refreshedToken };
         }
 
-        public async Task<UserProfileModel> GetUserProfileAsync(string accessToken)
+        public async Task<SpotifyApiResult<UserProfileModel>> GetUserProfileAsync(string accessToken, string? refreshToken)
         {
             var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-
-            var response = await client.GetAsync("https://api.spotify.com/v1/me");
+            var (response, refreshedToken) = await SendWithRefreshAsync(
+                client, "https://api.spotify.com/v1/me", accessToken, refreshToken);
 
             if (!response.IsSuccessStatusCode)
             {
-                return new UserProfileModel { DisplayName = "Spotify User" };
+                return new SpotifyApiResult<UserProfileModel>
+                {
+                    Data = new UserProfileModel { DisplayName = "Spotify User" },
+                    RefreshedAccessToken = refreshedToken
+                };
             }
 
             var json = await response.Content.ReadAsStringAsync();
             var jsonOptions = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var dto = JsonSerializer.Deserialize<SpotifyUserProfileDto>(json, jsonOptions);
 
-            return new UserProfileModel
+            return new SpotifyApiResult<UserProfileModel>
             {
-                DisplayName = dto?.DisplayName ?? "Spotify User",
-                ProfileImageUrl = dto?.Images?.FirstOrDefault()?.Url ?? "https://via.placeholder.com/150?text=User",
-                Product = dto?.Product ?? "standard",
-                SpotifyUrl = dto?.ExternalUrls?.Spotify ?? "#"
+                Data = new UserProfileModel
+                {
+                    DisplayName = dto?.DisplayName ?? "Spotify User",
+                    ProfileImageUrl = dto?.Images?.FirstOrDefault()?.Url ?? "https://via.placeholder.com/150?text=User",
+                    Product = dto?.Product ?? "standard",
+                    SpotifyUrl = dto?.ExternalUrls?.Spotify ?? "#"
+                },
+                RefreshedAccessToken = refreshedToken
             };
         }
 
-        public async Task<string?> GetSpotifyUserIdAsync(string accessToken)
+        public async Task<SpotifyApiResult<string?>> GetSpotifyUserIdAsync(string accessToken, string? refreshToken)
         {
             var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            var (response, refreshedToken) = await SendWithRefreshAsync(
+                client, "https://api.spotify.com/v1/me", accessToken, refreshToken);
 
-            var response = await client.GetAsync("https://api.spotify.com/v1/me");
-            if (!response.IsSuccessStatusCode) return null;
+            if (!response.IsSuccessStatusCode)
+                return new SpotifyApiResult<string?> { Data = null, RefreshedAccessToken = refreshedToken };
 
             var json = await response.Content.ReadAsStringAsync();
             var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var profile = JsonSerializer.Deserialize<SpotifyUserProfileDto>(json, jsonOptions);
 
-            return profile?.Id;
+            return new SpotifyApiResult<string?> { Data = profile?.Id, RefreshedAccessToken = refreshedToken };
+        }
+
+        public async Task<string?> RefreshAccessTokenAsync(string refreshToken)
+        {
+            var client = _httpClientFactory.CreateClient();
+            var body = new Dictionary<string, string>
+            {
+                { "grant_type", "refresh_token" },
+                { "refresh_token", refreshToken },
+                { "client_id", _config["Spotify:ClientId"]! },
+                { "client_secret", _config["Spotify:ClientSecret"]! }
+            };
+
+            var response = await client.PostAsync("https://accounts.spotify.com/api/token", new FormUrlEncodedContent(body));
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Failed to refresh Spotify access token: {Status} - {Error}", response.StatusCode, error);
+                return null;
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("access_token").GetString();
+        }
+
+        private async Task<(HttpResponseMessage Response, string? RefreshedAccessToken)> SendWithRefreshAsync(HttpClient client, string url, string accessToken, string? refreshToken)
+        {
+            async Task<HttpResponseMessage> DoRequest(string token)
+            {
+                client.DefaultRequestHeaders.Authorization =
+                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+                return await client.GetAsync(url);
+            }
+
+            var response = await DoRequest(accessToken);
+            string? refreshedToken = null;
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized && !string.IsNullOrEmpty(refreshToken))
+            {
+                _logger.LogInformation("Acess token expired for {Url}, attempting refresh...", url);
+                var newToken = await RefreshAccessTokenAsync(refreshToken);
+                if (!string.IsNullOrEmpty(newToken))
+                {
+                    refreshedToken = newToken;
+                    response = await DoRequest(newToken);
+                }
+            }
+
+            return (response, refreshedToken);
         }
     }
 }

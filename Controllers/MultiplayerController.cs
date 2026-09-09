@@ -35,10 +35,12 @@ namespace SpotifyTrivia.Controllers
             var token = HttpContext.Session.GetString("SpotifyAccessToken");
             if (string.IsNullOrEmpty(token)) return RedirectToAction("Login", "Auth");
 
+            var refreshToken = HttpContext.Session.GetString("SpotifyRefreshToken");
+
             string hostPlayerId = GetOrCreatePlayerId();
             string hostDisplayName = ResolveDisplayName();
 
-            var lobby = _lobbyManager.CreateLobby(hostPlayerId, hostDisplayName, token);
+            var lobby = _lobbyManager.CreateLobby(hostPlayerId, hostDisplayName, token, refreshToken);
 
             return RedirectToAction("Lobby", new { code = lobby.Code });
         }

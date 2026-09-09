@@ -64,10 +64,18 @@ public class AuthController : Controller
         using var jsonDoc = JsonDocument.Parse(responseString);
 
         var accessToken = jsonDoc.RootElement.GetProperty("access_token").GetString();
+        var refreshToken = jsonDoc.RootElement.TryGetProperty("refresh_token", out var refreshTokenElement)
+            ? refreshTokenElement.GetString()
+            : null;
 
         if (!string.IsNullOrEmpty(accessToken))
         {
             HttpContext.Session.SetString("SpotifyAccessToken", accessToken);
+        }
+
+        if (!string.IsNullOrEmpty(refreshToken))
+        {
+            HttpContext.Session.SetString("SpotifyRefreshToken", refreshToken);
         }
 
         return RedirectToAction("Index", "Dashboard");

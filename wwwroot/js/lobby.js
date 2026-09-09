@@ -139,6 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById("selected-playlist-label").textContent = `Selected playlist: ${playlistName}`;
             pickerContainer.style.display = "none";
+            bootstrap.Modal.getOrCreateInstance(document.getElementById("playlistModal")).hide();
 
             connection.invoke("SelectPlaylist", lobbyCode, playlistId, playlistName)
                 .catch(err => showError("Failed to select playlist: " + err));

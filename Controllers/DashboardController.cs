@@ -20,7 +20,11 @@ namespace SpotifyTrivia.Controllers
             var token = HttpContext.Session.GetString("SpotifyAccessToken");
             if (string.IsNullOrEmpty(token))
             {
-                return RedirectToAction("Login", "Auth");
+                return View(new DashboardViewModel
+                {
+                    IsAuthenticated = false,
+                    UserProfile = new UserProfileModel { DisplayName = "Guest"}
+                });
             }
 
             var profileResult = await _spotifyService.GetUserProfileAsync(
@@ -45,7 +49,8 @@ namespace SpotifyTrivia.Controllers
             {
                 UserProfile = profile,
                 GamesPlayed = HttpContext.Session.GetInt32("GamesPlayed") ?? 0,
-                EffectiveDisplayName = HttpContext.Session.GetString("DisplayName")
+                EffectiveDisplayName = HttpContext.Session.GetString("DisplayName"),
+                IsAuthenticated = true
             };
 
             return View(viewModel);

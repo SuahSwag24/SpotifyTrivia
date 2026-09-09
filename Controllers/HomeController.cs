@@ -7,15 +7,7 @@ namespace SpotifyTrivia.Controllers
         [HttpGet("")]
         public IActionResult Index()
         {
-            var token = HttpContext.Session.GetString("SpotifyAccessToken");
-
-            // If user isn't logged in, send them to Spotify Auth
-            if (string.IsNullOrEmpty(token))
-            {
-                return RedirectToAction("Login", "Auth");
-            }
-
-            // If user is already logged in, send them to the Dashboard
+            //  Auth check is guarded in dashboard already. Always redirect user to dashboard.
             return RedirectToAction("Index", "Dashboard");
         }
     }

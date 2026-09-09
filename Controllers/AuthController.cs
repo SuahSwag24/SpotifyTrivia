@@ -26,18 +26,32 @@ public class AuthController : Controller
             $"response_type=code" +
             $"&client_id={Uri.EscapeDataString(clientId!)}" +
             $"&scope={Uri.EscapeDataString(scope)}" +
-            $"&redirect_uri={Uri.EscapeDataString(redirectUri)}" +
-            (force ? "&show_dialog=true" : string.Empty);
+            $"&redirect_uri={Uri.EscapeDataString(redirectUri)}";
+
+        if (force)
+        {
+            spotifyAuthUrl += "&show_dialog=true";
+        }
 
         return Redirect(spotifyAuthUrl);
     }
 
     [HttpGet("callback")]
-    public async Task<IActionResult> Callback(string code)
+    public async Task<IActionResult> Callback(string? code, string? error)
     {
+        if (!string.IsNullOrEmpty(error))
+        {
+            TempData["LoginError"] = error == "access_denied"
+                ? "Login was cancelled."
+                : "Something went wrong when signing in with Spotify.";
+            
+            return RedirectToAction("Index", "Dashboard");
+        }
+
         if (string.IsNullOrEmpty(code))
         {
-            return BadRequest("Authorization code was missing from Spotify.");
+            TempData["LoginError"] = "Login was cancelled.";
+            return RedirectToAction("index", "Dashboard");
         }
 
         var client = _httpClientFactory.CreateClient();
@@ -57,7 +71,7 @@ public class AuthController : Controller
 
         if (!response.IsSuccessStatusCode)
         {
-            var error = await response.Content.ReadAsStringAsync();
+            error = await response.Content.ReadAsStringAsync();
             return Content($"Error retrieving token: {error}");
         }
 
@@ -89,7 +103,7 @@ public class AuthController : Controller
         HttpContext.Session.Clear();
         Response.Cookies.Delete(".AspNetCore.Session");
 
-        return RedirectToAction(nameof(Login), new { force = true });
+        return RedirectToAction("Index", "Dashboard");
     }
 
     [HttpGet("logged-out")]

@@ -37,27 +37,3 @@ function setupLobbyHandlers(connection, callbacks) {
 
     connection.on("ReturnedToLobby", () => callbacks.onReturnedToLobby?.());
 }
-
-function showToast(message, toastType = "warning") {
-    const stack = document.getElementById("toast-stack");
-
-    const toast = document.createElement("div");
-    toast.textContent = message;
-    toast.classList.add("alert", `alert-${toastType}`);
-    toast.style.opacity = "0";
-    toast.style.transform = "translateY(10px)";
-    toast.style.transition = "opacity 0.25s ease, transform 0.25s ease";
-
-    stack.appendChild(toast);
-
-    requestAnimationFrame(() => {
-        toast.style.opacity = "1";
-        toast.style.transform = "translateY(0)";
-    });
-
-    setTimeout(() => {
-        toast.style.opacity = "0";
-        toast.style.transform = "translateY(10px)";
-        setTimeout(() => toast.remove(), 250);
-    }, 3000);
-}

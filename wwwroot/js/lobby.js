@@ -180,7 +180,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    document.getElementById("leave-lobby-btn").addEventListener("click", () => {
+    leaveBtn.addEventListener("click", () => {
+        if (!confirmLeave(isHost)) return;
+
+        leaveBtn.disabled = true;
+
         connection.invoke("LeaveLobby", lobbyCode, playerId)
             .catch(err => showError("Failed to leave: " + err))
             .finally(() => { window.location.href = "/multiplayer"; });

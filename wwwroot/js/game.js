@@ -319,6 +319,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function leaveAndRedirect() {
+        if (!confirmLeave(isHost)) return;
+
+        const leaveButtons = [
+            document.getElementById("leave-game-btn"),
+            document.getElementById("leave-results-btn")
+        ].filter(Boolean);
+
+        leaveButtons.forEach(button => button.disabled = true);
+
         connection.invoke("LeaveLobby", lobbyCode, playerId)
             .catch(err => console.error("Leave failed:", err))
             .finally(() => { window.location.href = "/multiplayer" });

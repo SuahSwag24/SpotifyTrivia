@@ -37,3 +37,11 @@ function setupLobbyHandlers(connection, callbacks) {
 
     connection.on("ReturnedToLobby", () => callbacks.onReturnedToLobby?.());
 }
+
+function confirmLeave(isHost) {
+    const message = isHost
+        ? "Leaving will disband the lobby. Are you sure?"
+        : "Are you sure to leave the game?";
+
+    return window.confirm(message);
+}

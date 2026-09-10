@@ -22,10 +22,10 @@ namespace SpotifyTrivia.Services.GameModes
         public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds)
         {
             var shuffledPool = new List<TrackModel>(tracks)
-                .Where(t => excludedTrackIds.Contains(t.Id))
+                .Where(t => !excludedTrackIds.Contains(t.Id))
                 .ToList();
 
-            if (shuffledPool.Count < 4)
+            if (shuffledPool.Count < numberOfQuestions)
             {
                 throw new PlaylistExhaustedException("Not enough remaining unplayed tracks to generate more questions.");
             }

@@ -98,22 +98,6 @@
         background-color: rgba(255, 255, 255, 0.1);
     }
 
-    /* Custom Search Input */
-    .custom-search-input {
-        background-color: #242424;
-        border: 1px solid #333333;
-        color: #fff;
-        border-radius: 50px;
-        padding: 0.75rem 1.25rem;
-    }
-    
-    .custom-search-input:focus {
-        background-color: #2a2a2a;
-        border-color: #1DB954;
-        color: #fff;
-        box-shadow: none;
-    }
-
     /* Sliders */
     .custom-range-spotify {
         -webkit-appearance: none;
@@ -139,6 +123,31 @@
     .custom-range-spotify::-webkit-slider-thumb:hover {
         transform: scale(1.2);
         background: #1ed760;
+    }
+
+    /* Switches */
+    #blur-album-switch {
+        width: 3.25rem;
+        height: 1.75rem;
+        margin: 0;
+        background-color: #3e3e3e;
+        border: 1px solid #535353;
+        cursor: pointer;
+        transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    #blur-album-switch:checked {
+        background-color: #1DB954;
+        border-color: #1DB954;
+    }
+
+    #blur-album-switch:focus {
+        border-color: #1ed760;
+        box-shadow: 0 0 0 0.2rem rgba(29, 185, 84, 0.2);
+    }
+
+    #blur-album-switch:active {
+        filter: brightness(1);
     }
 
     /* Game Modes */
@@ -196,6 +205,18 @@
     }
     ::-webkit-scrollbar-thumb:hover {
         background: #535353;
+    }
+
+    /* Settings */
+    .blur-setting-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem;
+        background-color: #242424;
+        border: 1px solid #333333;
+        border-radius: 12px;
     }
 </style>
 
@@ -382,9 +403,17 @@
                         </div>
                     </div>
 
-                    <div class="mb-4">
-                        <div class="mb-0 ps-0 form-switch form-check d-flex justify-content-between align-items-center">
-                            <label for="blur-album-switch" class="form-label text-secondary fw-bold">Blur album?</label>
+                   <div class="blur-setting-row mb-4">
+                        <div>
+                            <label for="blur-album-switch" class="form-label text-white fw-bold mb-1">
+                                Blur album artwork
+                            </label>
+                            <small class="d-block text-secondary">
+                                Keep artwork hidden while players answer
+                            </small>
+                        </div>
+
+                        <div class="form-check form-switch mb-0">
                             <input type="checkbox" class="form-check-input" id="blur-album-switch" role="switch" checked>
                         </div>
                     </div>

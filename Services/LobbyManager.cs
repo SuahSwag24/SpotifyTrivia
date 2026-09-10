@@ -367,7 +367,7 @@ namespace SpotifyTrivia.Services
                     }
                     finally { lobby.StateLock.Release(); }
 
-                    await _lobbyBroadcaster.BroadcastRoundEnded(lobby.Code, question.CorrectAnswer, lobby.Players.Values.ToList());
+                    await _lobbyBroadcaster.BroadcastRoundEnded(lobby.Code, question.CorrectAnswer, lobby.Players.Values.ToList(), question.AlbumCoverUrl);
                     await Task.Delay(TimeSpan.FromSeconds(_settings.RevealSeconds), ct);
                 }
             }

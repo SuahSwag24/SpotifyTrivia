@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const initialVolume = savedVolume !== null ? parseInt(savedVolume, 10) : 30;
 
     const albumCover = document.getElementById("album-cover");
+    const revealAlbumCover = document.getElementById("reveal-album-cover");
 
     const errorBox = document.getElementById("game-error");
     function showError(message) {
@@ -77,6 +78,9 @@ document.addEventListener("DOMContentLoaded", () => {
         onRoundEnded: (data) => {
             showPhase("reveal-phase");
             document.getElementById("correct-answer-label").textContent = `Correct answer: ${data.correctAnswer}`;
+            
+            revealAlbumCover.src = data.albumCoverUrl;
+
             renderScoreboard(data.players);
         },
         onGameEnded: (leaderboard, songResults) => {

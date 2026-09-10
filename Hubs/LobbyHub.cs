@@ -341,6 +341,7 @@ namespace SpotifyTrivia.Hubs
                     await Clients.Caller.SendAsync("RoundEnded", new
                     {
                         CorrectAnswer = revealQuestion.CorrectAnswer,
+                        AlbumCoverUrl = revealQuestion.AlbumCoverUrl,
                         Players = lobby.Players.Values.Select(p => new
                         {
                             p.PlayerId,

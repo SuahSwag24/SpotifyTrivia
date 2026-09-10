@@ -46,6 +46,12 @@
         filter: blur(16px) brightness(0.6);
     }
 
+    .reveal-album-cover {
+        width: 160px;
+        height: 160px;
+        margin-bottom: 1.25rem;
+    }
+
     /* Timer Pill */
     .timer-badge {
         background-color: rgba(29, 185, 84, 0.15);
@@ -469,6 +475,9 @@
     <!-- Phase 3: Reveal -->
     <div id="reveal-phase" class="phase-panel text-center" style="display:none;">
         <h3 class="h4 fw-bold text-white mb-3">Round Summary</h3>
+
+        <img src="" alt="Album Artwork" id="reveal-album-cover" class="album-frame reveal-album-cover">
+
         <p id="correct-answer-label" class="fs-5 text-success fw-bold mb-4"></p>
         <ul id="reveal-scoreboard" class="scoreboard-list"></ul>
     </div>

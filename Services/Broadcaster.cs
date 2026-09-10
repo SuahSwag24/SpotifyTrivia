@@ -45,11 +45,12 @@ namespace SpotifyTrivia.Services
             return _hubContext.Clients.Group(lobbyCode).SendAsync("RoundStarted", payload);
         }
         
-        public Task BroadcastRoundEnded(string lobbyCode, string correctAnswer, List<PlayerModel> players)
+        public Task BroadcastRoundEnded(string lobbyCode, string correctAnswer, List<PlayerModel> players, string albumCoverUrl)
         {
             var payload = new
             {
                 CorrectAnswer = correctAnswer,
+                AlbumCoverUrl = albumCoverUrl,
                 Players = players.Select(p => new
                 {
                     p.PlayerId,

@@ -77,10 +77,21 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onRoundEnded: (data) => {
             showPhase("reveal-phase");
-            document.getElementById("correct-answer-label").textContent = `Correct answer: ${data.correctAnswer}`;
             
             revealAlbumCover.src = data.albumCoverUrl;
-
+            
+            const startRevealAnimation = () => {
+                void revealAlbumCover.offsetWidth;
+                revealAlbumCover.classList.add("reveal-animation");
+            };
+            
+            if (revealAlbumCover.complete) {
+                startRevealAnimation();
+            } else {
+                revealAlbumCover.onload = startRevealAnimation;
+            }
+            
+            document.getElementById("correct-answer-label").textContent = `Correct answer: ${data.correctAnswer}`;
             renderScoreboard(data.players);
         },
         onGameEnded: (leaderboard, songResults) => {

@@ -50,6 +50,23 @@
         width: 160px;
         height: 160px;
         margin-bottom: 1.25rem;
+        filter: blur(16px) brightness(0.6);
+    }
+
+    .reveal-album-cover.reveal-animation {
+        animation: albumReveal 1.2s ease-out forwards;
+    }
+
+    @@keyframes albumReveal {
+        from {
+            filter: blur(16px) brightness(0.6);
+            transform: scale(1.03);
+        }
+
+        to {
+            filter: blur(0) brightness(1);
+            transform: scale(1);
+        }
     }
 
     /* Timer Pill */

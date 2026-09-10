@@ -88,7 +88,7 @@ namespace SpotifyTrivia.Hubs
             }
         }
 
-        public async Task StartGame(string lobbyCode, int questionCount, int roundDurationSeconds)
+        public async Task StartGame(string lobbyCode, int questionCount, int roundDurationSeconds, bool blurAlbum)
         {
             var lobby = _lobbyManager.GetLobby(lobbyCode);
             if (lobby == null) return;
@@ -150,6 +150,7 @@ namespace SpotifyTrivia.Hubs
 
             lobby.RoundDurationSeconds = roundDurationSeconds;
             lobby.NumberOfQuestions = questionCount;
+            lobby.BlurAlbum = blurAlbum;
 
             try
             {
@@ -304,7 +305,8 @@ namespace SpotifyTrivia.Hubs
                         StartedAtUtc = lobby.RoundStartedAtUtc,
                         DurationSeconds = lobby.RoundDurationSeconds,
                         QuestionNumber = lobby.CurrentQuestionIndex + 1,
-                        TotalQuestions = lobby.Questions.Count
+                        TotalQuestions = lobby.Questions.Count,
+                        BlurAlbum = lobby.BlurAlbum
                     });
                     break;
 

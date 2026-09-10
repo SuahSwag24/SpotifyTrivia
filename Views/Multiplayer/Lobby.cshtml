@@ -361,7 +361,7 @@
                 </div>
                 <div class="modal-body pb-4">
                     <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-0">
                             <label for="question-count-slider" class="form-label text-secondary fw-bold mb-0">Number of Questions</label>
                             <span id="question-count-display" class="fw-bold text-white fs-4">10</span>
                         </div>
@@ -371,14 +371,21 @@
                         </div>
                     </div>
                     
-                    <div class="mb-2">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-0">
                             <label for="round-duration-slider" class="form-label text-secondary fw-bold mb-0">Round Duration</label>
                             <span id="round-duration-display" class="fw-bold text-white fs-4">10s</span>
                         </div>
                         <input type="range" id="round-duration-slider" class="custom-range-spotify" min="5" max="20" step="1" value="10" oninput="document.getElementById('round-duration-display').innerText = this.value + 's'" />
                         <div class="d-flex justify-content-between text-secondary" style="font-size: 0.75rem;">
                             <span>5s</span><span>20s</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="mb-0 ps-0 form-switch form-check d-flex justify-content-between align-items-center">
+                            <label for="blur-album-switch" class="form-label text-secondary fw-bold">Blur album?</label>
+                            <input type="checkbox" class="form-check-input" id="blur-album-switch" role="switch" checked>
                         </div>
                     </div>
                 </div>

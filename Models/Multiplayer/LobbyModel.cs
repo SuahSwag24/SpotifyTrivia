@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Text;
 
 namespace SpotifyTrivia.Models.Multiplayer
@@ -29,5 +30,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public int NumberOfQuestions { get; set; }
         public HashSet<string> PlayedTrackIds { get; set; } = new();
         public int MaxPlayers { get; set; } = 10;
+        public bool BlurAlbum { get; set; } = true;
     }
 }

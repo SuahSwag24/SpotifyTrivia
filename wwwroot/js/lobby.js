@@ -88,7 +88,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (isHost && startBtn) startBtn.disabled = false;
     });
 
-
     connection.start()
         .then(() => {
             if (isHost) document.getElementById("start-game-btn").disabled = true;
@@ -105,12 +104,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let selectedQuestionCount = 10;
         let selectedRoundDurationSeconds = 10;
+        let blurAlbum = true;
 
         const questionSlider = document.getElementById("question-count-slider");
         const questionDisplay = document.getElementById("question-count-display");
 
         const roundDurationSlider = document.getElementById("round-duration-slider");
         const roundDurationDisplay = document.getElementById("round-duration-display");
+
+        const blurAlbumSwitch = document.getElementById("blur-album-switch");
 
         const saveSettingsBtn = document.getElementById("save-settings-btn");
 
@@ -124,6 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
         saveSettingsBtn.addEventListener("click", () => {
             selectedQuestionCount = parseInt(questionSlider.value, 10);
             selectedRoundDurationSeconds = parseInt(roundDurationSlider.value, 10);
+            blurAlbum = blurAlbumSwitch.checked;
         })
 
         chooseBtn.addEventListener("click", async () => {
@@ -172,7 +175,7 @@ document.addEventListener("DOMContentLoaded", () => {
             settingsBtn.disabled = true;
 
             startBtn.textContent = "Starting...";
-            connection.invoke("StartGame", lobbyCode, selectedQuestionCount, selectedRoundDurationSeconds)
+            connection.invoke("StartGame", lobbyCode, selectedQuestionCount, selectedRoundDurationSeconds, blurAlbum)
                 .catch(err => {
                     showError("Failed to start: " + err);
                     resetStartControls();

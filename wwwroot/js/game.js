@@ -16,6 +16,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const savedVolume = localStorage.getItem("triviaVolume");
     const initialVolume = savedVolume !== null ? parseInt(savedVolume, 10) : 30;
 
+    const albumCover = document.getElementById("album-cover");
+
     const errorBox = document.getElementById("game-error");
     function showError(message) {
         errorBox.textContent = message;
@@ -59,7 +61,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const roundPercent = Math.min(100, Math.round(((data.questionNumber - 1) / data.totalQuestions) * 100))
 
-            document.getElementById("album-cover").src = data.albumCoverUrl;
+            albumCover.src = data.albumCoverUrl;
+            albumCover.classList.toggle("album-blurred", data.blurAlbum);
 
             document.getElementById("round-counter").textContent = `Question ${data.questionNumber}/${data.totalQuestions}`;
             document.getElementById('progress-fill').style.width = roundPercent + '%';

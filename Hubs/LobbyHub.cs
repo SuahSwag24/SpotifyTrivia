@@ -44,6 +44,9 @@ namespace SpotifyTrivia.Hubs
                     { } when lobby.Players.Count >= lobby.MaxPlayers => "This lobby is full.",
                     _ => "Unable to join this lobby"
                 };
+
+                await Clients.Caller.SendAsync("ActionError", new { Message = reason });
+                return;
             }
 
             _logger.LogInformation("Player {PlayerId} joined lobby {LobbyCode} on connection {ConnectionId}; host={IsHost}, newPlayer={IsNewPlayer}",
@@ -176,6 +179,12 @@ namespace SpotifyTrivia.Hubs
             var lobby = _lobbyManager.GetLobby(lobbyCode);
             if (lobby == null) return;
 
+            if (!lobby.Players.TryGetValue(playerId, out var player) || player.ConnectionId != Context.ConnectionId)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Invalid player connection." });
+                return;
+            }
+
             if (lobby.PlayerHostId == playerId)
             {
                 await _broadcaster.BroadcastLobbyDisbanded(lobbyCode);
@@ -183,12 +192,12 @@ namespace SpotifyTrivia.Hubs
             }
             else
             { 
-                lobby.Players.TryGetValue(playerId, out var player);
                 var displayName = player?.DisplayName ?? "A player";
 
-                _lobbyManager.RemovePlayer(lobbyCode, playerId);
+                _lobbyManager.MarkPlayerAsLeft(lobbyCode, playerId);
+
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, lobbyCode);
-                await _broadcaster.BroadcastPlayerLeft(lobbyCode, playerId, displayName);
+                await Clients.Group(lobbyCode).SendAsync("PlayerDisconnected", new { PlayerId = playerId, DisplayName = displayName });
             }
         }
 

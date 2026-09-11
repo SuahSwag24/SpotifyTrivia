@@ -76,7 +76,9 @@ namespace SpotifyTrivia.Controllers
                 return RedirectToAction("Index");
             }
 
-            if (lobby.Players.Count >= lobby.MaxPlayers)
+            var playerId = HttpContext.Session.GetString("PlayerId");
+            var isExistingPlayer = !string.IsNullOrEmpty(playerId) && lobby.Players.ContainsKey(playerId);
+            if (lobby.Players.Count >= lobby.MaxPlayers && !isExistingPlayer)
             {
                 TempData["ErrorMessage"] = "This lobby is full.";
                 return RedirectToAction("Index");

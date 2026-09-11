@@ -100,6 +100,25 @@ namespace SpotifyTrivia.Services
             player.ConnectionId = isConnected ? connectionId : null;
         }
 
+        public void MarkPlayerAsLeft(string code, string playerId)
+        {
+            if (!_lobbies.TryGetValue(code, out var lobby)) return;
+            if (!lobby.Players.TryGetValue(playerId, out var player)) return;
+
+            player.IsConnected = false;
+            player.ConnectionId = null;
+
+            var staleConnections = _connectionMap
+                .Where(kvp => kvp.Value.lobbyCode == code && kvp.Value.playerId == playerId)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var connectionId in staleConnections)
+            {
+                _connectionMap.TryRemove(connectionId, out _);
+            }
+        }
+
         public async Task<AnswerResultModel> RecordPlayerAnswerAsync(string code, string playerId, int choiceIndex)
         {
             if (!_lobbies.TryGetValue(code, out var lobby)) return new AnswerResultModel { Success = false };
@@ -397,6 +416,7 @@ namespace SpotifyTrivia.Services
                         .ToList();
 
                     var songResults = lobby.Questions.Select(q => (object)new
+
                     {
                         songTitle = q.SongTitle,
                         artistName = q.ArtistName,
@@ -422,5 +442,6 @@ namespace SpotifyTrivia.Services
                     break;
             }    
         }
+
     }
 }

@@ -380,11 +380,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const contributorLabel = buildContributorLabel(song.contributedBy);
 
+            const playButtonElement = song.previewUrl
+                ? `<button class="recap-play-btn" data-preview-url="${song.previewUrl}" data-song-index="${i}">Play</button>`
+                : "";
+
             li.innerHTML = `
                 <div class="song-recap-info">
-                    <a href="${song.spotifyUrl}" target="_blank" class="song-recap-title">${song.songTitle}</a>
-                    <span class="song-recap-artist">${song.artistName}</span>
-                    ${contributorLabel}
+                    ${playButtonElement}
+                    <div class="song-recap-text">
+                        <a href="${song.spotifyUrl}" target="_blank" class="song-recap-title">${song.songTitle}</a>
+                        <span class="song-recap-artist">${song.artistName}</span>
+                        ${contributorLabel}
+                    </div>
                 </div>
                 <div class="song-recap-verdict">
                     <span class="my-verdict">${myVerdict}</span>
@@ -392,6 +399,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
             `;
             list.appendChild(li);
+        });
+
+        list.querySelectorAll(".recap-play-btn").forEach(btn => {
+            btn.addEventListener("click", () => handleRecapPlay(btn));
         });
     }
 
@@ -433,5 +444,45 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function updateVolumeIcon(value) {
         volumeIcon.textContent = value === 0 ? "🔇" : value < 50 ? "🔉" : "🔊";
+    }
+
+    let currentlyPlayingBtn = null;
+    function handleRecapPlay(btn) {
+        const url = btn.dataset.previewUrl;
+
+        if (currentlyPlayingBtn === btn) {
+            if (audio.paused) {
+                if (audio.ended) {
+                    audio.currentTime = 0;
+                }
+
+                audio.play();
+                btn.textContent = "Pause";
+            } else {
+                audio.pause();
+                btn.textContent = "Play";
+            }
+
+            return;
+        }
+
+        if (currentlyPlayingBtn) {
+            currentlyPlayingBtn.textContent = "Play";
+        }
+
+        audio.src = url;
+        audio.currentTime = 0;
+
+        audio.play()
+            .then(() => {
+                btn.textContent = "Pause";
+                currentlyPlayingBtn = btn;
+            })
+            .catch(() => {
+                showToast("This preview is no longer available.", "warning");
+                btn.disabled = true;
+                btn.textContent = "Unavailable";
+                currentlyPlayingBtn = null;
+            });
     }
 });

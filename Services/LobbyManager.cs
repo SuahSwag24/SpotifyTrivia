@@ -402,6 +402,7 @@ namespace SpotifyTrivia.Services
                         artistName = q.ArtistName,
                         spotifyUrl = q.SpotifyUrl,
                         albumCoverUrl = q.AlbumCoverUrl,
+                        previewUrl = q.PreviewUrl,
                         contributedBy = q.ContributedByPlayerIds
                             .Select(id => lobby.Players.TryGetValue(id, out var p) ? p.DisplayName : null)
                             .Where(name => name != null)

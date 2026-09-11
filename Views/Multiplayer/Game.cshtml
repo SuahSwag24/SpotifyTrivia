@@ -431,6 +431,46 @@
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     }
 
+    .song-recap-info {
+        display: grid;
+        grid-template-columns: 58px minmax(0, 1fr);
+        align-items: center;
+        gap: 0.65rem;
+        text-align: left;
+}
+
+    .recap-play-btn {
+        width: 58px;
+        min-width: 58px;
+        height: 30px;
+        padding: 0 0.4rem;
+        border: 1px solid #1db954;
+        border-radius: 999px;
+        background: #1db954;
+        color: #000;
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .recap-play-btn:hover {
+        background: #1ed760;
+        transform: scale(1.05);
+    }
+
+    .song-recap-text {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .recap-play-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
 </style>
 
 <div class="game-wrapper game-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@ViewBag.IsHost.ToString().ToLower()">

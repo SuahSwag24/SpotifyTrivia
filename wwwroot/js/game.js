@@ -138,6 +138,10 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onPlayerAnswered: (data) => {
             document.querySelector(`#side-player-list [data-player-id="${data.playerId}"]`)?.classList.add("has-answered");
+        },
+        onPlayerDisconnected: (data) => {
+            showToast(`${data.displayName} disconnected from the game`, "warning");
+            document.querySelector(`#side-player-list [data-player-id="${data.playerId}"]`)?.remove();
         }
     });
 
@@ -159,6 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         try {
             await connection.invoke("JoinLobby", lobbyCode, playerId, displayName);
+            await connection.invoke("RequestGamePhase", lobbyCode);
             showToast("Reconnected!", "success");
         } catch (err) {
             console.error("Failed to re-join after reconnect attempt:", err);

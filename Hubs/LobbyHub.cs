@@ -172,6 +172,8 @@ namespace SpotifyTrivia.Hubs
 
             await Clients.Caller.SendAsync("AnswerResult", result);
             await Clients.Groups(lobbyCode).SendAsync("PlayerAnswered", new { playerId });
+
+            await _broadcaster.BroadcastPlayerStatusChanged(lobbyCode, playerId, PlayerStatus.Answered);
         }
 
         public async Task LeaveLobby(string lobbyCode, string playerId)
@@ -198,6 +200,8 @@ namespace SpotifyTrivia.Hubs
 
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, lobbyCode);
                 await Clients.Group(lobbyCode).SendAsync("PlayerDisconnected", new { PlayerId = playerId, DisplayName = displayName });
+
+                await _broadcaster.BroadcastPlayerStatusChanged(lobbyCode, playerId, PlayerStatus.Disconnected);
             }
         }
 
@@ -281,6 +285,8 @@ namespace SpotifyTrivia.Hubs
                         _lobbyManager.MarkPlayerConnection(lobbyCode, playerId, isConnected: false, Context.ConnectionId);
                         _lobbyManager.RemoveConnectionMapping(Context.ConnectionId);
                         await Clients.Group(lobbyCode).SendAsync("PlayerDisconnected", new { PlayerId = playerId });
+
+                        await _broadcaster.BroadcastPlayerStatusChanged(lobbyCode, playerId, PlayerStatus.Disconnected);
                     }
                 }
             }
@@ -302,6 +308,15 @@ namespace SpotifyTrivia.Hubs
                         StartedAtUtc = lobby.CountdownStartedAtUtc,
                         Prompt = lobby.Questions[lobby.CurrentQuestionIndex].Prompt
                     });
+
+                    foreach (var player in lobby.Players.Values)
+                    {
+                        await Clients.Caller.SendAsync("PlayerStatusChanged", new
+                        {
+                            PlayerId = player.PlayerId,
+                            Status = player.Status.ToString().ToLowerInvariant()
+                        });
+                    }
                     break;
 
                 case LobbyState.Question:
@@ -317,6 +332,15 @@ namespace SpotifyTrivia.Hubs
                         TotalQuestions = lobby.Questions.Count,
                         BlurAlbum = lobby.BlurAlbum
                     });
+
+                    foreach (var player in lobby.Players.Values)
+                    {
+                        await Clients.Caller.SendAsync("PlayerStatusChanged", new
+                        {
+                            PlayerId = player.PlayerId,
+                            Status = player.Status.ToString().ToLowerInvariant()
+                        });
+                    }
                     break;
 
                 case LobbyState.Finished:
@@ -361,6 +385,15 @@ namespace SpotifyTrivia.Hubs
                             p.LastAnswerPenalized
                         })
                     });
+
+                    foreach (var player in lobby.Players.Values)
+                    {
+                        await Clients.Caller.SendAsync("PlayerStatusChanged", new
+                        {
+                            PlayerId = player.PlayerId,
+                            Status = player.Status.ToString().ToLowerInvariant()
+                        });
+                    }
                     break;
             }
         }

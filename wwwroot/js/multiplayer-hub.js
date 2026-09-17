@@ -36,6 +36,7 @@ function setupLobbyHandlers(connection, callbacks) {
     });
 
     connection.on("ReturnedToLobby", () => callbacks.onReturnedToLobby?.());
+    connection.on("PlayerStatusChanged", (data) => callbacks.onPlayerStatusChanged?.(data));
 }
 
 function showLeaveConfirmation(isHost) {

@@ -343,6 +343,8 @@ namespace SpotifyTrivia.Services
                             p.HasAnsweredCurrentQuestion = false;
                             p.LastAnswerCorrect = null;
                             p.LastAnswerPenalized = false;
+                            p.Status = PlayerStatus.Active;
+                            await _lobbyBroadcaster.BroadcastPlayerStatusChanged(lobby.Code, p.PlayerId, p.Status);
                         }
                     }
                     finally { lobby.StateLock.Release(); }

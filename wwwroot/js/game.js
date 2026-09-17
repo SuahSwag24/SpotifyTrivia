@@ -137,11 +137,14 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = `/multiplayer/lobby/${lobbyCode}`;
         },
         onPlayerAnswered: (data) => {
-            document.querySelector(`#side-player-list [data-player-id="${data.playerId}"]`)?.classList.add("has-answered");
+            updatePlayerStatus(data.playerId, "answered");
         },
         onPlayerDisconnected: (data) => {
             showToast(`${data.displayName} disconnected from the game`, "warning");
             document.querySelector(`#side-player-list [data-player-id="${data.playerId}"]`)?.remove();
+        },
+        onPlayerStatusChanged: (data) => {
+            updatePlayerStatus(data.playerId, data.status);
         }
     });
 
@@ -489,5 +492,28 @@ document.addEventListener("DOMContentLoaded", () => {
                 btn.textContent = "Unavailable";
                 currentlyPlayingBtn = null;
             });
+    }
+
+    function updatePlayerStatus(playerId, status) {
+        const rootList = document.getElementById("side-player-list");
+        if (!rootList) return;
+
+        const playerEl = rootList.querySelector(`[data-player-id="${playerId}"]`);
+        if (!playerEl) return;
+
+        const normalized = String(status).toLowerCase();
+
+        const dotEl = playerEl.querySelector('.player-dot');
+        if (dotEl) {
+            dotEl.classList.remove('status-active', 'status-answered', 'status-disconnected');
+            dotEl.classList.add(`status-${normalized}`);
+        }
+
+        const textEl = playerEl.querySelector('.player-status-text');
+        if (textEl) {
+            textEl.textContent = normalized;
+        }
+
+        playerEl.classList.toggle('has-answered', normalized === 'answered');
     }
 });

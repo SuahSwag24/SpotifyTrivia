@@ -268,6 +268,7 @@
         transition: box-shadow 0.2s ease, border-color 0.2s ease;
     }
 
+    /* Status indicator */
     .player-dot {
         width: 8px;
         height: 8px;
@@ -276,6 +277,28 @@
         flex-shrink: 0;
         transition: background-color 0.3s ease;
     }
+
+    .player-dot.status-active {
+        background-color: #555;
+    }
+
+    .player-dot.status-answered {
+        background-color: #b3b3b3;
+        border-color: #b3b3b3;
+        box-shadow: 0 0 8px 2px rgba(179, 179, 179, 0.35);
+    }
+
+    .player-dot.status-disconnected {
+        background-color: #e74c3c;
+    }
+
+    /* Status badge text */
+    .player-status-text {
+        font-size: 0.75rem;
+        color: #888;
+        margin-left: 0.5rem;
+    }
+
 
     /* Neutral answered glow (during question phase) */
     .side-player-list li.has-answered {
@@ -470,7 +493,6 @@
         opacity: 0.4;
         cursor: not-allowed;
     }
-
 </style>
 
 <div class="game-wrapper game-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@ViewBag.IsHost.ToString().ToLower()">
@@ -519,8 +541,9 @@
                     @foreach (var player in Model.Players.Values)
                     {
                         <li class="player-pill-item" data-player-id="@player.PlayerId">
-                            <span class="player-dot"></span>
+                            <span class="player-dot status-@(player.Status.ToString().ToLower())"></span>
                             <span class="player-name">@player.DisplayName</span>
+                            <span class="player-status-text">@player.Status.ToString().ToLower()</span>
                         </li>
                     }
                 </ul>

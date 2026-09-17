@@ -273,42 +273,62 @@
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background-color: #555;
+        background-color: #666;
         flex-shrink: 0;
-        transition: background-color 0.3s ease;
+        transition: background-color 0.3s ease, box-shadow 0.3s ease;
     }
 
     .player-dot.status-active {
-        background-color: #555;
+        background-color: #666;
     }
 
     .player-dot.status-answered {
-        background-color: #b3b3b3;
-        border-color: #b3b3b3;
-        box-shadow: 0 0 8px 2px rgba(179, 179, 179, 0.35);
+        background-color: #00d4ff;
+        box-shadow: 0 0 8px 2px rgba(0, 212, 255, 0.6);
+        animation: pulse-glow 2s infinite ease-in-out;
     }
 
     .player-dot.status-disconnected {
         background-color: #e74c3c;
     }
 
-    /* Status badge text */
     .player-status-text {
         font-size: 0.75rem;
-        color: #888;
-        margin-left: 0.5rem;
+        color: #777;
+        margin-left: auto;
+        flex-shrink: 0;
+        transition: color 0.3s ease, font-weight 0.3s ease;
     }
 
+    .player-status-text.active {
+        color: #777;
+    }
 
-    /* Neutral answered glow (during question phase) */
+    .player-status-text.answered {
+        color: #00d4ff;
+        font-weight: 600;
+    }
+
     .side-player-list li.has-answered {
-        border-color: #b3b3b3;
-        box-shadow: 0 0 8px 2px rgba(179, 179, 179, 0.35);
+        border-color: #00d4ff;
+        box-shadow: 0 0 12px 2px rgba(0, 212, 255, 0.3);
+        transform: scale(1.02);
     }
-    
+
     .side-player-list li.has-answered .player-dot {
-        background-color: #b3b3b3;
+        background-color: #00d4ff;
     }
+
+    /* Added animation */
+    @@keyframes pulse-glow {
+        0%, 100% {
+            box-shadow: 0 0 8px 2px rgba(0, 212, 255, 0.6);
+        }
+        50% {
+            box-shadow: 0 0 12px 3px rgba(0, 212, 255, 0.8);
+        }
+    }
+
 
     #question-phase {
         position: relative;
@@ -325,7 +345,7 @@
             position: absolute;
             left: calc(100% + 24px); /* 24px gap from the main card */
             top: 0;
-            width: 220px;
+            width: 280px;
             text-align: left;
             background-color: #181818;
             border: 1px solid #282828;
@@ -345,6 +365,8 @@
 
     .player-name {
         font-size: 0.875rem;
+        min-width: 0;
+        flex: 1;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;

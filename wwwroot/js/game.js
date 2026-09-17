@@ -125,7 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const li = document.createElement("li");
                 li.className = "player-pill-item";
                 li.dataset.playerId = data.playerId;
-                li.innerHTML = `<span class="player-dot"></span><span class="player-name">${data.displayName}</span>`;
+                li.innerHTML = `<span class="player-dot status-active"></span><span class="player-name">${data.displayName}</span><span class="player-status-text active">Pondering...</span>`;
                 document.getElementById("side-player-list").appendChild(li);
             }
         },
@@ -511,7 +511,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const textEl = playerEl.querySelector('.player-status-text');
         if (textEl) {
-            textEl.textContent = normalized;
+            const statusText = normalized === 'answered' ? 'Answered' : normalized === 'disconnected' ? 'Disconnected' : 'Pondering...';
+            textEl.textContent = statusText;
+            textEl.classList.remove('active', 'answered', 'disconnected');
+            textEl.classList.add(normalized);
         }
 
         playerEl.classList.toggle('has-answered', normalized === 'answered');

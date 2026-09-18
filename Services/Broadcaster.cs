@@ -23,13 +23,13 @@ namespace SpotifyTrivia.Services
                 .SendAsync("PreparingGame");
         }
 
-        public Task BroadcastCountdownStart(string lobbyCode, int seconds, DateTime startedAtUtc)
+        public Task BroadcastCountdownStart(string lobbyCode, int seconds, DateTime startedAtUtc, string prompt)
         {
             return _hubContext.Clients.Group(lobbyCode)
-                .SendAsync("CountdownStarted", new { Seconds = seconds, StartedAtUtc = startedAtUtc });
+                .SendAsync("CountdownStarted", new { Seconds = seconds, StartedAtUtc = startedAtUtc, Prompt = prompt });
         }
 
-        public Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds, int questionNumber, int totalQuestions)
+        public Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds, int questionNumber, int totalQuestions, bool blurAlbum)
         {
             var payload = new
             {
@@ -39,38 +39,43 @@ namespace SpotifyTrivia.Services
                 StartedAtUtc = gameStartedAtUtc,
                 DurationSeconds = durationSeconds,
                 QuestionNumber = questionNumber,
-                TotalQuestions = totalQuestions
+                TotalQuestions = totalQuestions,
+                BlurAlbum = blurAlbum
             };
             return _hubContext.Clients.Group(lobbyCode).SendAsync("RoundStarted", payload);
         }
         
-        public Task BroadcastRoundEnded(string lobbyCode, string correctAnswer, List<PlayerModel> players)
+        public Task BroadcastRoundEnded(string lobbyCode, string correctAnswer, List<PlayerModel> players, string albumCoverUrl)
         {
             var payload = new
             {
                 CorrectAnswer = correctAnswer,
+                AlbumCoverUrl = albumCoverUrl,
                 Players = players.Select(p => new
                 {
                     p.PlayerId,
                     p.DisplayName,
                     p.Score,
+                    ScoreDelta = p.AnswerHistory.LastOrDefault()?.AwardedScore ?? 0,
                     p.LastAnswerCorrect,
+                    p.LastAnswerPenalized
                 })
             };
 
             return _hubContext.Clients.Group(lobbyCode).SendAsync("RoundEnded", payload);
         }
 
-        public Task BroadcastGameEnded(string lobbyCode, List<PlayerModel> finalLeaderboard)
+        public Task BroadcastGameEnded(string lobbyCode, List<PlayerModel> finalLeaderboard, List<object> songResults)
         {
-            var payload = finalLeaderboard.Select(p => new
+            var leaderboardPayload = finalLeaderboard.Select(p => new
             {
                 p.PlayerId,
                 p.DisplayName,
-                p.Score
+                p.Score,
+                p.AnswerHistory
             });
 
-            return _hubContext.Clients.Group(lobbyCode).SendAsync("GameEnded", payload);
+            return _hubContext.Clients.Group(lobbyCode).SendAsync("GameEnded", leaderboardPayload, songResults);
         }
 
         public Task BroadcastPlayerJoined(string lobbyCode, PlayerModel player)
@@ -93,6 +98,12 @@ namespace SpotifyTrivia.Services
         {
             return _hubContext.Clients.Group(lobbyCode)
                 .SendAsync("PlayerJoining", new { DisplayNames = displayNames });
+        }
+
+        public Task BroadcastPlayerStatusChanged(string lobbyCode, string playerId, PlayerStatus status)
+        {
+            var payload = new { PlayerId = playerId, Status = status.ToString().ToLowerInvariant() };
+            return _hubContext.Clients.Group(lobbyCode).SendAsync("PlayerStatusChanged", payload);
         }
 
         public Task SendPromotedToActive(string connectionId)

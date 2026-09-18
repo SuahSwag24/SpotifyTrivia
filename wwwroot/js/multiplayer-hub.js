@@ -13,12 +13,13 @@ function setupLobbyHandlers(connection, callbacks) {
     connection.on("GameModeSelected", (data) => callbacks.onGameModeSelected?.(data));
     connection.on("LobbyDisbanded", () => callbacks.onLobbyDisbanded?.());
     connection.on("ActionError", (data) => callbacks.onActionError?.(data));
+    connection.on("PlayerAnswered", (data) => callbacks.onPlayerAnswered?.(data));
 
     connection.on("CountdownStarted", (data) => callbacks.onCountdownStarted?.(data));
     connection.on("PreparingGame", () => callbacks.onPreparingGame?.());
     connection.on("RoundStarted", (data) => callbacks.onRoundStarted?.(data));
     connection.on("RoundEnded", (data) => callbacks.onRoundEnded?.(data));
-    connection.on("GameEnded", (data) => callbacks.onGameEnded?.(data));
+    connection.on("GameEnded", (leaderboard, songResults) => callbacks.onGameEnded?.(leaderboard, songResults));
 
     connection.on("AnswerResult", (data) => {
         const allButtons = document.querySelectorAll("#answer-choices .answer-btn");
@@ -35,28 +36,42 @@ function setupLobbyHandlers(connection, callbacks) {
     });
 
     connection.on("ReturnedToLobby", () => callbacks.onReturnedToLobby?.());
+    connection.on("PlayerStatusChanged", (data) => callbacks.onPlayerStatusChanged?.(data));
 }
 
-function showToast(message, toastType = "warning") {
-    const stack = document.getElementById("toast-stack");
+function showLeaveConfirmation(isHost) {
+    const modalElement = document.getElementById("leave-confirmation-modal");
+    const confirmButton = document.getElementById("confirm-leave-btn");
+    const messageElement = document.getElementById("leave-confirmation-message");
 
-    const toast = document.createElement("div");
-    toast.textContent = message;
-    toast.classList.add("alert", `alert-${toastType}`);
-    toast.style.opacity = "0";
-    toast.style.transform = "translateY(10px)";
-    toast.style.transition = "opacity 0.25s ease, transform 0.25s ease";
+    messageElement.textContent = isHost
+        ? "Leaving will disband the lobby. Are you sure?"
+        : "Are you sure you want to leave the game?";
 
-    stack.appendChild(toast);
+    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
 
-    requestAnimationFrame(() => {
-        toast.style.opacity = "1";
-        toast.style.transform = "translateY(0)";
-    });
+    return new Promise(resolve => {
+        let resolved = false;
 
-    setTimeout(() => {
-        toast.style.opacity = "0";
-        toast.style.transform = "translateY(10px)";
-        setTimeout(() => toast.remove(), 250);
-    }, 3000);
+        function finish(result) {
+            if (resolved) return;
+
+            resolved = true;
+            confirmButton.onclick = null;
+            resolve(result);
+        }
+
+        confirmButton.onclick = () => {
+            finish(true);
+            modal.hide();
+        };
+
+        modalElement.addEventListener(
+            "hidden.bs.modal",
+            () => finish(false),
+            { once: true }
+        );
+
+        modal.show();
+    })
 }

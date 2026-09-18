@@ -9,12 +9,14 @@ namespace SpotifyTrivia.Services
 {
     public interface ILobbyManager
     {
-        LobbyModel CreateLobby(string hostPlayerId, string hostPlayerName, string hostAccessToken);
+        LobbyModel CreateLobby(string hostPlayerId, string hostPlayerName, string hostAccessToken, string? hostRefreshToken);
         LobbyModel? GetLobby(string code);
         bool TryAddPlayer(string code, string playerId, string displayName, string connectionId, out PlayerModel? player, out bool isNewPlayer);
         void RemovePlayer(string code, string playerId);
         void MarkPlayerConnection(string code, string playerId, bool isConnected, string connectionId);
-        Task StartSessionAsync(string code, List<TrackModel> tracks, int questionCount);
+        void MarkPlayerAsLeft(string code, string playerId);
+        Task StartSessionAsync(string code, List<TrackModel> tracks, int questionCount, int roundDurationSeconds);
+        Task ContinueSessionAsync(string code, List<TrackModel> tracks);
         Task<AnswerResultModel> RecordPlayerAnswerAsync(string code, string playerId, int choiceIndex);
         (string lobbyCode, string playerId)? GetConnectionMapping(string connectionId);
         void RemoveConnectionMapping(string connectionId);

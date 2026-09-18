@@ -15,12 +15,12 @@ public class AuthController : Controller
     }
 
     [HttpGet("login")]
-    public IActionResult Login()
+    public IActionResult Login(bool force = false)
     {
         var clientId = _config["Spotify:ClientId"];
         var redirectUri = _config["Spotify:RedirectUri"];
 
-        var scope = "user-read-private playlist-read-private playlist-read-collaborative streaming user-read-email";
+        var scope = "user-read-private playlist-read-private playlist-read-collaborative streaming user-read-email user-library-read user-read-recently-played";
 
         var spotifyAuthUrl = $"https://accounts.spotify.com/authorize?" +
             $"response_type=code" +
@@ -28,15 +28,30 @@ public class AuthController : Controller
             $"&scope={Uri.EscapeDataString(scope)}" +
             $"&redirect_uri={Uri.EscapeDataString(redirectUri)}";
 
+        if (force)
+        {
+            spotifyAuthUrl += "&show_dialog=true";
+        }
+
         return Redirect(spotifyAuthUrl);
     }
 
     [HttpGet("callback")]
-    public async Task<IActionResult> Callback(string code)
+    public async Task<IActionResult> Callback(string? code, string? error)
     {
+        if (!string.IsNullOrEmpty(error))
+        {
+            TempData["LoginError"] = error == "access_denied"
+                ? "Login was cancelled."
+                : "Something went wrong when signing in with Spotify.";
+            
+            return RedirectToAction("Index", "Dashboard");
+        }
+
         if (string.IsNullOrEmpty(code))
         {
-            return BadRequest("Authorization code was missing from Spotify.");
+            TempData["LoginError"] = "Login was cancelled.";
+            return RedirectToAction("index", "Dashboard");
         }
 
         var client = _httpClientFactory.CreateClient();
@@ -56,7 +71,7 @@ public class AuthController : Controller
 
         if (!response.IsSuccessStatusCode)
         {
-            var error = await response.Content.ReadAsStringAsync();
+            error = await response.Content.ReadAsStringAsync();
             return Content($"Error retrieving token: {error}");
         }
 
@@ -64,12 +79,36 @@ public class AuthController : Controller
         using var jsonDoc = JsonDocument.Parse(responseString);
 
         var accessToken = jsonDoc.RootElement.GetProperty("access_token").GetString();
+        var refreshToken = jsonDoc.RootElement.TryGetProperty("refresh_token", out var refreshTokenElement)
+            ? refreshTokenElement.GetString()
+            : null;
 
         if (!string.IsNullOrEmpty(accessToken))
         {
             HttpContext.Session.SetString("SpotifyAccessToken", accessToken);
         }
 
+        if (!string.IsNullOrEmpty(refreshToken))
+        {
+            HttpContext.Session.SetString("SpotifyRefreshToken", refreshToken);
+        }
+
         return RedirectToAction("Index", "Dashboard");
+    }
+
+    [HttpPost("logout")]
+    [ValidateAntiForgeryToken]
+    public IActionResult Logout()
+    {
+        HttpContext.Session.Clear();
+        Response.Cookies.Delete(".AspNetCore.Session");
+
+        return RedirectToAction("Index", "Dashboard");
+    }
+
+    [HttpGet("logged-out")]
+    public IActionResult LoggedOut()
+    {
+        return View();
     }
 }

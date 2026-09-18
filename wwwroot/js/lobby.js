@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const leaveBtn = document.getElementById("leave-lobby-btn");
+    let resetStartControls = () => { };
 
     function applySelectedGameMode(mode) {
         try {
@@ -49,10 +50,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 list.appendChild(li);
             }
 
+            const playerCount = document.getElementById("player-count");
+            playerCount.textContent = `${document.querySelectorAll("#player-list .player-pill-item").length} / ${playerCount.dataset.maxPlayers}`;
+
             showToast(`${data.displayName} joined the lobby`, "success");
         },
         onPlayerLeft: (data) => {
             document.querySelector(`#player-list [data-player-id="${data.playerId}"]`)?.remove();
+            const playerCount = document.getElementById("player-count");
+            playerCount.textContent = `${document.querySelectorAll("#player-list .player-pill-item").length} / ${playerCount.dataset.maxPlayers}`;
             showToast(`${data.displayName} has left the lobby`, "warning");
         },
         onPlayerDisconnected: (data) => {
@@ -65,7 +71,10 @@ document.addEventListener("DOMContentLoaded", () => {
         onGameModeSelected: (data) => {
             applySelectedGameMode(data.mode);
         },
-        onActionError: (data) => showError(data.message),
+        onActionError: (data) => {
+            resetStartControls();
+            showError(data.message);
+        },
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },
         onCountdownStarted: () => { window.location.href = `/multiplayer/game/${lobbyCode}`; },
         onPreparingGame: () => {
@@ -76,11 +85,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     connection.on("JoinStatus", (data) => {
         setWaitingBarText(data.status);
+        if (isHost && startBtn) startBtn.disabled = false;
     });
 
-
     connection.start()
-        .then(() => connection.invoke("JoinLobby", lobbyCode, playerId, displayName))
+        .then(() => {
+            if (isHost) document.getElementById("start-game-btn").disabled = true;
+            return connection.invoke("JoinLobby", lobbyCode, playerId, displayName)
+        })
         .catch(err => showError("Connection failed: " + err));
 
     if (isHost) {
@@ -91,13 +103,30 @@ document.addEventListener("DOMContentLoaded", () => {
         const gameModeGrid = document.getElementById("gamemode-grid");
 
         let selectedQuestionCount = 10;
+        let selectedRoundDurationSeconds = 10;
+        let blurAlbum = true;
 
         const questionSlider = document.getElementById("question-count-slider");
         const questionDisplay = document.getElementById("question-count-display");
+
+        const roundDurationSlider = document.getElementById("round-duration-slider");
+        const roundDurationDisplay = document.getElementById("round-duration-display");
+
+        const blurAlbumSwitch = document.getElementById("blur-album-switch");
+
         const saveSettingsBtn = document.getElementById("save-settings-btn");
+
+        resetStartControls = () => {
+            startBtn.disabled = false;
+            chooseBtn.disabled = false;
+            settingsBtn.disabled = false;
+            startBtn.textContent = "Start Game";
+        };
 
         saveSettingsBtn.addEventListener("click", () => {
             selectedQuestionCount = parseInt(questionSlider.value, 10);
+            selectedRoundDurationSeconds = parseInt(roundDurationSlider.value, 10);
+            blurAlbum = blurAlbumSwitch.checked;
         })
 
         chooseBtn.addEventListener("click", async () => {
@@ -115,6 +144,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById("selected-playlist-label").textContent = `Selected playlist: ${playlistName}`;
             pickerContainer.style.display = "none";
+            bootstrap.Modal.getOrCreateInstance(document.getElementById("playlistModal")).hide();
 
             connection.invoke("SelectPlaylist", lobbyCode, playlistId, playlistName)
                 .catch(err => showError("Failed to select playlist: " + err));
@@ -145,16 +175,20 @@ document.addEventListener("DOMContentLoaded", () => {
             settingsBtn.disabled = true;
 
             startBtn.textContent = "Starting...";
-            connection.invoke("StartGame", lobbyCode, selectedQuestionCount)
+            connection.invoke("StartGame", lobbyCode, selectedQuestionCount, selectedRoundDurationSeconds, blurAlbum)
                 .catch(err => {
                     showError("Failed to start: " + err);
-                    startBtn.disabled = false;
-                    startBtn.textContent = "Start Game";
+                    resetStartControls();
                 });
         });
     }
 
-    document.getElementById("leave-lobby-btn").addEventListener("click", () => {
+    leaveBtn.addEventListener("click", async () => {
+        const confirmed = await showLeaveConfirmation(isHost);
+        if (!confirmed) return;
+
+        leaveBtn.disabled = true;
+
         connection.invoke("LeaveLobby", lobbyCode, playerId)
             .catch(err => showError("Failed to leave: " + err))
             .finally(() => { window.location.href = "/multiplayer"; });

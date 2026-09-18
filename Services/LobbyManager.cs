@@ -33,7 +33,7 @@ namespace SpotifyTrivia.Services
             _logger = logger;
         }
 
-        public LobbyModel CreateLobby(string hostPlayerId, string hostPlayerName, string hostAccessToken)
+        public LobbyModel CreateLobby(string hostPlayerId, string hostPlayerName, string hostAccessToken, string? hostRefreshToken)
         {
             string code = GenerateLobbyCode();
 
@@ -43,12 +43,15 @@ namespace SpotifyTrivia.Services
                 PlayerHostId = hostPlayerId,
                 HostDisplayName = hostPlayerName,
                 HostSpotifyAccessToken = hostAccessToken,
+                HostSpotifyRefreshToken = hostRefreshToken
             };
 
             var host = new PlayerModel
             {
                 PlayerId = hostPlayerId,
                 DisplayName = hostPlayerName,
+                SpotifyAccessToken = hostAccessToken,
+                SpotifyRefreshToken = hostRefreshToken
             };
 
             lobby.Players[hostPlayerId] = host;
@@ -68,7 +71,9 @@ namespace SpotifyTrivia.Services
 
             isNewPlayer = !lobby.Players.ContainsKey(playerId);
 
-            if (lobby.State == LobbyState.Finished) return false;
+            if (lobby.State == LobbyState.Finished && isNewPlayer) return false;
+
+            if (isNewPlayer && lobby.Players.Count >= lobby.MaxPlayers) return false;
 
             player = lobby.Players.GetOrAdd(playerId, _ => new PlayerModel
             {
@@ -93,6 +98,29 @@ namespace SpotifyTrivia.Services
 
             player.IsConnected = isConnected;
             player.ConnectionId = isConnected ? connectionId : null;
+            player.Status = isConnected
+                ? PlayerStatus.Active
+                : PlayerStatus.Disconnected;
+        }
+
+        public void MarkPlayerAsLeft(string code, string playerId)
+        {
+            if (!_lobbies.TryGetValue(code, out var lobby)) return;
+            if (!lobby.Players.TryGetValue(playerId, out var player)) return;
+
+            player.IsConnected = false;
+            player.ConnectionId = null;
+            player.Status = PlayerStatus.Disconnected;
+
+            var staleConnections = _connectionMap
+                .Where(kvp => kvp.Value.lobbyCode == code && kvp.Value.playerId == playerId)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var connectionId in staleConnections)
+            {
+                _connectionMap.TryRemove(connectionId, out _);
+            }
         }
 
         public async Task<AnswerResultModel> RecordPlayerAnswerAsync(string code, string playerId, int choiceIndex)
@@ -116,17 +144,21 @@ namespace SpotifyTrivia.Services
                     choiceIndex,
                     lobby.RoundStartedAtUtc,
                     answeredAtUtc,
-                    _settings.RoundDurationSeconds
+                    lobby.RoundDurationSeconds,
+                    playerId
                 );
 
                 player.HasAnsweredCurrentQuestion = true;
                 player.LastAnswerCorrect = result.WasCorrect;
                 player.LastAnswerSubmittedUtc = DateTime.UtcNow;
+                player.LastAnswerPenalized = result.WasSelfContributionPenalty;
 
                 if (result.WasCorrect)
                 {
                     player.Score += result.AwardedScore;
                 }
+
+                player.AnswerHistory.Add(result);
 
                 return result;
             }
@@ -153,15 +185,36 @@ namespace SpotifyTrivia.Services
             }
         }
 
-        public async Task StartSessionAsync(string code, List<TrackModel> tracks, int questionCount)
+        public async Task StartSessionAsync(string code, List<TrackModel> tracks, int questionCount, int roundDurationSeconds)
         {
             if (!_lobbies.TryGetValue(code, out var lobby)) return;
 
             var mode = _gameModeFactory.GetGameMode(lobby.GameMode);
 
-            lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount);
+            lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount, lobby.PlayedTrackIds);
             lobby.SessionLoopCts = new CancellationTokenSource();
 
+            lobby.RoundDurationSeconds = roundDurationSeconds > 0 ? roundDurationSeconds : _settings.RoundDurationSeconds;
+
+            _ = RunSessionLoop(lobby, lobby.SessionLoopCts.Token);
+        }
+
+        public async Task ContinueSessionAsync(string code, List<TrackModel> tracks)
+        {
+            if (!_lobbies.TryGetValue(code, out var lobby)) return;
+
+            var mode = _gameModeFactory.GetGameMode(lobby.GameMode);
+            lobby.Questions = await mode.GenerateQuestionsAsync(tracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds);
+            
+            foreach (var p in lobby.Players.Values)
+            {
+                p.AnswerHistory.Clear();
+                p.HasAnsweredCurrentQuestion = false;
+                p.LastAnswerPenalized = false;
+                p.LastAnswerCorrect = null;
+            }
+
+            lobby.SessionLoopCts = new CancellationTokenSource();
             _ = RunSessionLoop(lobby, lobby.SessionLoopCts.Token);
         }
 
@@ -208,6 +261,8 @@ namespace SpotifyTrivia.Services
                 p.HasAnsweredCurrentQuestion = false;
                 p.LastAnswerCorrect = null;
                 p.JoinStatus = PlayerJoinStatus.Active;
+                p.LastAnswerPenalized = false;
+                p.AnswerHistory.Clear();
             }
 
             return true;
@@ -225,14 +280,6 @@ namespace SpotifyTrivia.Services
             } while (_lobbies.ContainsKey(code));
 
             return code;
-        }
-
-        private int CalculateScore(DateTime roundStartedAtUtc, DateTime playerAnsweredAtUtc, double roundDurationSeconds)
-        {
-            double elapsedSeconds = (playerAnsweredAtUtc -  roundStartedAtUtc).TotalSeconds;
-
-            double score = 100 * (1 - elapsedSeconds / roundDurationSeconds);
-            return Math.Clamp((int)Math.Round(score), 1, 100);
         }
 
         private async Task RunSessionLoop(LobbyModel lobby, CancellationToken ct)
@@ -257,6 +304,20 @@ namespace SpotifyTrivia.Services
                         foreach (var p in promoted)
                         {
                             p.JoinStatus = PlayerJoinStatus.Active;
+
+                            //  Fill missed round history
+                            for (int missed = 0; missed < i; missed++)
+                            {
+                                p.AnswerHistory.Add(new AnswerResultModel
+                                {
+                                    Success = true,
+                                    WasCorrect = false,
+                                    SubmittedIndex = -1,
+                                    CorrectIndex = lobby.Questions[missed].AnswerChoices.IndexOf(lobby.Questions[missed].CorrectAnswer),
+                                    CorrectAnswerText = lobby.Questions[missed].CorrectAnswer,
+                                    AwardedScore = 0
+                                });
+                            }
                         }
                     }
                     finally { lobby.StateLock.Release(); }
@@ -283,16 +344,27 @@ namespace SpotifyTrivia.Services
                         lobby.CountdownStartedAtUtc = DateTime.UtcNow;
                         foreach (var p in lobby.Players.Values)
                         {
+                            if (p.Status == PlayerStatus.Disconnected)
+                            {
+                                lobby.Players.Remove(p.PlayerId, out _);
+                                await _lobbyBroadcaster.BroadcastPlayerLeft(lobby.Code, p.PlayerId, p.DisplayName);
+                                continue;
+                            }
+
                             p.HasAnsweredCurrentQuestion = false;
                             p.LastAnswerCorrect = null;
+                            p.LastAnswerPenalized = false;
+                            p.Status = PlayerStatus.Active;
+                            await _lobbyBroadcaster.BroadcastPlayerStatusChanged(lobby.Code, p.PlayerId, p.Status);
                         }
                     }
                     finally { lobby.StateLock.Release(); }
 
-                    await _lobbyBroadcaster.BroadcastCountdownStart(lobby.Code, _settings.CountdownSeconds, lobby.CountdownStartedAtUtc);
+                    var question = lobby.Questions[i];
+
+                    await _lobbyBroadcaster.BroadcastCountdownStart(lobby.Code, _settings.CountdownSeconds, lobby.CountdownStartedAtUtc, question.Prompt);
                     await Task.Delay(TimeSpan.FromSeconds(_settings.CountdownSeconds), ct);
 
-                    var question = lobby.Questions[i];
                     await lobby.StateLock.WaitAsync(ct);
                     try
                     {
@@ -301,20 +373,40 @@ namespace SpotifyTrivia.Services
                     }
                     finally { lobby.StateLock.Release(); }
 
-                    await _lobbyBroadcaster.BroadcastRoundStarted(lobby.Code, question, lobby.RoundStartedAtUtc, _settings.RoundDurationSeconds, questionNumber: i + 1, totalQuestions: lobby.Questions.Count);
-                    await Task.Delay(TimeSpan.FromSeconds(_settings.RoundDurationSeconds), ct);
+                    await _lobbyBroadcaster.BroadcastRoundStarted(lobby.Code, question, lobby.RoundStartedAtUtc, lobby.RoundDurationSeconds, questionNumber: i + 1, totalQuestions: lobby.Questions.Count, blurAlbum: lobby.BlurAlbum);
+                    await Task.Delay(TimeSpan.FromSeconds(lobby.RoundDurationSeconds), ct);
 
                     await lobby.StateLock.WaitAsync(ct);
-                    try { lobby.State = LobbyState.Reveal; }
+                    try 
+                    { 
+                        lobby.State = LobbyState.Reveal; 
+
+                        foreach (var p in lobby.Players.Values)
+                        {
+                            if (!p.HasAnsweredCurrentQuestion)
+                            {
+                                p.AnswerHistory.Add(new AnswerResultModel
+                                {
+                                    Success = true,
+                                    WasCorrect = false,
+                                    SubmittedIndex = -1,
+                                    CorrectIndex = question.AnswerChoices.IndexOf(question.CorrectAnswer),
+                                    CorrectAnswerText = question.CorrectAnswer,
+                                    AwardedScore = 0
+                                });
+                            }
+                        }
+                    }
                     finally { lobby.StateLock.Release(); }
 
-                    await _lobbyBroadcaster.BroadcastRoundEnded(lobby.Code, question.CorrectAnswer, lobby.Players.Values.ToList());
+                    await _lobbyBroadcaster.BroadcastRoundEnded(lobby.Code, question.CorrectAnswer, lobby.Players.Values.ToList(), question.AlbumCoverUrl);
                     await Task.Delay(TimeSpan.FromSeconds(_settings.RevealSeconds), ct);
                 }
             }
             catch (OperationCanceledException)
             {
                 endReason = LobbySessionEndReason.Disbanded;
+                _logger.LogInformation("Lobby session loop canceled for lobby {Code}", lobby.Code);
             }
             catch (Exception ex)
             {
@@ -322,6 +414,7 @@ namespace SpotifyTrivia.Services
                 _logger.LogError(ex, "Lobby session loop failed unexpectedly for lobby {Code}", lobby.Code);
             }
 
+            _logger.LogInformation("Lobby session loop ending for lobby {Code} with reason {Reason}", lobby.Code, endReason);
             await HandleSessionEnd(lobby, endReason);
         }
 
@@ -334,17 +427,34 @@ namespace SpotifyTrivia.Services
                     var leaderboard = lobby.Players.Values
                         .OrderByDescending(p => p.Score)
                         .ToList();
-                    await _lobbyBroadcaster.BroadcastGameEnded(lobby.Code, leaderboard);
+
+                    var songResults = lobby.Questions.Select(q => (object)new
+
+                    {
+                        songTitle = q.SongTitle,
+                        artistName = q.ArtistName,
+                        spotifyUrl = q.SpotifyUrl,
+                        albumCoverUrl = q.AlbumCoverUrl,
+                        previewUrl = q.PreviewUrl,
+                        contributedBy = q.ContributedByPlayerIds
+                            .Select(id => lobby.Players.TryGetValue(id, out var p) ? p.DisplayName : null)
+                            .Where(name => name != null)
+                            .ToList()
+                    }).ToList();
+
+                    await _lobbyBroadcaster.BroadcastGameEnded(lobby.Code, leaderboard, songResults);
                     break;
 
                 case LobbySessionEndReason.Disbanded:
                     break;
 
                 case LobbySessionEndReason.Error:
+                    _logger.LogWarning("Disbanding lobby {Code} because its session loop failed", lobby.Code);
                     await _lobbyBroadcaster.BroadcastLobbyDisbanded(lobby.Code);
                     _lobbies.TryRemove(lobby.Code, out _);
                     break;
             }    
         }
+
     }
 }

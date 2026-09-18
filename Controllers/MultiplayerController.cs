@@ -35,10 +35,12 @@ namespace SpotifyTrivia.Controllers
             var token = HttpContext.Session.GetString("SpotifyAccessToken");
             if (string.IsNullOrEmpty(token)) return RedirectToAction("Login", "Auth");
 
+            var refreshToken = HttpContext.Session.GetString("SpotifyRefreshToken");
+
             string hostPlayerId = GetOrCreatePlayerId();
             string hostDisplayName = ResolveDisplayName();
 
-            var lobby = _lobbyManager.CreateLobby(hostPlayerId, hostDisplayName, token);
+            var lobby = _lobbyManager.CreateLobby(hostPlayerId, hostDisplayName, token, refreshToken);
 
             return RedirectToAction("Lobby", new { code = lobby.Code });
         }
@@ -71,6 +73,14 @@ namespace SpotifyTrivia.Controllers
             if (lobby == null)
             {
                 TempData["ErrorMessage"] = "Lobby not found. Check the code and try again.";
+                return RedirectToAction("Index");
+            }
+
+            var playerId = HttpContext.Session.GetString("PlayerId");
+            var isExistingPlayer = !string.IsNullOrEmpty(playerId) && lobby.Players.ContainsKey(playerId);
+            if (lobby.Players.Count >= lobby.MaxPlayers && !isExistingPlayer)
+            {
+                TempData["ErrorMessage"] = "This lobby is full.";
                 return RedirectToAction("Index");
             }
 

@@ -290,6 +290,8 @@
 
     .player-dot.status-disconnected {
         background-color: #e74c3c;
+        box-shadow: 0 0 8px 2px rgba(231, 76, 60, 0.65);
+        animation: disconnected-glow 2s infinite ease-in-out;
     }
 
     .player-status-text {
@@ -309,6 +311,11 @@
         font-weight: 600;
     }
 
+    .player-status-text.disconnected {
+        color: #e74c3c;
+        font-weight: 600;
+    }
+
     .side-player-list li.has-answered {
         border-color: #00d4ff;
         box-shadow: 0 0 12px 2px rgba(0, 212, 255, 0.3);
@@ -319,7 +326,11 @@
         background-color: #00d4ff;
     }
 
-    /* Added animation */
+    .side-player-list li:has(.status-disconnected) {
+        border-color: #e74c3c;
+        box-shadow: 0 0 12px 2px rgba(231, 76, 60, 0.25);
+    }
+
     @@keyframes pulse-glow {
         0%, 100% {
             box-shadow: 0 0 8px 2px rgba(0, 212, 255, 0.6);
@@ -329,6 +340,15 @@
         }
     }
 
+    @@keyframes disconnected-glow {
+        0%, 100% {
+            box-shadow: 0 0 8px 2px rgba(231, 76, 60, 0.5);
+        }
+
+        50% {
+            box-shadow: 0 0 12px 3px rgba(231, 76, 60, 0.85);
+        }
+    }
 
     #question-phase {
         position: relative;

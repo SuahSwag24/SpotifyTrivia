@@ -98,6 +98,9 @@ namespace SpotifyTrivia.Services
 
             player.IsConnected = isConnected;
             player.ConnectionId = isConnected ? connectionId : null;
+            player.Status = isConnected
+                ? PlayerStatus.Active
+                : PlayerStatus.Disconnected;
         }
 
         public void MarkPlayerAsLeft(string code, string playerId)
@@ -107,6 +110,7 @@ namespace SpotifyTrivia.Services
 
             player.IsConnected = false;
             player.ConnectionId = null;
+            player.Status = PlayerStatus.Disconnected;
 
             var staleConnections = _connectionMap
                 .Where(kvp => kvp.Value.lobbyCode == code && kvp.Value.playerId == playerId)
@@ -340,6 +344,13 @@ namespace SpotifyTrivia.Services
                         lobby.CountdownStartedAtUtc = DateTime.UtcNow;
                         foreach (var p in lobby.Players.Values)
                         {
+                            if (p.Status == PlayerStatus.Disconnected)
+                            {
+                                lobby.Players.Remove(p.PlayerId, out _);
+                                await _lobbyBroadcaster.BroadcastPlayerLeft(lobby.Code, p.PlayerId, p.DisplayName);
+                                continue;
+                            }
+
                             p.HasAnsweredCurrentQuestion = false;
                             p.LastAnswerCorrect = null;
                             p.LastAnswerPenalized = false;

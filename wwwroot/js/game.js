@@ -141,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onPlayerDisconnected: (data) => {
             showToast(`${data.displayName} disconnected from the game`, "warning");
-            document.querySelector(`#side-player-list [data-player-id="${data.playerId}"]`)?.remove();
+            updatePlayerStatus(data.playerId, "disconnected");
         },
         onPlayerStatusChanged: (data) => {
             updatePlayerStatus(data.playerId, data.status);

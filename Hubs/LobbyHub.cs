@@ -52,6 +52,12 @@ namespace SpotifyTrivia.Hubs
             _logger.LogInformation("Player {PlayerId} joined lobby {LobbyCode} on connection {ConnectionId}; host={IsHost}, newPlayer={IsNewPlayer}",
                 playerId, lobbyCode, Context.ConnectionId, playerId == _lobbyManager.GetLobby(lobbyCode)?.PlayerHostId, isNewPlayer);
 
+            if (!isNewPlayer && player.Status == PlayerStatus.Disconnected)
+            {
+                player.Status = PlayerStatus.Active;
+                await _broadcaster.BroadcastPlayerStatusChanged(lobbyCode, player.PlayerId, player.Status);
+            }
+
             var accessToken = Context.GetHttpContext()?.Session.GetString("SpotifyAccessToken");
             var refreshToken = Context.GetHttpContext()?.Session.GetString("SpotifyRefreshToken");
 

@@ -1,0 +1,5 @@
+SpotifyTrivia/bin/
+SpotifyTrivia/obj/
+.vs/
+.git/
+**/appsettings.Development.json

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using SpotifyTrivia.Models;
@@ -10,6 +11,7 @@ namespace SpotifyTrivia.Services.GameModes
     public class ClassicGuessSongGameMode : IGameMode
     {
         private readonly IDeezerService _deezerService;
+        private const double SELFCONTRIBUTIONPENALTYMULTIPLIER = 0.5;
 
         public ClassicGuessSongGameMode(IDeezerService deezerService)
         {
@@ -18,20 +20,22 @@ namespace SpotifyTrivia.Services.GameModes
 
         public GameModeType ModeType => GameModeType.ClassicGuessSong;
 
-        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions)
+        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds)
         {
-            if (tracks.Count < 4)
+            var shuffledPool = new List<TrackModel>(tracks)
+                .Where(t => !excludedTrackIds.Contains(t.Id))
+                .ToList();
+
+            if (shuffledPool.Count < 4)
             {
-                throw new InvalidOperationException("Not enough tracks in the current playlist");
+                throw new PlaylistExhaustedException("Not enough remaining unplayed tracks to generate more questions.");
             }
 
-            var shuffledPool = new List<TrackModel>(tracks);
             Shuffle(shuffledPool);
 
             int maxAttempts = Math.Min(shuffledPool.Count, numberOfQuestions * 3);
 
             var quizQuestions = new List<TriviaQuestionModel>();
-            var usedTrackIds = new HashSet<string>();
 
             for (int i = 0; i < maxAttempts; i++)
             {
@@ -69,17 +73,21 @@ namespace SpotifyTrivia.Services.GameModes
                     TargetTrackId = candidate.Id,
                     PreviewUrl = previewUrl,
                     AlbumCoverUrl = candidate.AlbumCoverUrl ?? string.Empty,
+                    SongTitle = candidate.Title,
+                    ArtistName = candidate.Artist,
                     Prompt = "Name the Song & Artist",
                     CorrectAnswer = correctAnswer,
-                    AnswerChoices = choices
+                    AnswerChoices = choices,
+                    SpotifyUrl = candidate.SpotifyUrl ?? "",
+                    ContributedByPlayerIds = candidate.ContributedByPlayerIds
                 });
 
-                usedTrackIds.Add(candidate.Id);
+                excludedTrackIds.Add(candidate.Id);
             }
 
-            if (quizQuestions.Count == 0)
+            if (quizQuestions.Count < numberOfQuestions)
             {
-                throw new InvalidOperationException("Couldn't find playable previews for any tracks in this playlist.");
+                throw new PlaylistExhaustedException("Not enough playable tracks remaining to generate a full round.");
             }
 
             return quizQuestions;
@@ -90,16 +98,17 @@ namespace SpotifyTrivia.Services.GameModes
             int choiceIndex,
             DateTime roundStartedAtUtc,
             DateTime answeredAtUtc,
-            double roundDurationSeconds)
+            double roundDurationSeconds,
+            string playerId)
         {
             int correctIndex = question.AnswerChoices.IndexOf(question.CorrectAnswer);
             bool isCorrect = choiceIndex == correctIndex;
+            bool isSelfContributed = isCorrect && question.ContributedByPlayerIds.Contains(playerId);
 
             int score = 0;
             if (isCorrect)
             {
-                double elapsedSeconds = (answeredAtUtc - roundStartedAtUtc).TotalSeconds;
-                score = Math.Clamp((int)Math.Round(100 * (1 - elapsedSeconds / roundDurationSeconds)), 1, 100);
+                score = CalculateScore(roundStartedAtUtc, answeredAtUtc, roundDurationSeconds, isSelfContributed);
             }
 
             return new AnswerResultModel
@@ -109,7 +118,8 @@ namespace SpotifyTrivia.Services.GameModes
                 SubmittedIndex = choiceIndex,
                 CorrectIndex = correctIndex,
                 CorrectAnswerText = question.CorrectAnswer,
-                AwardedScore = score
+                AwardedScore = score,
+                WasSelfContributionPenalty = isSelfContributed
             };
         }
 
@@ -124,6 +134,19 @@ namespace SpotifyTrivia.Services.GameModes
                 int k = Random.Shared.Next(n + 1);
                 (list[k], list[n]) = (list[n], list[k]);
             }
+        }
+
+        private int CalculateScore(DateTime roundStartedAtUtc, DateTime playerAnsweredAtUtc, double roundDurationSeconds, bool isSelfContributed)
+        {
+            double elapsedSeconds = (playerAnsweredAtUtc - roundStartedAtUtc).TotalSeconds;
+            double score = 100 * (1 - elapsedSeconds / roundDurationSeconds);
+
+            if (isSelfContributed)
+            {
+                score *= SELFCONTRIBUTIONPENALTYMULTIPLIER;
+            }
+
+            return Math.Clamp((int)Math.Round(score), 1, 100);
         }
     }
 }

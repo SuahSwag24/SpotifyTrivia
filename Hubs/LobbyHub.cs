@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime;
 using System.Text;
 using Microsoft.AspNetCore.SignalR;
 using SpotifyTrivia.Models;
 using SpotifyTrivia.Models.Multiplayer;
 using SpotifyTrivia.Services;
+using SpotifyTrivia.Services.Dtos;
+using SpotifyTrivia.Services.GameModes;
 
 namespace SpotifyTrivia.Hubs
 {
@@ -15,19 +18,67 @@ namespace SpotifyTrivia.Hubs
         private readonly ISpotifyService _spotifyService;
         private readonly IBroadcaster _broadcaster;
         private readonly LobbySettingsModel _settings;
+        private readonly ILogger<LobbyHub> _logger;
 
-        public LobbyHub(ILobbyManager lobbyManager, ISpotifyService spotifyService, IBroadcaster broadcaster, LobbySettingsModel settings)
+        public LobbyHub(ILobbyManager lobbyManager, ISpotifyService spotifyService, IBroadcaster broadcaster, LobbySettingsModel settings, ILogger<LobbyHub> logger)
         {
             _lobbyManager = lobbyManager;
             _spotifyService = spotifyService;
             _broadcaster = broadcaster;
             _settings = settings;
+            _logger = logger;
         }
 
         public async Task JoinLobby(string lobbyCode, string playerId, string displayName)
         {
             bool joined = _lobbyManager.TryAddPlayer(lobbyCode, playerId, displayName, Context.ConnectionId, out var player, out bool isNewPlayer);
-            if (!joined || player == null) return;
+            
+            if (!joined || player == null)
+            {
+                var lobby = _lobbyManager.GetLobby(lobbyCode);
+
+                string reason = lobby switch
+                {
+                    null => "Lobby not found",
+                    { State: LobbyState.Finished } => "This game has already ended.",
+                    { } when lobby.Players.Count >= lobby.MaxPlayers => "This lobby is full.",
+                    _ => "Unable to join this lobby"
+                };
+
+                await Clients.Caller.SendAsync("ActionError", new { Message = reason });
+                return;
+            }
+
+            _logger.LogInformation("Player {PlayerId} joined lobby {LobbyCode} on connection {ConnectionId}; host={IsHost}, newPlayer={IsNewPlayer}",
+                playerId, lobbyCode, Context.ConnectionId, playerId == _lobbyManager.GetLobby(lobbyCode)?.PlayerHostId, isNewPlayer);
+
+            if (!isNewPlayer && player.Status == PlayerStatus.Disconnected)
+            {
+                player.Status = PlayerStatus.Active;
+                await _broadcaster.BroadcastPlayerStatusChanged(lobbyCode, player.PlayerId, player.Status);
+            }
+
+            var accessToken = Context.GetHttpContext()?.Session.GetString("SpotifyAccessToken");
+            var refreshToken = Context.GetHttpContext()?.Session.GetString("SpotifyRefreshToken");
+
+            if (!string.IsNullOrEmpty(accessToken))
+            {
+                player.SpotifyAccessToken = accessToken;
+                player.SpotifyRefreshToken = refreshToken;
+
+                if (string.IsNullOrEmpty(player.SpotifyUserId))
+                {
+                    var userIdResult = await _spotifyService.GetSpotifyUserIdAsync(accessToken, refreshToken);
+
+                    if (userIdResult.RefreshedAccessToken != null)
+                    {
+                        player.SpotifyAccessToken = userIdResult.RefreshedAccessToken;
+                        Context.GetHttpContext()?.Session.SetString("SpotifyAccessToken", userIdResult.RefreshedAccessToken);
+                    }
+
+                    player.SpotifyUserId = userIdResult.Data;
+                }
+            }
 
             await Groups.AddToGroupAsync(Context.ConnectionId, lobbyCode);
 
@@ -46,7 +97,7 @@ namespace SpotifyTrivia.Hubs
             }
         }
 
-        public async Task StartGame(string lobbyCode, int questionCount)
+        public async Task StartGame(string lobbyCode, int questionCount, int roundDurationSeconds, bool blurAlbum)
         {
             var lobby = _lobbyManager.GetLobby(lobbyCode);
             if (lobby == null) return;
@@ -74,7 +125,18 @@ namespace SpotifyTrivia.Hubs
             List<TrackModel> tracks;
             try
             {
-                tracks = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.SelectedPlaylistId);
+                if (lobby.SelectedPlaylistId == "__liked_songs__")
+                {
+                    tracks = await FetchLikedSongsForAllPlayers(lobby);
+                }
+                else if (lobby.SelectedPlaylistId == "__recent_songs__")
+                {
+                    tracks = await FetchRecentlyPlayedSongsForAllPlayers(lobby);
+                }
+                else
+                {
+                    tracks = await PreparePlaylistTracks(lobby);
+                }
             }
             catch (Exception)
             {
@@ -82,15 +144,26 @@ namespace SpotifyTrivia.Hubs
                 return;
             }
 
+            string sourceLabel = lobby.SelectedPlaylistId switch
+            {
+                "__liked_songs__" => "liked songs",
+                "__recent_songs__" => "recently played songs",
+                _ => "playlist"
+            };
+
             if (tracks == null || tracks.Count < 4)
             {
-                await Clients.Caller.SendAsync("ActionError", new { Message = "Playlist doesn't have enough tracks to play." });
+                await Clients.Caller.SendAsync("ActionError", new { Message = $"Not enough tracks found across players' {sourceLabel} to start a game." });
                 return;
             }
 
+            lobby.RoundDurationSeconds = roundDurationSeconds;
+            lobby.NumberOfQuestions = questionCount;
+            lobby.BlurAlbum = blurAlbum;
+
             try
             {
-                await _lobbyManager.StartSessionAsync(lobbyCode, tracks, questionCount);
+                await _lobbyManager.StartSessionAsync(lobbyCode, tracks, questionCount, roundDurationSeconds);
             }
             catch (Exception ex)
             {
@@ -102,13 +175,23 @@ namespace SpotifyTrivia.Hubs
         {
             var result = await _lobbyManager.RecordPlayerAnswerAsync(lobbyCode, playerId, answerIndex);
             if (!result.Success) return;
+
             await Clients.Caller.SendAsync("AnswerResult", result);
+            await Clients.Groups(lobbyCode).SendAsync("PlayerAnswered", new { playerId });
+
+            await _broadcaster.BroadcastPlayerStatusChanged(lobbyCode, playerId, PlayerStatus.Answered);
         }
 
         public async Task LeaveLobby(string lobbyCode, string playerId)
         {
             var lobby = _lobbyManager.GetLobby(lobbyCode);
             if (lobby == null) return;
+
+            if (!lobby.Players.TryGetValue(playerId, out var player) || player.ConnectionId != Context.ConnectionId)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Invalid player connection." });
+                return;
+            }
 
             if (lobby.PlayerHostId == playerId)
             {
@@ -117,12 +200,14 @@ namespace SpotifyTrivia.Hubs
             }
             else
             { 
-                lobby.Players.TryGetValue(playerId, out var player);
                 var displayName = player?.DisplayName ?? "A player";
 
-                _lobbyManager.RemovePlayer(lobbyCode, playerId);
+                _lobbyManager.MarkPlayerAsLeft(lobbyCode, playerId);
+
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, lobbyCode);
-                await _broadcaster.BroadcastPlayerLeft(lobbyCode, playerId, displayName);
+                await Clients.Group(lobbyCode).SendAsync("PlayerDisconnected", new { PlayerId = playerId, DisplayName = displayName });
+
+                await _broadcaster.BroadcastPlayerStatusChanged(lobbyCode, playerId, PlayerStatus.Disconnected);
             }
         }
 
@@ -151,35 +236,64 @@ namespace SpotifyTrivia.Hubs
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
             var mapping = _lobbyManager.GetConnectionMapping(Context.ConnectionId);
+            _logger.LogInformation(exception,
+                "SignalR disconnected: connection {ConnectionId}, mapped={HasMapping}",
+                Context.ConnectionId, mapping.HasValue);
+
             if (mapping != null)
             {
                 var (lobbyCode, playerId) = mapping.Value;
                 var lobby = _lobbyManager.GetLobby(lobbyCode);
 
-                if (lobby != null && lobby.PlayerHostId == playerId)
+                if (lobby != null && lobby.Players.TryGetValue(playerId, out var player))
                 {
-                    _lobbyManager.MarkPlayerConnection(lobbyCode, playerId, isConnected: false, Context.ConnectionId);
-                    _lobbyManager.RemoveConnectionMapping(Context.ConnectionId);
-
-                    _ = Task.Run(async () =>
+                    if (player.ConnectionId != Context.ConnectionId)
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(5));
+                        _logger.LogInformation(
+                            "Ignoring stale disconnect for player {PlayerId} on connection {ConnectionId} — current active connection is {CurrentConnectionId}",
+                            playerId, Context.ConnectionId, player.ConnectionId);
+                        _lobbyManager.RemoveConnectionMapping(Context.ConnectionId);
+                        await base.OnDisconnectedAsync(exception);
+                        return;
+                    }
 
-                        var stillLobby = _lobbyManager.GetLobby(lobbyCode);
-                        if (stillLobby == null) return; // already cleaned up
+                    if (lobby.PlayerHostId == playerId)
+                    {
+                        _logger.LogWarning("Host {PlayerId} disconnected from lobby {LobbyCode}; starting grace period", playerId, lobbyCode);
+                        _lobbyManager.MarkPlayerConnection(lobbyCode, playerId, isConnected: false, Context.ConnectionId);
+                        _lobbyManager.RemoveConnectionMapping(Context.ConnectionId);
 
-                        if (stillLobby.Players.TryGetValue(playerId, out var hostPlayer) && !hostPlayer.IsConnected)
+                        _ = Task.Run(async () =>
                         {
-                            await _broadcaster.BroadcastLobbyDisbanded(lobbyCode);
-                            _lobbyManager.DisbandLobby(lobbyCode);
-                        }
-                    });
-                }
-                else
-                {
-                    _lobbyManager.MarkPlayerConnection(lobbyCode, playerId, isConnected: false, Context.ConnectionId);
-                    _lobbyManager.RemoveConnectionMapping(Context.ConnectionId);
-                    await Clients.Group(lobbyCode).SendAsync("PlayerDisconnected", new { PlayerId = playerId });
+                            await Task.Delay(TimeSpan.FromSeconds(25));
+
+                            var stillLobby = _lobbyManager.GetLobby(lobbyCode);
+                            if (stillLobby == null)
+                            {
+                                _logger.LogInformation("Host grace cleanup skipped for lobby {LobbyCode}; lobby was already removed", lobbyCode);
+                                return;
+                            }
+
+                            if (stillLobby.Players.TryGetValue(playerId, out var hostPlayer) && !hostPlayer.IsConnected)
+                            {
+                                _logger.LogWarning("Host grace period expired for lobby {LobbyCode}; disbanding because host {PlayerId} did not reconnect", lobbyCode, playerId);
+                                await _broadcaster.BroadcastLobbyDisbanded(lobbyCode);
+                                _lobbyManager.DisbandLobby(lobbyCode);
+                            }
+                            else
+                            {
+                                _logger.LogInformation("Host grace cleanup skipped for lobby {LobbyCode}; host reconnected", lobbyCode);
+                            }
+                        });
+                    }
+                    else
+                    {
+                        _lobbyManager.MarkPlayerConnection(lobbyCode, playerId, isConnected: false, Context.ConnectionId);
+                        _lobbyManager.RemoveConnectionMapping(Context.ConnectionId);
+                        await Clients.Group(lobbyCode).SendAsync("PlayerDisconnected", new { PlayerId = playerId });
+
+                        await _broadcaster.BroadcastPlayerStatusChanged(lobbyCode, playerId, PlayerStatus.Disconnected);
+                    }
                 }
             }
 
@@ -197,8 +311,18 @@ namespace SpotifyTrivia.Hubs
                     await Clients.Caller.SendAsync("CountdownStarted", new
                     {
                         Seconds = _settings.CountdownSeconds,
-                        StartedAtUtc = lobby.CountdownStartedAtUtc
+                        StartedAtUtc = lobby.CountdownStartedAtUtc,
+                        Prompt = lobby.Questions[lobby.CurrentQuestionIndex].Prompt
                     });
+
+                    foreach (var player in lobby.Players.Values)
+                    {
+                        await Clients.Caller.SendAsync("PlayerStatusChanged", new
+                        {
+                            PlayerId = player.PlayerId,
+                            Status = player.Status.ToString().ToLowerInvariant()
+                        });
+                    }
                     break;
 
                 case LobbyState.Question:
@@ -209,10 +333,73 @@ namespace SpotifyTrivia.Hubs
                         question.AlbumCoverUrl,
                         question.AnswerChoices,
                         StartedAtUtc = lobby.RoundStartedAtUtc,
-                        DurationSeconds = _settings.RoundDurationSeconds,
+                        DurationSeconds = lobby.RoundDurationSeconds,
                         QuestionNumber = lobby.CurrentQuestionIndex + 1,
-                        TotalQuestions = lobby.Questions.Count
+                        TotalQuestions = lobby.Questions.Count,
+                        BlurAlbum = lobby.BlurAlbum
                     });
+
+                    foreach (var player in lobby.Players.Values)
+                    {
+                        await Clients.Caller.SendAsync("PlayerStatusChanged", new
+                        {
+                            PlayerId = player.PlayerId,
+                            Status = player.Status.ToString().ToLowerInvariant()
+                        });
+                    }
+                    break;
+
+                case LobbyState.Finished:
+                    var leaderboard = lobby.Players.Values.OrderByDescending(p => p.Score).ToList();
+
+                    var leaderboardPayload = leaderboard.Select(p => new
+                    {
+                        p.PlayerId,
+                        p.DisplayName,
+                        p.Score,
+                        p.AnswerHistory
+                    });
+
+                    var songResult = lobby.Questions.Select(q => (object)new
+                    {
+                        songTitle = q.SongTitle,
+                        artistName = q.ArtistName,
+                        spotifyUrl = q.SpotifyUrl,
+                        albumCoverUrl = q.AlbumCoverUrl,
+                        previewUrl = q.PreviewUrl,
+                        contributedBy = q.ContributedByPlayerIds
+                            .Select(id => lobby.Players.TryGetValue(id, out var p) ? p.DisplayName : null)
+                            .Where(name => name != null)
+                            .ToList()
+                    }).ToList();
+
+                    await Clients.Caller.SendAsync("GameEnded", leaderboardPayload, songResult);
+                    break;
+
+                case LobbyState.Reveal:
+                    var revealQuestion = lobby.Questions[lobby.CurrentQuestionIndex];
+                    await Clients.Caller.SendAsync("RoundEnded", new
+                    {
+                        CorrectAnswer = revealQuestion.CorrectAnswer,
+                        AlbumCoverUrl = revealQuestion.AlbumCoverUrl,
+                        Players = lobby.Players.Values.Select(p => new
+                        {
+                            p.PlayerId,
+                            p.DisplayName,
+                            p.Score,
+                            p.LastAnswerCorrect,
+                            p.LastAnswerPenalized
+                        })
+                    });
+
+                    foreach (var player in lobby.Players.Values)
+                    {
+                        await Clients.Caller.SendAsync("PlayerStatusChanged", new
+                        {
+                            PlayerId = player.PlayerId,
+                            Status = player.Status.ToString().ToLowerInvariant()
+                        });
+                    }
                     break;
             }
         }
@@ -259,10 +446,195 @@ namespace SpotifyTrivia.Hubs
             await Clients.Group(lobbyCode).SendAsync("GameModeSelected", new { Mode = mode.ToString() });
         }
 
+        public async Task ContinueGame(string lobbyCode)
+        {
+            var lobby = _lobbyManager.GetLobby(lobbyCode);
+            if (lobby == null) return;
+
+            if (!IsHost(lobby))
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Only host can continue the game." });
+                return;
+            }
+
+            if (lobby.State != LobbyState.Finished)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "The game has not ended yet." });
+                return;
+            }
+
+            await _broadcaster.BroadcastPreparingGame(lobbyCode);
+
+            List<TrackModel> tracks;
+            try
+            {
+                if (lobby.SelectedPlaylistId == "__liked_songs__")
+                {
+                    tracks = await FetchLikedSongsForAllPlayers(lobby);
+                }
+                else if (lobby.SelectedPlaylistId == "__recent_songs__")
+                {
+                    tracks = await FetchRecentlyPlayedSongsForAllPlayers(lobby);
+                }
+                else
+                {
+                    tracks = await PreparePlaylistTracks(lobby);
+                }
+            }
+            catch (Exception)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Couldn't reload playlist." });
+                return;
+            }
+
+            try
+            {
+                await _lobbyManager.ContinueSessionAsync(lobbyCode, tracks);
+            }
+            catch (PlaylistExhaustedException)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "No more unplayed tracks" });
+            }
+            catch (Exception ex)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = ex.Message });
+            }
+        }
+
         private bool IsHost(LobbyModel lobby)
         {
             var mapping = _lobbyManager.GetConnectionMapping(Context.ConnectionId);
             return mapping != null && mapping.Value.playerId == lobby.PlayerHostId;
+        }
+
+        private async Task<List<TrackModel>> FetchLikedSongsForAllPlayers(LobbyModel lobby)
+        {
+            var eligiblePlayers = lobby.Players.Values
+                .Where(p => !string.IsNullOrEmpty(p.SpotifyAccessToken))
+                .ToList();
+
+            var perPlayerResult = await Task.WhenAll(
+                eligiblePlayers.Select(async p =>
+                {
+                    try
+                    {
+                        var result = await _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken, p.SpotifyRefreshToken);
+
+                        if (result.RefreshedAccessToken != null)
+                        {
+                            p.SpotifyAccessToken = result.RefreshedAccessToken;
+                        }
+
+                        var playerTracks = result.Data ?? new List<TrackModel>();
+
+                        foreach (var t in playerTracks)
+                        {
+                            t.ContributedByPlayerIds.Add(p.PlayerId);
+                        }
+
+                        return playerTracks;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to load track source for player {PlayerId} in Lobby {Lobby}", p.PlayerId, lobby.Code);
+                        return new List<TrackModel>();
+                    }
+                })
+            );
+
+            List<TrackModel> tracks = perPlayerResult
+                .SelectMany(t => t)
+                .GroupBy(t => t.Id)
+                .Select(g =>
+                {
+                    var merged = g.First();
+                    merged.ContributedByPlayerIds = g.SelectMany(t => t.ContributedByPlayerIds).Distinct().ToList();
+                    return merged;
+                })
+                .ToList();
+
+            return tracks;
+        }
+
+        private async Task<List<TrackModel>> FetchRecentlyPlayedSongsForAllPlayers(LobbyModel lobby)
+        {
+            var eligiblePlayers = lobby.Players.Values
+                .Where(p => !string.IsNullOrEmpty(p.SpotifyAccessToken))
+                .ToList();
+
+            var perPlayerResult = await Task.WhenAll(
+                eligiblePlayers.Select(async p =>
+                {
+                    try
+                    {
+                        var result = await _spotifyService.GetRecentlyPlayedSongsAsync(p.SpotifyAccessToken, p.SpotifyRefreshToken);
+
+                        if (result.RefreshedAccessToken != null)
+                        {
+                            p.SpotifyAccessToken = result.RefreshedAccessToken;
+                        }
+
+                        var playerTracks = result.Data ?? new List<TrackModel>();
+
+                        foreach (var t in playerTracks)
+                        {
+                            t.ContributedByPlayerIds.Add(p.PlayerId);
+                        }
+
+                        return playerTracks;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to load track source for player {PlayerId} in Lobby {Lobby}", p.PlayerId, lobby.Code);
+                        return new List<TrackModel>();
+                    }
+                })
+            );
+
+            List<TrackModel> tracks = perPlayerResult
+                .SelectMany(t => t)
+                .GroupBy(t => t.Id)
+                .Select(g =>
+                {
+                    var merged = g.First();
+                    merged.ContributedByPlayerIds = g.SelectMany(t => t.ContributedByPlayerIds).Distinct().ToList();
+                    return merged;
+                })
+                .ToList();
+
+            return tracks;
+        }
+
+        private async Task<List<TrackModel>> PreparePlaylistTracks(LobbyModel lobby)
+        {
+            var result = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.HostSpotifyRefreshToken, lobby.SelectedPlaylistId!);
+
+            if (result.RefreshedAccessToken != null)
+            {
+                lobby.HostSpotifyAccessToken = result.RefreshedAccessToken;
+                if (lobby.Players.TryGetValue(lobby.PlayerHostId, out var host))
+                {
+                    host.SpotifyAccessToken = result.RefreshedAccessToken;
+                }
+                Context.GetHttpContext()?.Session.SetString("SpotifyAccessToken", result.RefreshedAccessToken);
+            }
+
+            var tracks = result.Data ?? new List<TrackModel>();
+
+            var spotifyIdToPlayerId = lobby.Players.Values
+                .Where(p => !string.IsNullOrEmpty(p.SpotifyUserId))
+                .ToDictionary(p => p.SpotifyUserId!, p => p.PlayerId);
+
+            foreach (var track in tracks)
+            {
+                if (!string.IsNullOrEmpty(track.AddedBySpotifyUserId) &&
+                    spotifyIdToPlayerId.TryGetValue(track.AddedBySpotifyUserId, out var matchedPlayerId))
+                {
+                    track.ContributedByPlayerIds.Add(matchedPlayerId);
+                }
+            }
+
+            return tracks;
         }
     }
 }

@@ -10,5 +10,6 @@ namespace SpotifyTrivia.Models
         public int GamesPlayed { get; set; }
         public List<PlaylistModel> TopPlaylists { get; set; } = new();
         public string EffectiveDisplayName { get; set; } = string.Empty;
+        public bool IsAuthenticated { get; set; }
     }
 }

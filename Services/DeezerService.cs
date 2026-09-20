@@ -19,7 +19,7 @@ namespace SpotifyTrivia.Services
         {
             var client = _httpClientFactory.CreateClient();
 
-            var query = $"artist:\"{artist}\" track:\"{title}\"";
+            var query = $"{artist} {title}";
             var url = $"https://api.deezer.com/search?q={Uri.EscapeDataString(query)}";
 
             var response = await client.GetAsync(url);

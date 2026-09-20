@@ -24,7 +24,8 @@ namespace SpotifyTrivia.Services.Dtos
     );
 
     internal record SpotifyPlaylistTracksDto(
-        [property: JsonPropertyName("item")] SpotifyTrackDto? Track
+        [property: JsonPropertyName("item")] SpotifyTrackDto? Track,
+        [property: JsonPropertyName("added_by")] SpotifyAddedByDto? AddedBy
     );
 
     internal record SpotifyTrackDto(
@@ -32,7 +33,12 @@ namespace SpotifyTrivia.Services.Dtos
         [property: JsonPropertyName("name")] string Name,
         [property: JsonPropertyName("artists")] List<SpotifyArtistDto>? Artists,
         [property: JsonPropertyName("album")] SpotifyAlbumDto? Album,
-        [property: JsonPropertyName("preview_url")] string? PreviewUrl
+        [property: JsonPropertyName("preview_url")] string? PreviewUrl,
+        [property: JsonPropertyName("external_urls")] SpotifyExternalUrlsDto? ExternalUrls
+    );
+
+    internal record SpotifyAddedByDto(
+        [property: JsonPropertyName("id")] string? Id
     );
 
     //  Shared DTOs
@@ -50,6 +56,7 @@ namespace SpotifyTrivia.Services.Dtos
 
     //  User Profile DTOs
     internal record SpotifyUserProfileDto(
+        [property: JsonPropertyName("id")] string? Id,
         [property: JsonPropertyName("display_name")] string? DisplayName,
         [property: JsonPropertyName("images")] List<SpotifyImageDto>? Images,
         [property: JsonPropertyName("product")] string? Product,
@@ -58,5 +65,23 @@ namespace SpotifyTrivia.Services.Dtos
 
     internal record SpotifyExternalUrlsDto(
         [property: JsonPropertyName("spotify")] string? Spotify
+    );
+
+    //  Saved Tracks DTOs
+    internal record SpotifySavedTracksResponse(
+        [property: JsonPropertyName("items")] List<SpotifySavedTrackItemDto>? Items
+    );
+
+    internal record SpotifySavedTrackItemDto(
+        [property: JsonPropertyName("track")] SpotifyTrackDto? Track
+    );
+
+    //  Recently Played DTOs
+    internal record SpotifyRecentlyPlayedResponse(
+        [property: JsonPropertyName("items")] List<SpotifyRecentlyPlayedItemDto>? Items
+    );
+
+    internal record SpotifyRecentlyPlayedItemDto(
+        [property: JsonPropertyName("track")] SpotifyTrackDto? Track
     );
 }

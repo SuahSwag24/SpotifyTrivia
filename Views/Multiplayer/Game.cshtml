@@ -9,7 +9,7 @@
 
 <style>
     .game-wrapper {
-        max-width: 680px;
+        max-width: 920px;
         margin: 0 auto;
     }
 
@@ -40,6 +40,33 @@
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
         margin: 0 auto 1.5rem auto;
         display: block;
+    }
+
+    .album-blurred {
+        filter: blur(16px) brightness(0.6);
+    }
+
+    .reveal-album-cover {
+        width: 160px;
+        height: 160px;
+        margin-bottom: 1.25rem;
+        filter: blur(16px) brightness(0.6);
+    }
+
+    .reveal-album-cover.reveal-animation {
+        animation: albumReveal 1.2s ease-out forwards;
+    }
+
+    @@keyframes albumReveal {
+        from {
+            filter: blur(16px) brightness(0.6);
+            transform: scale(1.03);
+        }
+
+        to {
+            filter: blur(0) brightness(1);
+            transform: scale(1);
+        }
     }
 
     /* Timer Pill */
@@ -148,6 +175,366 @@
         align-items: center;
         font-weight: 600;
     }
+
+    .song-recap-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+    }
+
+    .song-recap-info {
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+    }
+
+    .song-recap-title {
+        color: #1DB954;
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    .song-recap-artist {
+        font-size: 12px;
+        color: #b3b3b3;
+        font-weight: 400;
+    }
+
+    .song-recap-verdict {
+        position: relative;
+        cursor: default;
+    }
+
+    .my-verdict {
+        font-size: 1.1rem;
+    }
+
+    .verdict-tooltip {
+        display: none;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 6px;
+        background-color: #242424;
+        border: 1px solid #383838;
+        border-radius: 8px;
+        padding: 0.5rem 0.75rem;
+        min-width: 160px;
+        z-index: 10;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .song-recap-verdict:hover .verdict-tooltip {
+        display: block;
+    }
+
+    .verdict-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        font-size: 0.85rem;
+        padding: 2px 0;
+        color: #ffffff;
+    }
+
+    .song-recap-source {
+        font-size: 11px;
+        color: #6a6a6a;
+        font-style: italic;
+    }
+
+    .penalty-tag {
+        color: #e74c3c;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .side-player-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .side-player-list li {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        margin-bottom: 0.35rem;
+        background-color: #242424;
+        border: 1px solid #333333;
+        transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    /* Status indicator */
+    .player-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: #666;
+        flex-shrink: 0;
+        transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .player-dot.status-active {
+        background-color: #666;
+    }
+
+    .player-dot.status-answered {
+        background-color: #00d4ff;
+        box-shadow: 0 0 8px 2px rgba(0, 212, 255, 0.6);
+        animation: pulse-glow 2s infinite ease-in-out;
+    }
+
+    .player-dot.status-disconnected {
+        background-color: #e74c3c;
+        box-shadow: 0 0 8px 2px rgba(231, 76, 60, 0.65);
+        animation: disconnected-glow 2s infinite ease-in-out;
+    }
+
+    .player-status-text {
+        font-size: 0.75rem;
+        color: #777;
+        margin-left: auto;
+        flex-shrink: 0;
+        transition: color 0.3s ease, font-weight 0.3s ease;
+    }
+
+    .player-status-text.active {
+        color: #777;
+    }
+
+    .player-status-text.answered {
+        color: #00d4ff;
+        font-weight: 600;
+    }
+
+    .player-status-text.disconnected {
+        color: #e74c3c;
+        font-weight: 600;
+    }
+
+    .side-player-list li.has-answered {
+        border-color: #00d4ff;
+        box-shadow: 0 0 12px 2px rgba(0, 212, 255, 0.3);
+        transform: scale(1.02);
+    }
+
+    .side-player-list li.has-answered .player-dot {
+        background-color: #00d4ff;
+    }
+
+    .side-player-list li:has(.status-disconnected) {
+        border-color: #e74c3c;
+        box-shadow: 0 0 12px 2px rgba(231, 76, 60, 0.25);
+    }
+
+    @@keyframes pulse-glow {
+        0%, 100% {
+            box-shadow: 0 0 8px 2px rgba(0, 212, 255, 0.6);
+        }
+        50% {
+            box-shadow: 0 0 12px 3px rgba(0, 212, 255, 0.8);
+        }
+    }
+
+    @@keyframes disconnected-glow {
+        0%, 100% {
+            box-shadow: 0 0 8px 2px rgba(231, 76, 60, 0.5);
+        }
+
+        50% {
+            box-shadow: 0 0 12px 3px rgba(231, 76, 60, 0.85);
+        }
+    }
+
+    #question-phase {
+        position: relative;
+    }
+
+    .question-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    @@media (min-width: 992px) {
+        .side-player-panel {
+            position: absolute;
+            left: calc(100% + 24px); /* 24px gap from the main card */
+            top: 0;
+            width: 280px;
+            text-align: left;
+            background-color: #181818;
+            border: 1px solid #282828;
+            border-radius: 16px;
+            padding: 1rem;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+        }
+    }
+
+    .side-player-panel {
+        text-align: left;
+        background-color: #202020;
+        border: 1px solid #2f2f2f;
+        border-radius: 12px;
+        padding: 1rem;
+    }
+
+    .player-name {
+        font-size: 0.875rem;
+        min-width: 0;
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .reveal-row {
+        opacity: 0;
+        transform: translateY(8px);
+        animation: revealRowIn 0.4s ease forwards;
+    }
+
+    @@keyframes revealRowIn {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .score-delta {
+        color: #1DB954;
+        font-weight: 700;
+        font-size: 0.85rem;
+        margin-left: 4px;
+    }
+
+    .scoreboard-list li.is-current-player {
+        box-shadow: inset 0 0 0 2px rgba(29, 185, 84, 0.5);
+    }
+
+    .scoreboard-list li.state-correct {
+        background-color: rgba(46, 204, 113, 0.22);
+        border-left: 3px solid #2ecc71;
+    }
+
+    .scoreboard-list li.state-incorrect {
+        background-color: rgba(231, 76, 60, 0.22);
+        border-left: 3px solid #e74c3c;
+    }
+
+    .scoreboard-list li.state-noanswer {
+        background-color: transparent;
+        border-left: 3px solid transparent;
+    }
+
+    .rank-badge {
+        display: inline-block;
+        min-width: 24px;
+        font-weight: 800;
+        color: #b3b3b3;
+    }
+
+    .rank-gold {
+        color: #FFD700;
+    }
+
+    .rank-silver {
+        color: #C0C0C0;
+    }
+
+    .rank-bronze {
+        color: #CD7F32;
+    }
+
+    .custom-range-spotify {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 6px;
+        background: #3e3e3e;
+        border-radius: 5px;
+        outline: none;
+        margin: 1rem 0;
+    }
+
+    .custom-range-spotify::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #1DB954;
+        cursor: pointer;
+        transition: transform 0.1s ease, background-color 0.1s ease;
+    }
+
+    .custom-range-spotify::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+        background: #1ed760;
+    }
+
+    .volume-slider-compact {
+        width: 100px;
+        margin: 0;
+    }
+
+    .volume-control {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        background-color: #181818;
+        border: 1px solid #282828;
+        border-radius: 50px;
+        padding: 0.5rem 1rem;
+        z-index: 1000;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .song-recap-info {
+        display: grid;
+        grid-template-columns: 58px minmax(0, 1fr);
+        align-items: center;
+        gap: 0.65rem;
+        text-align: left;
+}
+
+    .recap-play-btn {
+        width: 58px;
+        min-width: 58px;
+        height: 30px;
+        padding: 0 0.4rem;
+        border: 1px solid #1db954;
+        border-radius: 999px;
+        background: #1db954;
+        color: #000;
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .recap-play-btn:hover {
+        background: #1ed760;
+        transform: scale(1.05);
+    }
+
+    .song-recap-text {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .recap-play-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
 </style>
 
 <div class="game-wrapper game-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@ViewBag.IsHost.ToString().ToLower()">
@@ -159,35 +546,60 @@
     <!-- Phase 1: Countdown -->
     <div id="countdown-phase" class="phase-panel text-center">
         <h2 class="text-secondary uppercase fs-6 fw-bold tracking-widest">Get Ready</h2>
+        <span class="text-secondary fs-3" id="prompt-text"></span>
         <div id="countdown-number">3</div>
     </div>
 
     <!-- Phase 2: Question -->
-    <div id="question-phase" class="phase-panel text-center" style="display:none;">
-        <div class="progress-container">    
-            <div>
-                <span id="round-counter" class="round-counter-badge"></span>
-            </div>
-            <div class="progress-track">
-                <div id="progress-fill" class="progress-fill"></div>
-            </div>
-        </div>
+    <div id="question-phase" class="phase-panel" style="display:none;">
+        <div class="question-layout">
+            <!-- Left Column: Playing Field -->
+            <div class="question-main text-center">
+                <div class="progress-container">    
+                    <div>
+                        <span id="round-counter" class="round-counter-badge"></span>
+                    </div>
+                    <div class="progress-track">
+                        <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                </div>
 
-        <img id="album-cover" class="album-frame" src="" alt="Album Artwork" />
-        <audio id="preview-audio" src=""></audio>
-        
-        <div>
-            <span id="round-timer" class="timer-badge">20</span>
-        </div>
+                <img id="album-cover" class="album-frame" src="" alt="Album Artwork" />
+                <audio id="preview-audio" src=""></audio>
+                
+                <div>
+                    <span id="round-timer" class="timer-badge">20</span>
+                </div>
 
-        <div id="answer-choices">
-            <!-- 4 dynamic buttons built by JS per question -->
+                <div id="answer-choices">
+                    <!-- 4 dynamic buttons built by JS per question -->
+                </div>
+            </div>
+
+            <!-- Right Column: Player Status Panel -->
+            <div class="side-player-panel">
+                <h6 class="text-secondary fw-bold text-uppercase mb-2" style="font-size:0.75rem;">Players</h6>
+                <ul id="side-player-list" class="side-player-list">
+                    @foreach (var player in Model.Players.Values)
+                    {
+                        <li class="player-pill-item" data-player-id="@player.PlayerId">
+                            <span class="player-dot status-@(player.Status.ToString().ToLower())"></span>
+                            <span class="player-name">@player.DisplayName</span>
+                            <span class="player-status-text">@player.Status.ToString().ToLower()</span>
+                        </li>
+                    }
+                </ul>
+            </div>
         </div>
     </div>
+
 
     <!-- Phase 3: Reveal -->
     <div id="reveal-phase" class="phase-panel text-center" style="display:none;">
         <h3 class="h4 fw-bold text-white mb-3">Round Summary</h3>
+
+        <img src="" alt="Album Artwork" id="reveal-album-cover" class="album-frame reveal-album-cover">
+
         <p id="correct-answer-label" class="fs-5 text-success fw-bold mb-4"></p>
         <ul id="reveal-scoreboard" class="scoreboard-list"></ul>
     </div>
@@ -196,7 +608,14 @@
     <div id="finished-phase" class="phase-panel text-center" style="display:none;">
         <h2 class="display-6 fw-bold text-white mb-4">🏆 Final Results</h2>
         <ol id="final-leaderboard" class="scoreboard-list"></ol>
-        <button id="return-to-lobby-btn" type="button" class="btn btn-outline-light mt-4" style="display:none;">Return to Lobby</button>
+
+        <h3 class="h5 fw-bold text-white mt-4 mb-3">Song Recap</h3>
+        <ul id="song-list-board" class="scoreboard-list text-start"></ul>
+
+        <div class = "mt-4 d-flex justify-content-center gap-2">
+            <button id="continue-game-btn" type="button" class="btn btn-primary mt-4" style="display:none;">Continue Playing</button>
+            <button id="return-to-lobby-btn" type="button" class="btn btn-warning mt-4" style="display:none;">Return to Lobby</button>
+        </div>
     </div>
 
     <!-- Error Banner -->
@@ -204,4 +623,39 @@
 
     <!-- Toast Container -->
     <div id="toast-stack" style="position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column' gap: 0.5rem; z-index: 1050;"></div>
+</div>
+
+<div id="volume-control" class="volume-control">
+    <span id="volume-icon">🔊</span>
+    <input type="range" id="volume-slider" class="custom-range-spotify volume-slider-compact" min="0" max="100" value="30" />
+</div>
+
+<div class="modal fade" id="leave-confirmation-modal" tabindex="-1"
+     aria-labelledby="leave-confirmation-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content leave-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="leave-confirmation-title">Leave game?</h5>
+                <button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <p id="leave-confirmation-message" class="mb-0">
+                    Are you sure you want to leave?
+                </p>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-light"
+                        data-bs-dismiss="modal">
+                    Stay
+                </button>
+                <button type="button" id="confirm-leave-btn"
+                        class="btn btn-danger">
+                    Leave Game
+                </button>
+            </div>
+        </div>
+    </div>
 </div>

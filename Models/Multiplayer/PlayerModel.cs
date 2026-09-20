@@ -10,8 +10,16 @@ namespace SpotifyTrivia.Models.Multiplayer
         PendingJoin
     }
 
+    public enum PlayerStatus
+    {
+        Active,
+        Answered,
+        Disconnected
+    }
+
     public class PlayerModel
     {
+        public string? SpotifyUserId { get; set; }
         public string PlayerId { get; set; } = String.Empty;
         public string DisplayName { get; set; } = String.Empty;
         public string? ConnectionId { get; set; }
@@ -21,5 +29,10 @@ namespace SpotifyTrivia.Models.Multiplayer
         public bool IsConnected { get; set; } = false;
         public DateTime? LastAnswerSubmittedUtc { get; set; }
         public PlayerJoinStatus JoinStatus { get; set; } = PlayerJoinStatus.Active;
+        public List<AnswerResultModel> AnswerHistory { get; set; } = new();
+        public string? SpotifyAccessToken { get; set; }
+        public string? SpotifyRefreshToken { get; set; }
+        public bool LastAnswerPenalized { get; set; }
+        public PlayerStatus Status { get; set; } = PlayerStatus.Active;
     }
 }

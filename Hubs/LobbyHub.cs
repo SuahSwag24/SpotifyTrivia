@@ -193,6 +193,18 @@ namespace SpotifyTrivia.Hubs
                 return;
             }
 
+            var displayName = player?.DisplayName ?? "A player";
+
+            if (lobby.State == LobbyState.Waiting)
+            {
+                _lobbyManager.RemovePlayer(lobbyCode, playerId);
+
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, lobbyCode);
+                await Clients.Group(lobbyCode).SendAsync("PlayerDisconnected", new { PlayerId = playerId, DisplayName = displayName });
+
+                await _broadcaster.BroadcastPlayerLeft(lobbyCode, playerId, displayName);
+            }
+
             if (lobby.PlayerHostId == playerId)
             {
                 await _broadcaster.BroadcastLobbyDisbanded(lobbyCode);
@@ -200,8 +212,6 @@ namespace SpotifyTrivia.Hubs
             }
             else
             { 
-                var displayName = player?.DisplayName ?? "A player";
-
                 _lobbyManager.MarkPlayerAsLeft(lobbyCode, playerId);
 
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, lobbyCode);

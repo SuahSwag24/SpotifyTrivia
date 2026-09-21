@@ -11,7 +11,7 @@ namespace SpotifyTrivia.Services.GameModes
     public class ClassicGuessSongGameMode : IGameMode
     {
         private readonly IDeezerService _deezerService;
-        private const double SELFCONTRIBUTIONPENALTYMULTIPLIER = 0.5;
+        private const double SELFCONTRIBUTIONPENALTYMULTIPLIER = 0.8;
 
         public ClassicGuessSongGameMode(IDeezerService deezerService)
         {

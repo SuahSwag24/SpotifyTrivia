@@ -274,7 +274,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const rankClass = rank === 1 ? "rank-gold" : rank === 2 ? "rank-silver" : rank === 3 ? "rank-bronze" : "";
 
             const resultTag = p.lastAnswerCorrect === true ? "✅" : (p.lastAnswerCorrect === false ? "❌" : "—");
-            const penaltyTag = p.lastAnswerPenalized ? ` <span class="penalty-tag">(-50% own song)</span>` : "";
+            const penaltyTag = p.lastAnswerPenalized ? ` <span class="penalty-tag">(-20% own song)</span>` : "";
 
             const prevScore = previousScores.has(p.playerId) ? previousScores.get(p.playerId) : p.score - (p.scoreDelta ?? 0);
             const delta = p.score - prevScore;

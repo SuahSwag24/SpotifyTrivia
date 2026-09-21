@@ -104,15 +104,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let selectedQuestionCount = 10;
         let selectedRoundDurationSeconds = 10;
-        let blurAlbum = true;
+        let blurAlbum = "hide";
 
         const questionSlider = document.getElementById("question-count-slider");
         const questionDisplay = document.getElementById("question-count-display");
 
         const roundDurationSlider = document.getElementById("round-duration-slider");
         const roundDurationDisplay = document.getElementById("round-duration-display");
-
-        const blurAlbumSwitch = document.getElementById("blur-album-switch");
 
         const saveSettingsBtn = document.getElementById("save-settings-btn");
 
@@ -127,7 +125,14 @@ document.addEventListener("DOMContentLoaded", () => {
         saveSettingsBtn.addEventListener("click", () => {
             selectedQuestionCount = parseInt(questionSlider.value, 10);
             selectedRoundDurationSeconds = parseInt(roundDurationSlider.value, 10);
-            blurAlbum = blurAlbumSwitch.checked;
+            
+            const blurSetting = document.querySelector('input[name="blur-album"]:checked').value;
+            if (["show", "blur", "hide"].includes(blurSetting)) {
+                blurAlbum = blurSetting;
+            } else {
+                blurAlbum = "hide";
+                showToast("Invalid blurAlbum setting: defaulting to hide", "warning");
+            }
         })
 
         chooseBtn.addEventListener("click", async () => {

@@ -63,7 +63,21 @@ document.addEventListener("DOMContentLoaded", () => {
             const roundPercent = Math.min(100, Math.round(((data.questionNumber - 1) / data.totalQuestions) * 100))
 
             albumCover.src = data.albumCoverUrl;
-            albumCover.classList.toggle("album-blurred", data.blurAlbum);
+
+            const visibility = (data.blurAlbum ?? "hide").toString().toLowerCase();
+            const albumPlaceholder = document.getElementById("album-cover-hidden-placeholder");
+
+            // Reset to default visible state first
+            albumCover.style.display = "block";
+            albumCover.classList.remove("album-blurred");
+            if (albumPlaceholder) albumPlaceholder.style.display = "none";
+
+            if (visibility === "hide" || visibility === "2") {
+                albumCover.style.display = "none";
+                if (albumPlaceholder) albumPlaceholder.style.display = "flex";
+            } else if (visibility === "blur" || visibility === "1") {
+                albumCover.classList.add("album-blurred");
+            }
 
             document.getElementById("round-counter").textContent = `Question ${data.questionNumber}/${data.totalQuestions}`;
             document.getElementById('progress-fill').style.width = roundPercent + '%';

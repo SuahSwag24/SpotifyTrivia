@@ -29,7 +29,7 @@ namespace SpotifyTrivia.Services
                 .SendAsync("CountdownStarted", new { Seconds = seconds, StartedAtUtc = startedAtUtc, Prompt = prompt });
         }
 
-        public Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds, int questionNumber, int totalQuestions, bool blurAlbum)
+        public Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds, int questionNumber, int totalQuestions, AlbumCoverVisibility blurAlbum)
         {
             var payload = new
             {

@@ -97,7 +97,7 @@ namespace SpotifyTrivia.Hubs
             }
         }
 
-        public async Task StartGame(string lobbyCode, int questionCount, int roundDurationSeconds, bool blurAlbum)
+        public async Task StartGame(string lobbyCode, int questionCount, int roundDurationSeconds, AlbumCoverVisibility? blurAlbum = AlbumCoverVisibility.Hide)
         {
             var lobby = _lobbyManager.GetLobby(lobbyCode);
             if (lobby == null) return;
@@ -118,6 +118,20 @@ namespace SpotifyTrivia.Hubs
             {
                 await Clients.Caller.SendAsync("ActionError", new { Message = "Select a playlist before starting." });
                 return;
+            }
+
+            if (blurAlbum.HasValue)
+            {
+                if (!Enum.IsDefined(typeof(AlbumCoverVisibility), blurAlbum))
+                {
+                    await Clients.Caller.SendAsync("ActionError", new { Message = "Invalid blur setting value." });
+                    return;
+                }
+                lobby.BlurAlbum = blurAlbum.Value;
+            }
+            else
+            {
+                lobby.BlurAlbum = AlbumCoverVisibility.Hide;
             }
 
             await _broadcaster.BroadcastPreparingGame(lobbyCode);
@@ -159,7 +173,6 @@ namespace SpotifyTrivia.Hubs
 
             lobby.RoundDurationSeconds = roundDurationSeconds;
             lobby.NumberOfQuestions = questionCount;
-            lobby.BlurAlbum = blurAlbum;
 
             try
             {

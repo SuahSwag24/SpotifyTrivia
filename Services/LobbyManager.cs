@@ -254,6 +254,7 @@ namespace SpotifyTrivia.Services
             lobby.CurrentQuestionIndex = 0;
             lobby.SelectedPlaylistId = null;
             lobby.SelectedPlaylistName = null;
+            lobby.PlayedTrackIds.Clear();
 
             foreach (var p in lobby.Players.Values)
             {

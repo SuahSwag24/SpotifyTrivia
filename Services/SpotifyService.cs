@@ -56,6 +56,7 @@ namespace SpotifyTrivia.Services
                 ImageUrl = dto.Images?.FirstOrDefault()?.Url
             }).ToList();
         }
+
         public async Task<SpotifyApiResult<List<TrackModel>>> GetPlaylistTracksAsync(string accessToken, string? refreshToken, string playlistId)
         {
             var client = _httpClientFactory.CreateClient();
@@ -82,7 +83,8 @@ namespace SpotifyTrivia.Services
                     AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
                     PreviewUrl = $"spotify:track:{i.Track.Id}",
                     SpotifyUrl = i.Track.ExternalUrls?.Spotify,
-                    AddedBySpotifyUserId = i.AddedBy?.Id
+                    AddedBySpotifyUserId = i.AddedBy?.Id,
+                    Isrc = i.Track.ExternalIds?.Isrc
                 }).ToList() ?? new List<TrackModel>();
 
             return new SpotifyApiResult<List<TrackModel>> { Data = tracks, RefreshedAccessToken = refreshedToken };
@@ -110,7 +112,8 @@ namespace SpotifyTrivia.Services
                     Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
                     AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
                     PreviewUrl = $"spotify:track:{i.Track.Id}",
-                    SpotifyUrl = i.Track.ExternalUrls?.Spotify
+                    SpotifyUrl = i.Track.ExternalUrls?.Spotify,
+                    Isrc = i.Track.ExternalIds?.Isrc
                 }).ToList() ?? new List<TrackModel>();
 
             return new SpotifyApiResult<List<TrackModel>> { Data = tracks, RefreshedAccessToken = refreshedToken };
@@ -141,7 +144,8 @@ namespace SpotifyTrivia.Services
                     Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
                     AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
                     PreviewUrl = $"spotify:track:{i.Track.Id}",
-                    SpotifyUrl = i.Track.ExternalUrls?.Spotify
+                    SpotifyUrl = i.Track.ExternalUrls?.Spotify,
+                    Isrc = i.Track.ExternalIds?.Isrc
                 }).ToList() ?? new List<TrackModel>();
 
             return new SpotifyApiResult<List<TrackModel>> { Data = tracks, RefreshedAccessToken = refreshedToken };

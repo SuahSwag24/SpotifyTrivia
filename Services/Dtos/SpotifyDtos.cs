@@ -34,7 +34,12 @@ namespace SpotifyTrivia.Services.Dtos
         [property: JsonPropertyName("artists")] List<SpotifyArtistDto>? Artists,
         [property: JsonPropertyName("album")] SpotifyAlbumDto? Album,
         [property: JsonPropertyName("preview_url")] string? PreviewUrl,
-        [property: JsonPropertyName("external_urls")] SpotifyExternalUrlsDto? ExternalUrls
+        [property: JsonPropertyName("external_urls")] SpotifyExternalUrlsDto? ExternalUrls,
+        [property: JsonPropertyName("external_ids")] SpotifyExternalIdsDto? ExternalIds
+    );
+
+    internal record SpotifyExternalIdsDto(
+        [property: JsonPropertyName("isrc")] string? Isrc
     );
 
     internal record SpotifyAddedByDto(

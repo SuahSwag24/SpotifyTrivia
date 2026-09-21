@@ -10,5 +10,6 @@ namespace SpotifyTrivia.Models
         public string? SpotifyUrl { get; set; }
         public List<string> ContributedByPlayerIds { get; set; } = new();
         public string? AddedBySpotifyUserId { get; set; }
+        public string? Isrc { get; set; }
     }
 }

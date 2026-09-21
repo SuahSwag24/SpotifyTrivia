@@ -46,7 +46,10 @@ namespace SpotifyTrivia.Services.GameModes
 
                 var candidate = shuffledPool[i];
 
-                var previewUrl = await _deezerService.GetPreviewUrlAsync(candidate.Artist, candidate.Title);
+                var isrc = candidate.Isrc;
+                if (string.IsNullOrEmpty(isrc)) continue;
+
+                var previewUrl = await _deezerService.GetPreviewUrlAsync(isrc);
                 if (string.IsNullOrEmpty(previewUrl))
                 {
                     continue;

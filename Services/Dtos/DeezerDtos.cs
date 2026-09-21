@@ -19,4 +19,11 @@ namespace SpotifyTrivia.Services.Dtos
     internal record DeezerArtistDto(
         [property: JsonPropertyName("name")] string Name
     );
+
+    internal record DeezerTrackResponse(
+        [property: JsonPropertyName("id")] long Id,
+        [property: JsonPropertyName("title")] string Title,
+        [property: JsonPropertyName("preview")] string? Preview,
+        [property: JsonPropertyName("artist")] DeezerArtistDto? Artist
+    );
 }

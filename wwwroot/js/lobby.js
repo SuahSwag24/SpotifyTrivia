@@ -120,6 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
             startBtn.disabled = false;
             chooseBtn.disabled = false;
             settingsBtn.disabled = false;
+            leaveBtn.disabled = false;
             startBtn.textContent = "Start Game";
         };
 

@@ -33,7 +33,7 @@ namespace SpotifyTrivia.Controllers
 
             try
             {
-                var result = await _spotifyService.GetPlaylistTracksAsync(accessToken, null, playlistId);
+                var result = await _spotifyService.GetPlaylistTracksAsync(accessToken, null, playlistId, sampleSize: null, offset: 0);
                 var tracks = result.Data ?? new List<TrackModel>();
 
                 if (tracks == null || tracks.Count < 4)

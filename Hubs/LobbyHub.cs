@@ -97,7 +97,7 @@ namespace SpotifyTrivia.Hubs
             }
         }
 
-        public async Task StartGame(string lobbyCode, int questionCount, int roundDurationSeconds, AlbumCoverVisibility? blurAlbum = AlbumCoverVisibility.Hide)
+        public async Task StartGame(string lobbyCode, int questionCount, int roundDurationSeconds, AlbumCoverVisibility? blurAlbum = AlbumCoverVisibility.Hide, int sampleSize = 200)
         {
             var lobby = _lobbyManager.GetLobby(lobbyCode);
             if (lobby == null) return;
@@ -132,6 +132,12 @@ namespace SpotifyTrivia.Hubs
             else
             {
                 lobby.BlurAlbum = AlbumCoverVisibility.Hide;
+            }
+
+            if (sampleSize < 1 || sampleSize > 999999)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Invalid sample size" });
+                return;
             }
 
             await _broadcaster.BroadcastPreparingGame(lobbyCode);
@@ -171,6 +177,7 @@ namespace SpotifyTrivia.Hubs
                 return;
             }
 
+            lobby.SampleSize = sampleSize;
             lobby.RoundDurationSeconds = roundDurationSeconds;
             lobby.NumberOfQuestions = questionCount;
 

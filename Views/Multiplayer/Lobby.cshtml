@@ -228,6 +228,47 @@
         color: #1DB954;
         box-shadow: 0 2px 5px rgba(0,0,0,0.3);
     }
+
+    /* Sample size option styles */
+    .sample-size-control {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 4px;
+        padding: 4px;
+        background-color: #121212;
+        border: 1px solid #333333;
+        border-radius: 10px;
+    }
+
+    .sample-size-option {
+        min-width: 0;
+        padding: 0.55rem 0.35rem;
+        color: #b3b3b3;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-align: center;
+        border-radius: 6px;
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .sample-size-option:hover {
+        color: #ffffff;
+        background-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .btn-check:checked + .sample-size-option {
+        color: #1DB954;
+        background-color: #3e3e3e;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    }
+
+    @@media (max-width: 400px) {
+        .sample-size-control {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
 </style>
 
 <div class="lobby-wrapper lobby-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@isHost.ToString().ToLower()">
@@ -413,6 +454,35 @@
                         </div>
                     </div>
 
+                    <!-- Sample Size Slider -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label for="sample-size-slider" class="form-label text-secondary fw-bold mb-0">Sample Size (Tracks)</label>
+                        </div>
+                        
+                        <!-- Stepped Slider -->
+                        <div class="sample-size-control" role="group" aria-label="Sample size">
+                            <input type="radio" class="btn-check" name="sample-size-step" id="step-50" value="50">
+                            <label class="sample-size-option" for="step-50">50</label>
+
+                            <input type="radio" class="btn-check" name="sample-size-step" id="step-100" value="100">
+                            <label class="sample-size-option" for="step-100">100</label>
+
+                            <input type="radio" class="btn-check" name="sample-size-step" id="step-200" value="200" checked>
+                            <label class="sample-size-option" for="step-200">200</label>
+
+                            <input type="radio" class="btn-check" name="sample-size-step" id="step-500" value="500">
+                            <label class="sample-size-option" for="step-500">500</label>
+
+                            <input type="radio" class="btn-check" name="sample-size-step" id="step-max" value="max">
+                            <label class="sample-size-option" for="step-max">MAX</label>
+                        </div>
+                        
+                        <small class="text-secondary d-block mt-1">
+                            How many tracks to sample from the playlist in one instance
+                        </small>
+                    </div>
+
                    <div class="blur-setting-row mb-4">
                         <div class="pe-2">
                             <h6 class="text-white fw-bold mb-1">Album Artwork</h6>
@@ -421,7 +491,7 @@
                             </small>
                         </div>
 
-                        <!-- Segmented Control Group -->
+                        <!-- Blur Setting -->
                         <div class="segmented-control">
                             <input type="radio" class="btn-check" name="blur-album" id="blur-album-show" value="show">
                             <label class="segmented-label" for="blur-album-show">Show</label>

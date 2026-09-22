@@ -105,6 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let selectedQuestionCount = 10;
         let selectedRoundDurationSeconds = 10;
         let blurAlbum = "hide";
+        let selectedSampleSize = 200;
 
         const questionSlider = document.getElementById("question-count-slider");
         const questionDisplay = document.getElementById("question-count-display");
@@ -125,6 +126,12 @@ document.addEventListener("DOMContentLoaded", () => {
         saveSettingsBtn.addEventListener("click", () => {
             selectedQuestionCount = parseInt(questionSlider.value, 10);
             selectedRoundDurationSeconds = parseInt(roundDurationSlider.value, 10);
+
+            const sampleSizeValue = document.querySelector('input[name="sample-size-step"]:checked')?.value;
+
+            selectedSampleSize = sampleSizeValue === "max"
+                ? 999999
+                : parseInt(sampleSizeValue, 10);
             
             const blurSetting = document.querySelector('input[name="blur-album"]:checked').value;
             if (["show", "blur", "hide"].includes(blurSetting)) {
@@ -181,7 +188,7 @@ document.addEventListener("DOMContentLoaded", () => {
             settingsBtn.disabled = true;
 
             startBtn.textContent = "Starting...";
-            connection.invoke("StartGame", lobbyCode, selectedQuestionCount, selectedRoundDurationSeconds, blurAlbum)
+            connection.invoke("StartGame", lobbyCode, selectedQuestionCount, selectedRoundDurationSeconds, blurAlbum, selectedSampleSize)
                 .catch(err => {
                     showError("Failed to start: " + err);
                     resetStartControls();

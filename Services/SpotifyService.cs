@@ -57,37 +57,57 @@ namespace SpotifyTrivia.Services
             }).ToList();
         }
 
-        public async Task<SpotifyApiResult<List<TrackModel>>> GetPlaylistTracksAsync(string accessToken, string? refreshToken, string playlistId)
+        public async Task<SpotifyApiResult<List<TrackModel>>> GetPlaylistTracksAsync(string accessToken, string? refreshToken, string playlistId, int? sampleSize = null, int offset = 0)
         {
             var client = _httpClientFactory.CreateClient();
-            var (response, refreshedToken) = await SendWithRefreshAsync(
-                client, $"https://api.spotify.com/v1/playlists/{playlistId}/items", accessToken, refreshToken);
+            var tracks = new List<TrackModel>();
+            string? refreshedToken = null;
+            int total = 0;
+            string? nextUrl = $"https://api.spotify.com/v1/playlists/{playlistId}/items?offset={offset}&limit=100";
 
-            if (!response.IsSuccessStatusCode)
+            while (nextUrl != null)
             {
-                var errorBody = await response.Content.ReadAsStringAsync();
-                throw new Exception($"Spotify API returned status code {response.StatusCode} when fetching tracks: {errorBody}");
+                var (response, refreshed) = await SendWithRefreshAsync(client, nextUrl, accessToken, refreshToken);
+                if (refreshed != null) refreshedToken = refreshed;
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    throw new Exception($"Spotify API returned status code {response.StatusCode} when fetch tracks: {errorBody}");
+                }
+
+                var json = await response.Content.ReadAsStringAsync();
+                var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var result = JsonSerializer.Deserialize<SpotifyPlaylistTracksResponse>(json, jsonOptions);
+
+                total = result?.Total ?? total;
+
+                var pageTracks = result?.Items?
+                    .Where(i => i.Track != null)
+                    .Select(i => new TrackModel
+                    {
+                        Id = i.Track!.Id,
+                        Title = i.Track.Name,
+                        Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
+                        AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
+                        PreviewUrl = $"spotify:track:{i.Track.Id}",
+                        SpotifyUrl = i.Track.ExternalUrls?.Spotify,
+                        AddedBySpotifyUserId = i.AddedBy?.Id,
+                        Isrc = i.Track.ExternalIds?.Isrc
+                    }) ?? Enumerable.Empty<TrackModel>();
+
+                tracks.AddRange(pageTracks);
+
+                if (sampleSize.HasValue && tracks.Count >= sampleSize.Value)
+                {
+                    tracks = tracks.Take(sampleSize.Value).ToList();
+                    break;
+                }
+
+                nextUrl = result?.Next;
             }
 
-            var json = await response.Content.ReadAsStringAsync();
-            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var result = JsonSerializer.Deserialize<SpotifyPlaylistTracksResponse>(json, jsonOptions);
-
-            var tracks = result?.Items?
-                .Where(i => i.Track != null)
-                .Select(i => new TrackModel
-                {
-                    Id = i.Track!.Id,
-                    Title = i.Track.Name,
-                    Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
-                    AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
-                    PreviewUrl = $"spotify:track:{i.Track.Id}",
-                    SpotifyUrl = i.Track.ExternalUrls?.Spotify,
-                    AddedBySpotifyUserId = i.AddedBy?.Id,
-                    Isrc = i.Track.ExternalIds?.Isrc
-                }).ToList() ?? new List<TrackModel>();
-
-            return new SpotifyApiResult<List<TrackModel>> { Data = tracks, RefreshedAccessToken = refreshedToken };
+            return new SpotifyApiResult<List<TrackModel>> { Data = tracks, RefreshedAccessToken = refreshedToken, Total = total};
         }
 
         public async Task<SpotifyApiResult<List<TrackModel>>> GetLikedSongsAsync(string accessToken, string? refreshToken)

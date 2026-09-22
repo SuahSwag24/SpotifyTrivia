@@ -501,7 +501,7 @@ namespace SpotifyTrivia.Hubs
                 }
                 else
                 {
-                    tracks = await PreparePlaylistTracks(lobby);
+                    tracks = await PreparePlaylistTracks(lobby, offset: lobby.LastFetchOffset);
                 }
             }
             catch (Exception)
@@ -628,9 +628,9 @@ namespace SpotifyTrivia.Hubs
             return tracks;
         }
 
-        private async Task<List<TrackModel>> PreparePlaylistTracks(LobbyModel lobby)
+        private async Task<List<TrackModel>> PreparePlaylistTracks(LobbyModel lobby, int offset = 0)
         {
-            var result = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.HostSpotifyRefreshToken, lobby.SelectedPlaylistId!);
+            var result = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.HostSpotifyRefreshToken, lobby.SelectedPlaylistId!, lobby.SampleSize, offset);
 
             if (result.RefreshedAccessToken != null)
             {
@@ -641,6 +641,9 @@ namespace SpotifyTrivia.Hubs
                 }
                 Context.GetHttpContext()?.Session.SetString("SpotifyAccessToken", result.RefreshedAccessToken);
             }
+
+            lobby.PlaylistTotal = result.Total;
+            lobby.LastFetchOffset = offset;
 
             var tracks = result.Data ?? new List<TrackModel>();
 

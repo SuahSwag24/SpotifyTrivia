@@ -20,7 +20,9 @@ namespace SpotifyTrivia.Services.Dtos
 
     //  Playlist Tracks DTOs
     internal record SpotifyPlaylistTracksResponse(
-        [property: JsonPropertyName("items")] List<SpotifyPlaylistTracksDto>? Items
+        [property: JsonPropertyName("items")] List<SpotifyPlaylistTracksDto>? Items,
+        [property: JsonPropertyName("next")] string? Next,
+        [property: JsonPropertyName("total")] int Total
     );
 
     internal record SpotifyPlaylistTracksDto(

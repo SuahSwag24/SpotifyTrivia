@@ -32,5 +32,8 @@ namespace SpotifyTrivia.Models.Multiplayer
         public HashSet<string> PlayedTrackIds { get; set; } = new();
         public int MaxPlayers { get; set; } = 10;
         public AlbumCoverVisibility BlurAlbum { get; set; } = AlbumCoverVisibility.Hide;
+        public int? SampleSize { get; set; } = null;
+        public int PlaylistTotal { get; set; } = 0;
+        public int LastFetchOffset { get; set; } = 0;
     }
 }

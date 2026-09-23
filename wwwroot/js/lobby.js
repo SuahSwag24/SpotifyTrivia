@@ -47,6 +47,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 li.appendChild(icon);
                 li.appendChild(nameSpan);
+
+                if (isHost && data.playerid !== playerId) {
+                    const newKickBtn = document.createElement("button");
+                    newKickBtn.type = "button";
+                    newKickBtn.className = "kick-player-btn";
+                    newKickBtn.dataset.targetPlayer = data.playerId;
+                    newKickBtn.dataset.targetName = data.displayName;
+                    newKickBtn.innerHTML = '<span>Kick</span>';
+                    newKickBtn.title = `Kick ${data.displayName}`;
+                    newKickBtn.setAttribute("aria-label", `Kick ${data.displayName}`);
+                    li.appendChild(newKickBtn);
+                }
+                
                 list.appendChild(li);
             }
 
@@ -80,7 +93,20 @@ document.addEventListener("DOMContentLoaded", () => {
         onPreparingGame: () => {
             showToast("Preparing game, gathering song previews...", "success");
             leaveBtn.disabled = true;
-        }
+        },
+        onPlayerKicked: (data) => {
+            document
+                .querySelector(`#player-list [data-player-id="${CSS.escape(data.playerId)}"]`)
+                ?.remove();
+
+            showToast(`${data.displayName} was kicked`, "warning");
+        },
+        onKickedFromLobby: (data) => {
+            showToast(data.message, "danger");
+            setTimeout(() => {
+                window.location.href = "/multiplayer";
+            }, 800);
+        },
     });
 
     connection.on("JoinStatus", (data) => {
@@ -114,6 +140,17 @@ document.addEventListener("DOMContentLoaded", () => {
         const roundDurationDisplay = document.getElementById("round-duration-display");
 
         const saveSettingsBtn = document.getElementById("save-settings-btn");
+
+        const playerList = document.getElementById("player-list");
+        playerList.addEventListener("click", event => {
+            const button = event.target.closest("[data-target-player]");
+            if (!button) return;
+
+            kickPlayer(
+                button.dataset.targetPlayer,
+                button.dataset.targetName
+            );
+        })
 
         resetStartControls = () => {
             startBtn.disabled = false;
@@ -206,6 +243,23 @@ document.addEventListener("DOMContentLoaded", () => {
             .catch(err => showError("Failed to leave: " + err))
             .finally(() => { window.location.href = "/multiplayer"; });
     });
+
+    async function kickPlayer(playerId, displayName) {
+        try {
+            await connection.invoke("KickPlayer", lobbyCode, playerId);
+
+            const playerItems = document.querySelectorAll(`[data-player-id="${playerId}"]`);
+            playerItems.forEach(item => item.remove());
+
+            const playerCount = document.getElementById("player-count");
+            const currentCount = document.querySelectorAll("#player-list .player-pill-item").length;
+            playerCount.textContent = `${currentCount} / ${playerCount.dataset.maxPlayers}`;
+            
+        } catch (err) {
+            console.error('Kick failed: ', err);
+            showToast(`Failed to kick player`, "danger");
+        }
+    }
 });
 
 function setWaitingBarText(status) {

@@ -300,6 +300,23 @@ namespace SpotifyTrivia.Services
             return true;
         }
 
+        public void KickPlayer(string code, string playerId)
+        {
+            if (!_lobbies.TryGetValue(code, out var lobby)) return;
+
+            lobby.Players.TryRemove(playerId, out _);
+
+            var staleConnections = _connectionMap
+                .Where(kvp => kvp.Value.lobbyCode == code && kvp.Value.playerId == playerId)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var connectionId in staleConnections)
+            {
+                _connectionMap.TryRemove(connectionId, out _);
+            }
+        }
+
         private string GenerateLobbyCode()
         {
             const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

@@ -62,6 +62,16 @@
         gap: 0.5rem;
     }
 
+    .player-pill-item {
+        min-width: 0;
+        justify-content: flex-start;
+    }
+
+    .player-pill-item .text-truncate {
+        flex: 1;
+        min-width: 0;
+    }
+
     /* Buttons */
     .btn-spotify {
         background-color: #1DB954;
@@ -96,6 +106,33 @@
     .btn-outline-custom:hover {
         border-color: #ffffff;
         background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .kick-player-btn {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        border: 1px solid rgba(231, 76, 60, 0.55);
+        border-radius: 999px;
+        background: transparent;
+        color: #ff7675;
+        padding: 0.25rem 0.55rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .kick-player-btn:hover,
+    .kick-player-btn:focus-visible {
+        background: #e74c3c;
+        color: #fff;
+        outline: none;
+    }
+
+    .kick-player-btn span:first-child {
+        font-size: 1rem;
+        line-height: 1;
     }
 
     /* Sliders */
@@ -301,6 +338,12 @@
                             <li class="player-pill-item" data-player-id="@player.PlayerId">
                                 <span>👤</span>
                                 <span class="text-truncate">@player.DisplayName</span>
+                                @if (isHost && player.PlayerId != Model.PlayerHostId)
+                                {
+                                    <button type="button" class="kick-player-btn" data-target-player="@player.PlayerId" data-target-name="@player.DisplayName" title="Kick @player.DisplayName" aria-label="Kick @player.DisplayName">
+                                    <span>Kick</span>
+                                </button>
+                                }
                             </li>
                         }
                     </ul>
@@ -507,6 +550,27 @@
                 <div class="modal-footer" style="border-top: 1px solid #282828;">
                     <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Close</button>
                     <button type="button" class="btn btn-spotify px-4" id="save-settings-btn" data-bs-dismiss="modal">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="kick-confirmation-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background-color: #181818; border: 1px solid #282828;">
+                <div class="modal-header" style="border-bottom: 1px solid #282828;">
+                    <h5 class="modal-title text-danger fw-bold">Kick Player?</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="kick-target-name" class="fw-bold text-white mb-2"></p>
+                    <p id="kick-reason-display" class="text-secondary mb-3"></p>
+                    <label for="kick-reason-input" class="form-label text-secondary small">Reason (optional)</label>
+                    <input type="text" id="kick-reason-input" class="form-control" placeholder="Reason for kicking..." />
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #282828;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" id="confirm-kick-btn" class="btn btn-danger">Kick Player</button>
                 </div>
             </div>
         </div>

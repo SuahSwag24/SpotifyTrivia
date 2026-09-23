@@ -536,6 +536,66 @@ namespace SpotifyTrivia.Hubs
             return DateTime.UtcNow;
         }
 
+        public async Task KickPlayer(string lobbyCode, string playerId)
+        {
+            var lobby = _lobbyManager.GetLobby(lobbyCode);
+            if (lobby == null)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Lobby not found" });
+                return;
+            }
+
+            if (!IsHost(lobby))
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Only the host can kick players." });
+                return;
+            }
+
+            if (lobby.State != LobbyState.Waiting)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Players can only be kicked while waiting in the lobby." });
+                return;
+            }
+
+            if (!lobby.Players.TryGetValue(playerId, out var player) || player.ConnectionId == null)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Player not found or disconnected." });
+                return;
+            }
+
+            var caller = _lobbyManager.GetConnectionMapping(Context.ConnectionId);
+            if (caller?.playerId == playerId)
+            {
+                await Clients.Caller.SendAsync(
+                    "ActionError",
+                    new { Message = "You cannot kick yourself." });
+                return;
+            }
+
+            if (player.PlayerId == lobby.PlayerHostId)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Cannot kick the host." });
+                return;
+            }
+
+            var targetConnectionId = player.ConnectionId!;
+            var targetDisplayName = player.DisplayName;
+
+            _lobbyManager.RemovePlayer(lobbyCode, playerId);
+
+            await Groups.RemoveFromGroupAsync(targetConnectionId, lobbyCode);
+            await Clients.Client(targetConnectionId).SendAsync(
+                "KickedFromLobby",
+                new { Message = "You were removed from the lobby." });
+
+            await Clients.GroupExcept(lobbyCode, new[] { targetConnectionId })
+                .SendAsync("PlayerKicked", new
+                {
+                    PlayerId = playerId,
+                    DisplayName = targetDisplayName
+                });
+        }
+
         private bool IsHost(LobbyModel lobby)
         {
             var mapping = _lobbyManager.GetConnectionMapping(Context.ConnectionId);

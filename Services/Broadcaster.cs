@@ -106,6 +106,12 @@ namespace SpotifyTrivia.Services
             return _hubContext.Clients.Group(lobbyCode).SendAsync("PlayerStatusChanged", payload);
         }
 
+        public Task BroadcastPlayerKicked(string lobbyCode, string playerId, string displayName)
+        {
+            var payload = new { playerId = playerId, DisplayName = displayName };
+            return _hubContext.Clients.Group(lobbyCode).SendAsync("PlayerKicked", payload);
+        }
+
         public Task SendPromotedToActive(string connectionId)
         {
             return _hubContext.Clients.Client(connectionId).SendAsync("PromotedToActive");

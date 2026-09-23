@@ -179,6 +179,7 @@ document.addEventListener("DOMContentLoaded", () => {
             playerId
         });
         try {
+            await syncServerTime(connection);
             await connection.invoke("JoinLobby", lobbyCode, playerId, displayName);
             await connection.invoke("RequestGamePhase", lobbyCode);
             showToast("Reconnected!", "success");
@@ -198,6 +199,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     connection.start()
+        .then(async () => {
+            await syncServerTime(connection)
+            setInterval(() => syncServerTime(connection), 10000);
+        })
         .then(() => connection.invoke("JoinLobby", lobbyCode, playerId, displayName))
         .then(() => connection.invoke("RequestGamePhase", lobbyCode))
         .catch(err => console.error(err));
@@ -226,14 +231,29 @@ document.addEventListener("DOMContentLoaded", () => {
             .catch(err => console.error("Answer submit failed:", err));
     }
 
+    let serverTimeOffset = 0;
+
+    async function syncServerTime(connection) {
+        const clientSentAt = Date.now();
+        const serverUtcNow = await connection.invoke("GetServerTimeUtc");
+        const clientReceivedAt = Date.now();
+
+        const tripTime = clientReceivedAt - clientSentAt;
+        const serverTime = new Date(serverUtcNow).getTime() + tripTime / 2;
+        serverTimeOffset = serverTime - clientReceivedAt;
+    }
+
     function runLocalCountdown(startedAtUtc, totalSeconds) {
         const el = document.getElementById("countdown-number");
         const startTime = new Date(startedAtUtc).getTime();
         let interval;
 
         function tick() {
-            const elapsed = (Date.now() - startTime) / 1000;
-            const remaining = Math.max(0, Math.ceil(totalSeconds - elapsed));
+            const elapsed = ((Date.now() + serverTimeOffset) - startTime) / 1000;
+            const remaining = Math.min(
+                totalSeconds,
+                Math.max(0, Math.ceil(totalSeconds - elapsed))
+            );
             el.textContent = remaining;
             if (remaining <= 0) clearInterval(interval);
         }
@@ -248,8 +268,11 @@ document.addEventListener("DOMContentLoaded", () => {
         let interval;
 
         function tick() {
-            const elapsed = (Date.now() - startTime) / 1000;
-            const remaining = Math.max(0, Math.ceil(totalSeconds - elapsed));
+            const elapsed = ((Date.now() + serverTimeOffset) - startTime) / 1000;
+            const remaining = Math.min(
+                totalSeconds,
+                Math.max(0, Math.ceil(totalSeconds - elapsed))
+            );
             el.textContent = remaining;
             if (remaining <= 0) clearInterval(interval);
         }

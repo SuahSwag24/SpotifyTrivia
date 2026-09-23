@@ -531,6 +531,11 @@ namespace SpotifyTrivia.Hubs
             }
         }
 
+        public DateTime GetServerTimeUtc()
+        {
+            return DateTime.UtcNow;
+        }
+
         private bool IsHost(LobbyModel lobby)
         {
             var mapping = _lobbyManager.GetConnectionMapping(Context.ConnectionId);

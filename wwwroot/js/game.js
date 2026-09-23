@@ -25,6 +25,63 @@ document.addEventListener("DOMContentLoaded", () => {
         errorBox.style.display = "block";
     }
 
+    function addKickButton(playerElement, targetPlayerId, targetDisplayName) {
+        if (!isHost || targetPlayerId === playerId || playerElement.querySelector("[data-target-player]")) return;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "kick-player-btn";
+        button.dataset.targetPlayer = targetPlayerId;
+        button.dataset.targetName = targetDisplayName;
+        button.title = `Remove ${targetDisplayName} from the game`;
+        button.setAttribute("aria-label", `Remove ${targetDisplayName} from the game`);
+        button.innerHTML = '<span aria-hidden="true">&#x22EE;</span>';
+        playerElement.appendChild(button);
+    }
+
+    function removePlayerFromList(targetPlayerId) {
+        document.querySelector(`#side-player-list [data-player-id="${CSS.escape(targetPlayerId)}"]`)?.remove();
+    }
+
+    const kickModalElement = document.getElementById("kick-confirmation-modal");
+    const kickModal = bootstrap.Modal.getOrCreateInstance(kickModalElement);
+    const kickMessage = document.getElementById("kick-confirmation-message");
+    const confirmKickButton = document.getElementById("confirm-kick-btn");
+    let pendingKick = null;
+
+    function confirmKickPlayer(targetPlayerId, targetDisplayName) {
+        pendingKick = { targetPlayerId, targetDisplayName };
+        kickMessage.textContent = `Remove ${targetDisplayName} from the game?`;
+        confirmKickButton.disabled = false;
+        confirmKickButton.textContent = "Remove Player";
+        kickModal.show();
+    }
+
+    confirmKickButton.addEventListener("click", async () => {
+        if (!pendingKick) return;
+
+        const { targetPlayerId, targetDisplayName } = pendingKick;
+        confirmKickButton.disabled = true;
+        confirmKickButton.textContent = "Removing...";
+
+        try {
+            await connection.invoke("KickPlayer", lobbyCode, targetPlayerId);
+            removePlayerFromList(targetPlayerId);
+            kickModal.hide();
+        } catch (err) {
+            showError("Failed to remove player: " + err);
+            confirmKickButton.disabled = false;
+            confirmKickButton.textContent = "Remove Player";
+        }
+    });
+
+    document.getElementById("side-player-list").addEventListener("click", event => {
+        const button = event.target.closest("[data-target-player]");
+        if (!button) return;
+
+        confirmKickPlayer(button.dataset.targetPlayer, button.dataset.targetName);
+    });
+
     function showPhase(id) {
         document.querySelectorAll(".phase-panel").forEach(p => p.style.display = "none");
         document.getElementById(id).style.display = "block";
@@ -133,6 +190,16 @@ document.addEventListener("DOMContentLoaded", () => {
             showError(data.message)
         },
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },
+        onPlayerKicked: (data) => {
+            removePlayerFromList(data.playerId);
+            showToast(`${data.displayName} was removed from the game`, "warning");
+        },
+        onKickedFromLobby: (data) => {
+            showToast(data.message, "danger");
+            setTimeout(() => {
+                window.location.href = "/multiplayer";
+            }, 800);
+        },
         onPlayerJoined: (data) => {
             showToast(`${data.displayName} joined the game`, "success");
             if (!document.querySelector(`#side-player-list [data-player-id="${data.playerId}"]`)) {
@@ -140,6 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 li.className = "player-pill-item";
                 li.dataset.playerId = data.playerId;
                 li.innerHTML = `<span class="player-dot status-active"></span><span class="player-name">${data.displayName}</span><span class="player-status-text active">Pondering...</span>`;
+                addKickButton(li, data.playerId, data.displayName);
                 document.getElementById("side-player-list").appendChild(li);
             }
         },

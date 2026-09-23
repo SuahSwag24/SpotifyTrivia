@@ -344,6 +344,7 @@
         align-items: center;
         gap: 0.5rem;
         padding: 0.5rem 0.75rem;
+        position: relative;
         border-radius: 8px;
         margin-bottom: 0.35rem;
         background-color: #242424;
@@ -473,6 +474,60 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    .kick-player-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        top: 50%;
+        right: 0.75rem;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        overflow: hidden;
+        transform: translate(0, -50%) scaleX(0);
+        transform-origin: right center;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: #888;
+        opacity: 0;
+        transition: transform 0.2s ease, opacity 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .side-player-list li:has(.kick-player-btn):hover .kick-player-btn,
+    .side-player-list li:has(.kick-player-btn):focus-within .kick-player-btn {
+        transform: translate(0, -50%) scaleX(1);
+        opacity: 1;
+    }
+
+    .side-player-list li:has(.kick-player-btn):hover .player-status-text,
+    .side-player-list li:has(.kick-player-btn):focus-within .player-status-text {
+        transform: translateX(-2rem);
+    }
+
+    .player-status-text {
+        transition: transform 0.2s ease, color 0.3s ease, font-weight 0.3s ease;
+    }
+
+    .kick-player-btn:hover,
+    .kick-player-btn:focus-visible {
+        color: #f15e6c;
+        background-color: rgba(226, 33, 52, 0.15);
+        border-color: rgba(226, 33, 52, 0.35);
+    }
+
+    @@media (max-width: 991.98px) {
+        .kick-player-btn {
+            transform: translate(0, -50%) scaleX(1);
+            opacity: 1;
+        }
+
+        .player-status-text {
+            transform: none;
+        }
     }
 
     .reveal-row {
@@ -683,6 +738,17 @@
                             <span class="player-dot status-@(player.Status.ToString().ToLower())"></span>
                             <span class="player-name">@player.DisplayName</span>
                             <span class="player-status-text">@player.Status.ToString().ToLower()</span>
+                            @if (ViewBag.IsHost == true && player.PlayerId != ViewBag.PlayerId)
+                            {
+                                <button type="button"
+                                        class="kick-player-btn"
+                                        data-target-player="@player.PlayerId"
+                                        data-target-name="@player.DisplayName"
+                                        title="Remove @player.DisplayName from the game"
+                                        aria-label="Remove @player.DisplayName from the game">
+                                    <span aria-hidden="true">&#x22EE;</span>
+                                </button>
+                            }
                         </li>
                     }
                 </ul>
@@ -751,6 +817,35 @@
                 <button type="button" id="confirm-leave-btn"
                         class="btn btn-danger">
                     Leave Game
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="kick-confirmation-modal" tabindex="-1"
+     aria-labelledby="kick-confirmation-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content leave-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="kick-confirmation-title">Remove player?</h5>
+                <button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <p id="kick-confirmation-message" class="mb-0">
+                    Remove this player from the game?
+                </p>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-light"
+                        data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="button" id="confirm-kick-btn" class="btn btn-danger">
+                    Remove Player
                 </button>
             </div>
         </div>

@@ -551,9 +551,9 @@ namespace SpotifyTrivia.Hubs
                 return;
             }
 
-            if (lobby.State != LobbyState.Waiting)
+            if (lobby.State == LobbyState.Finished)
             {
-                await Clients.Caller.SendAsync("ActionError", new { Message = "Players can only be kicked while waiting in the lobby." });
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Cannot kick players when the game has ended." });
                 return;
             }
 

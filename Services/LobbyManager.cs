@@ -197,15 +197,9 @@ namespace SpotifyTrivia.Services
             {
                 lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount, lobby.PlayedTrackIds);
             }
-            catch (PlaylistExhaustedException) when (
-                lobby.SampleSize.HasValue
-                && lobby.PlaylistTotal > 0
-                && lobby.LastFetchOffset + lobby.SampleSize < lobby.PlaylistTotal
-            )
+            catch (PlaylistExhaustedException) when (CanRetryWithFreshSample(lobby))
             {
-                var nextOffset = lobby.LastFetchOffset + lobby.SampleSize.Value;
-                var freshTracks = await RefetchPlaylistWindow(lobby, offset: nextOffset);
-
+                var freshTracks = await RefetchSample(lobby);
                 lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, questionCount, lobby.PlayedTrackIds);
             }
 
@@ -225,18 +219,12 @@ namespace SpotifyTrivia.Services
             {
                 lobby.Questions = await mode.GenerateQuestionsAsync(tracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds);
             }
-            catch (PlaylistExhaustedException) when (
-                lobby.SampleSize.HasValue
-                && lobby.PlaylistTotal > 0
-                && lobby.LastFetchOffset + lobby.SampleSize < lobby.PlaylistTotal
-            )
+            catch (PlaylistExhaustedException) when (CanRetryWithFreshSample(lobby))
             {
-                var nextOffset = lobby.LastFetchOffset + lobby.SampleSize.Value;
-                var freshTracks = await RefetchPlaylistWindow(lobby, nextOffset);
+                var freshTracks = await RefetchSample(lobby);
                 lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds);
             }
 
-            
             foreach (var p in lobby.Players.Values)
             {
                 p.AnswerHistory.Clear();
@@ -539,6 +527,89 @@ namespace SpotifyTrivia.Services
             }
 
             return tracks;
+        }
+
+        private async Task<List<TrackModel>> RefetchLikedSongsForAllPlayers(LobbyModel lobby)
+        {
+            var eligiblePlayers = lobby.Players.Values
+                .Where(p => !string.IsNullOrEmpty(p.SpotifyAccessToken)
+                            && lobby.SampleSize.HasValue
+                            && p.LikedSongsLastOffset + lobby.SampleSize.Value < p.LikedSongsTotal)
+                .ToList();
+
+            var perPlayerResult = await Task.WhenAll(
+                eligiblePlayers.Select(async p =>
+                {
+                    try
+                    {
+                        var nextOffset = p.LikedSongsLastOffset + lobby.SampleSize!.Value;
+
+                        var result = await _spotifyService.GetLikedSongsAsync(
+                            p.SpotifyAccessToken, p.SpotifyRefreshToken,
+                            sampleSize: lobby.SampleSize, offset: nextOffset);
+
+                        if (result.RefreshedAccessToken != null)
+                        {
+                            p.SpotifyAccessToken = result.RefreshedAccessToken;
+                        }
+
+                        p.LikedSongsTotal = result.Total;
+                        p.LikedSongsLastOffset = nextOffset;
+
+                        var playerTracks = result.Data ?? new List<TrackModel>();
+
+                        foreach (var t in playerTracks)
+                        {
+                            t.ContributedByPlayerIds.Add(p.PlayerId);
+                        }
+
+                        return playerTracks;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to refetch liked songs for player {PlayerId} in Lobby {Lobby}", p.PlayerId, lobby.Code);
+                        return new List<TrackModel>();
+                    }
+                })
+            );
+
+            return perPlayerResult
+                .SelectMany(t => t)
+                .GroupBy(t => t.Id)
+                .Select(g =>
+                {
+                    var merged = g.First();
+                    merged.ContributedByPlayerIds = g.SelectMany(t => t.ContributedByPlayerIds).Distinct().ToList();
+                    return merged;
+                })
+                .ToList();
+        }
+
+        private bool CanRetryWithFreshSample(LobbyModel lobby)
+        {
+            if (!lobby.SampleSize.HasValue) return false;
+
+            if (lobby.SelectedPlaylistId == "__liked_songs__")
+            {
+                return lobby.Players.Values.Any(p =>
+                    !string.IsNullOrEmpty(p.SpotifyAccessToken)
+                    && p.LikedSongsLastOffset + lobby.SampleSize!.Value < p.LikedSongsTotal);
+            }
+
+            if (lobby.SelectedPlaylistId == "__recent_songs__")
+            {
+                return false; // no sampling/offset applies to this source
+            }
+
+            return lobby.PlaylistTotal > 0
+                && lobby.LastFetchOffset + lobby.SampleSize.Value < lobby.PlaylistTotal;
+        }
+
+        private async Task<List<TrackModel>> RefetchSample(LobbyModel lobby)
+        {
+            return lobby.SelectedPlaylistId == "__liked_songs__"
+                ? await RefetchLikedSongsForAllPlayers(lobby)
+                : await RefetchPlaylistWindow(lobby, lobby.LastFetchOffset + lobby.SampleSize!.Value);
         }
     }
 }

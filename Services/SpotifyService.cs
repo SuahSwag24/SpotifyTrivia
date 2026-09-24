@@ -110,33 +110,54 @@ namespace SpotifyTrivia.Services
             return new SpotifyApiResult<List<TrackModel>> { Data = tracks, RefreshedAccessToken = refreshedToken, Total = total};
         }
 
-        public async Task<SpotifyApiResult<List<TrackModel>>> GetLikedSongsAsync(string accessToken, string? refreshToken)
+        public async Task<SpotifyApiResult<List<TrackModel>>> GetLikedSongsAsync(string accessToken, string? refreshToken, int? sampleSize = null, int offset = 0)
         {
             var client = _httpClientFactory.CreateClient();
-            var (response, refreshedToken) = await SendWithRefreshAsync(
-                client, "https://api.spotify.com/v1/me/tracks?limit=50", accessToken, refreshToken);
+            var tracks = new List<TrackModel>();
+            string? refreshedToken = null;
+            int total = 0;
 
-            if (!response.IsSuccessStatusCode)
-                return new SpotifyApiResult<List<TrackModel>> { Data = new List<TrackModel>(), RefreshedAccessToken = refreshedToken };
+            string? nextUrl = $"https://api.spotify.com/v1/me/tracks?limit=50&offset={offset}";
+            
+            while (nextUrl != null)
+            {
+                var (response, refreshed) = await SendWithRefreshAsync(client, nextUrl, accessToken, refreshToken);
+                if (refreshed != null) refreshedToken = refreshed;
 
-            var json = await response.Content.ReadAsStringAsync();
-            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var result = JsonSerializer.Deserialize<SpotifySavedTracksResponse>(json, jsonOptions);
+                if (!response.IsSuccessStatusCode)
+                    return new SpotifyApiResult<List<TrackModel>> { Data = tracks, RefreshedAccessToken = refreshedToken, Total = total };
 
-            var tracks = result?.Items?
-                .Where(i => i.Track != null)
-                .Select(i => new TrackModel
+                var json = await response.Content.ReadAsStringAsync();
+                var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var result = JsonSerializer.Deserialize<SpotifySavedTracksResponse>(json, jsonOptions);
+
+                total = result?.Total ?? total;
+
+                var pageTracks = result?.Items?
+                    .Where(i => i.Track != null)
+                    .Select(i => new TrackModel
+                    {
+                        Id = i.Track!.Id,
+                        Title = i.Track.Name,
+                        Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
+                        AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
+                        PreviewUrl = $"spotify:track:{i.Track.Id}",
+                        SpotifyUrl = i.Track.ExternalUrls?.Spotify,
+                        Isrc = i.Track.ExternalIds?.Isrc
+                    }) ?? Enumerable.Empty<TrackModel>();
+
+                tracks.AddRange(pageTracks);
+
+                if (sampleSize.HasValue && tracks.Count >= sampleSize.Value)
                 {
-                    Id = i.Track!.Id,
-                    Title = i.Track.Name,
-                    Artist = string.Join(", ", i.Track.Artists?.Select(a => a.Name) ?? Array.Empty<string>()),
-                    AlbumCoverUrl = i.Track.Album?.Images?.FirstOrDefault()?.Url,
-                    PreviewUrl = $"spotify:track:{i.Track.Id}",
-                    SpotifyUrl = i.Track.ExternalUrls?.Spotify,
-                    Isrc = i.Track.ExternalIds?.Isrc
-                }).ToList() ?? new List<TrackModel>();
+                    tracks = tracks.Take(sampleSize.Value).ToList();
+                    break;
+                }
 
-            return new SpotifyApiResult<List<TrackModel>> { Data = tracks, RefreshedAccessToken = refreshedToken };
+                nextUrl = result?.Next;
+            }
+
+            return new SpotifyApiResult<List<TrackModel>> { Data = tracks, RefreshedAccessToken = refreshedToken, Total = total };
         }
 
         public async Task<SpotifyApiResult<List<TrackModel>>> GetRecentlyPlayedSongsAsync(string accessToken, string? refreshToken)

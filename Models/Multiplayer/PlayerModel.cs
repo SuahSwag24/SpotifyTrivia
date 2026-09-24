@@ -34,5 +34,7 @@ namespace SpotifyTrivia.Models.Multiplayer
         public string? SpotifyRefreshToken { get; set; }
         public bool LastAnswerPenalized { get; set; }
         public PlayerStatus Status { get; set; } = PlayerStatus.Active;
+        public int LikedSongsTotal { get; set; } = 0;
+        public int LikedSongsLastOffset { get; set; } = 0;
     }
 }

@@ -142,6 +142,10 @@ namespace SpotifyTrivia.Hubs
 
             await _broadcaster.BroadcastPreparingGame(lobbyCode);
 
+            lobby.SampleSize = sampleSize;
+            lobby.RoundDurationSeconds = roundDurationSeconds;
+            lobby.NumberOfQuestions = questionCount;
+
             List<TrackModel> tracks;
             try
             {
@@ -176,10 +180,6 @@ namespace SpotifyTrivia.Hubs
                 await Clients.Caller.SendAsync("ActionError", new { Message = $"Not enough tracks found across players' {sourceLabel} to start a game." });
                 return;
             }
-
-            lobby.SampleSize = sampleSize;
-            lobby.RoundDurationSeconds = roundDurationSeconds;
-            lobby.NumberOfQuestions = questionCount;
 
             try
             {
@@ -613,7 +613,7 @@ namespace SpotifyTrivia.Hubs
                 {
                     try
                     {
-                        var result = await _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken, p.SpotifyRefreshToken);
+                        var result = await _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken, p.SpotifyRefreshToken, sampleSize: lobby.SampleSize, offset: p.LikedSongsLastOffset);
 
                         if (result.RefreshedAccessToken != null)
                         {

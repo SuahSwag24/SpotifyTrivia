@@ -390,7 +390,7 @@
 
                         <div class="d-flex flex-wrap gap-2 mt-auto pt-3" style="border-top: 1px solid #282828;">
                             <button id="start-game-btn" type="button" class="btn btn-spotify flex-grow-1" disabled>Start Game</button>
-                            <button id="game-settings-btn" type="button" class="btn btn-outline-custom" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                            <button id="game-settings-btn" type="button" class="btn btn-outline-custom" data-bs-toggle="modal" data-bs-target="#settings-modal">
                                 ⚙️ Settings
                             </button>
                         </div>
@@ -467,12 +467,11 @@
     </div>
 
     <!-- Game Settings Modal -->
-    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+    <div class="modal fade" id="settings-modal" tabindex="-1" aria-labelledby="settings-modal-label" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" style="background-color: #181818; border: 1px solid #282828;">
                 <div class="modal-header" style="border-bottom: 1px solid #282828;">
-                    <h5 class="modal-title text-white fw-bold" id="settingsModalLabel">Game Rules</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title text-white fw-bold" id="settings-modal-label">Game Rules</h5>
                 </div>
                 <div class="modal-body pb-4">
                     <div class="mb-4">
@@ -548,8 +547,8 @@
                     </div>
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid #282828;">
-                    <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-spotify px-4" id="save-settings-btn" data-bs-dismiss="modal">Save Changes</button>
+                    <button type="button" class="btn btn-outline-custom" id="back-settings-btn">Back</button>
+                    <button type="button" class="btn btn-spotify px-4" id="save-settings-btn">Save Changes</button>
                 </div>
             </div>
         </div>

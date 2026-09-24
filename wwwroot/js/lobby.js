@@ -128,10 +128,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const settingsBtn = document.getElementById("game-settings-btn");
         const gameModeGrid = document.getElementById("gamemode-grid");
 
-        let selectedQuestionCount = 10;
-        let selectedRoundDurationSeconds = 10;
-        let blurAlbum = "hide";
-        let selectedSampleSize = 200;
+        let currentSettings = {
+            questionCount: 10,
+            roundDuration: 10,
+            sampleSize: 200,
+            blurAlbum: "hide"
+        }
 
         const questionSlider = document.getElementById("question-count-slider");
         const questionDisplay = document.getElementById("question-count-display");
@@ -140,6 +142,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const roundDurationDisplay = document.getElementById("round-duration-display");
 
         const saveSettingsBtn = document.getElementById("save-settings-btn");
+        const backSettingsBtn = document.getElementById("back-settings-btn");
+        const settingsModal = document.getElementById("settings-modal");
 
         const playerList = document.getElementById("player-list");
         playerList.addEventListener("click", event => {
@@ -161,23 +165,37 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         saveSettingsBtn.addEventListener("click", () => {
-            selectedQuestionCount = parseInt(questionSlider.value, 10);
-            selectedRoundDurationSeconds = parseInt(roundDurationSlider.value, 10);
-
-            const sampleSizeValue = document.querySelector('input[name="sample-size-step"]:checked')?.value;
-
-            selectedSampleSize = sampleSizeValue === "max"
-                ? 999999
-                : parseInt(sampleSizeValue, 10);
+            currentSettings = {
+                questionCount: parseInt(questionSlider.value, 10),
+                roundDuration: parseInt(roundDurationSlider.value, 10),
+                sampleSize: document.querySelector('input[name="sample-size-step"]:checked')?.value || "200",
+                blurAlbum: document.querySelector('input[name="blur-album"]:checked').value || "hide"
+            };
             
-            const blurSetting = document.querySelector('input[name="blur-album"]:checked').value;
-            if (["show", "blur", "hide"].includes(blurSetting)) {
-                blurAlbum = blurSetting;
-            } else {
-                blurAlbum = "hide";
-                showToast("Invalid blurAlbum setting: defaulting to hide", "warning");
+            bootstrap.Modal.getInstance(settingsModal).hide();
+        });
+
+        backSettingsBtn.addEventListener("click", () => {
+            questionSlider.value = currentSettings.questionCount.toString();
+            questionDisplay.textContent = currentSettings.questionCount;
+            
+            roundDurationSlider.value = currentSettings.roundDuration.toString();
+            roundDurationDisplay.textContent = currentSettings.roundDuration + 's';
+            
+            const sampleSizeValue = currentSettings.sampleSize;
+            const sampleSizeInput = document.querySelector(`input[name="sample-size-step"][value="${sampleSizeValue}"]`);
+            if (sampleSizeInput) {
+                sampleSizeInput.checked = true;
             }
-        })
+            
+            const blurAlbumInput = document.querySelector(`input[name="blur-album"][value="${currentSettings.blurAlbum}"]`);
+            if (blurAlbumInput) {
+                blurAlbumInput.checked = true;
+            }
+            
+            // Close modal without saving
+            bootstrap.Modal.getInstance(settingsModal).hide();
+        });
 
         chooseBtn.addEventListener("click", async () => {
             const res = await fetch("/playlists/picker-partial");
@@ -225,7 +243,15 @@ document.addEventListener("DOMContentLoaded", () => {
             settingsBtn.disabled = true;
 
             startBtn.textContent = "Starting...";
-            connection.invoke("StartGame", lobbyCode, selectedQuestionCount, selectedRoundDurationSeconds, blurAlbum, selectedSampleSize)
+            console.log(currentSettings);
+            connection.invoke(
+                "StartGame",
+                lobbyCode,
+                currentSettings.questionCount,
+                currentSettings.roundDuration,
+                currentSettings.blurAlbum,
+                currentSettings.sampleSize === "max" ? 999999 : parseInt(currentSettings.sampleSize, 10) 
+            )
                 .catch(err => {
                     showError("Failed to start: " + err);
                     resetStartControls();

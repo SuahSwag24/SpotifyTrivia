@@ -4,6 +4,8 @@
 
 **SpotifyTrivia** is a multiplayer trivia web game built with ASP.NET Core. Songs are fetched from player's Spotify playlists and the tracks retrieved will be used to create trivia rounds against others in a lobby.
 
+Project is deployed in https://spotifytrivia.onrender.com using Render. However, to retrieve account information, email is required in the Web API Developer Dashboard User Management settings to allow permitted access to the web game.
+
 ## Overview
 
 The app includes the following features:

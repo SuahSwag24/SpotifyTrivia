@@ -12,6 +12,7 @@ namespace SpotifyTrivia.Services.GameModes
     {
         private readonly IDeezerService _deezerService;
         private const double SELFCONTRIBUTIONPENALTYMULTIPLIER = 0.8;
+        private const double FAIRDISTRIBUTIONWEIGHTAGE = 0.6;
 
         public ClassicGuessSongGameMode(IDeezerService deezerService)
         {
@@ -20,7 +21,7 @@ namespace SpotifyTrivia.Services.GameModes
 
         public GameModeType ModeType => GameModeType.ClassicGuessSong;
 
-        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds)
+        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds, IEnumerable<string> lobbyPlayerIds)
         {
             var shuffledPool = new List<TrackModel>(tracks)
                 .Where(t => !excludedTrackIds.Contains(t.Id))
@@ -31,7 +32,7 @@ namespace SpotifyTrivia.Services.GameModes
                 throw new PlaylistExhaustedException("Not enough remaining unplayed tracks to generate more questions.");
             }
 
-            Shuffle(shuffledPool);
+            shuffledPool = BuildFairShuffledPool(shuffledPool, lobbyPlayerIds, numberOfQuestions);
 
             int maxAttempts = Math.Min(shuffledPool.Count, numberOfQuestions * 3);
 
@@ -137,6 +138,66 @@ namespace SpotifyTrivia.Services.GameModes
                 int k = Random.Shared.Next(n + 1);
                 (list[k], list[n]) = (list[n], list[k]);
             }
+        }
+
+        private List<TrackModel> BuildFairShuffledPool(List<TrackModel> trackPool, IEnumerable<string> lobbyPlayerIds, int numberOfQuestions)
+        {
+            int roundRobinCount = (int)Math.Ceiling(numberOfQuestions * FAIRDISTRIBUTIONWEIGHTAGE);
+            int freeForAllCount = numberOfQuestions - roundRobinCount;
+
+            var picked = new HashSet<string>();
+
+            //  Shuffle contributor queues
+            var playerIds = lobbyPlayerIds.ToList();
+            Shuffle(playerIds);
+
+            var playerQueues = playerIds
+                .Select(pid =>
+                {
+                    var tracks = trackPool.Where(t => t.ContributedByPlayerIds.Contains(pid)).ToList();
+                    Shuffle(tracks);
+                    return new Queue<TrackModel>(tracks);
+                })
+                .Where(q => q.Count > 0)
+                .ToList();
+
+            //  Partition 1: Round-Robin, allows uneven amounts of song and cycles through players.
+            var roundRobinPartition = new List<TrackModel>();
+            while (roundRobinPartition.Count < roundRobinCount && playerQueues.Any(q => q.Count > 0))
+            {
+                foreach (var queue in playerQueues)
+                {
+                    if (roundRobinPartition.Count >= roundRobinCount) break;
+
+                    while (queue.Count > 0 && picked.Contains(queue.Peek().Id))
+                        queue.Dequeue();
+
+                    if (queue.Count == 0) continue;
+
+                    var track = queue.Dequeue();
+                    picked.Add(track.Id);
+                    roundRobinPartition.Add(track);
+                }
+            }
+
+            //  Partition 2: Free-For-All, random and no-fair weighting
+            var freeForAllPool = trackPool.Where(t => !picked.Contains(t.Id)).ToList();
+            Shuffle(freeForAllPool);
+
+            var freeForAllPartition = freeForAllPool.Take(freeForAllCount).ToList();
+            foreach (var t in freeForAllPartition) picked.Add(t.Id);
+
+            // Everything else becomes the retry buffer for the maxAttempts loop
+            var buffer = trackPool.Where(t => !picked.Contains(t.Id)).ToList();
+            Shuffle(buffer);
+
+            var questionPool = new List<TrackModel>();
+            questionPool.AddRange(roundRobinPartition);
+            questionPool.AddRange(freeForAllPartition);
+            Shuffle(questionPool); // mix the two segments so consumption order isn't RR-first
+
+            questionPool.AddRange(buffer);
+            return questionPool;
         }
 
         private int CalculateScore(DateTime roundStartedAtUtc, DateTime playerAnsweredAtUtc, double roundDurationSeconds, bool isSelfContributed)

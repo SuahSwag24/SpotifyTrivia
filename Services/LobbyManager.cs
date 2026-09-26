@@ -193,14 +193,18 @@ namespace SpotifyTrivia.Services
 
             var mode = _gameModeFactory.GetGameMode(lobby.GameMode);
 
+            var lobbyPlayerIds = lobby.Players.Values
+                .Where(p => p.JoinStatus == PlayerJoinStatus.Active)
+                .Select(p => p.PlayerId);
+
             try
             {
-                lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount, lobby.PlayedTrackIds);
+                lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds);
             }
             catch (PlaylistExhaustedException) when (CanRetryWithFreshSample(lobby))
             {
                 var freshTracks = await RefetchSample(lobby);
-                lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, questionCount, lobby.PlayedTrackIds);
+                lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds);
             }
 
             lobby.SessionLoopCts = new CancellationTokenSource();
@@ -215,14 +219,18 @@ namespace SpotifyTrivia.Services
 
             var mode = _gameModeFactory.GetGameMode(lobby.GameMode);
 
+            var lobbyPlayerIds = lobby.Players.Values
+                .Where(p => p.JoinStatus == PlayerJoinStatus.Active)
+                .Select(p => p.PlayerId);
+
             try
             {
-                lobby.Questions = await mode.GenerateQuestionsAsync(tracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds);
+                lobby.Questions = await mode.GenerateQuestionsAsync(tracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds, lobbyPlayerIds);
             }
             catch (PlaylistExhaustedException) when (CanRetryWithFreshSample(lobby))
             {
                 var freshTracks = await RefetchSample(lobby);
-                lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds);
+                lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds, lobbyPlayerIds);
             }
 
             foreach (var p in lobby.Players.Values)

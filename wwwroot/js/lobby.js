@@ -243,7 +243,6 @@ document.addEventListener("DOMContentLoaded", () => {
             settingsBtn.disabled = true;
 
             startBtn.textContent = "Starting...";
-            console.log(currentSettings);
             connection.invoke(
                 "StartGame",
                 lobbyCode,

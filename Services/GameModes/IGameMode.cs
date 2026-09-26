@@ -9,7 +9,7 @@ namespace SpotifyTrivia.Services.GameModes
     public interface IGameMode
     {
         GameModeType ModeType { get; }
-        Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds);
+        Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds, IEnumerable<string> lobbyPlayerIds);
         AnswerResultModel EvaluateAnswer(
             TriviaQuestionModel question,
             int choiceIndex,

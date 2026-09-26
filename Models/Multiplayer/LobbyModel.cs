@@ -35,5 +35,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public int? SampleSize { get; set; } = null;
         public int PlaylistTotal { get; set; } = 0;
         public int LastFetchOffset { get; set; } = 0;
+        public List<TrackModel> CachedTracks { get; set; } = new();
     }
 }

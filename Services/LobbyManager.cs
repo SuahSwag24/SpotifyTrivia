@@ -197,6 +197,8 @@ namespace SpotifyTrivia.Services
                 .Where(p => p.JoinStatus == PlayerJoinStatus.Active)
                 .Select(p => p.PlayerId);
 
+            lobby.CachedTracks = tracks;
+
             try
             {
                 lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds);
@@ -204,6 +206,7 @@ namespace SpotifyTrivia.Services
             catch (PlaylistExhaustedException) when (CanRetryWithFreshSample(lobby))
             {
                 var freshTracks = await RefetchSample(lobby);
+                lobby.CachedTracks = freshTracks;
                 lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds);
             }
 
@@ -230,6 +233,7 @@ namespace SpotifyTrivia.Services
             catch (PlaylistExhaustedException) when (CanRetryWithFreshSample(lobby))
             {
                 var freshTracks = await RefetchSample(lobby);
+                lobby.CachedTracks = freshTracks;
                 lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds, lobbyPlayerIds);
             }
 

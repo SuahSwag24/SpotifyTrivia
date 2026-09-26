@@ -495,25 +495,10 @@ namespace SpotifyTrivia.Hubs
 
             await _broadcaster.BroadcastPreparingGame(lobbyCode);
 
-            List<TrackModel> tracks;
-            try
+            var tracks = lobby.CachedTracks;
+            if (tracks == null || tracks.Count == 0)
             {
-                if (lobby.SelectedPlaylistId == "__liked_songs__")
-                {
-                    tracks = await FetchLikedSongsForAllPlayers(lobby);
-                }
-                else if (lobby.SelectedPlaylistId == "__recent_songs__")
-                {
-                    tracks = await FetchRecentlyPlayedSongsForAllPlayers(lobby);
-                }
-                else
-                {
-                    tracks = await PreparePlaylistTracks(lobby, offset: lobby.LastFetchOffset);
-                }
-            }
-            catch (Exception)
-            {
-                await Clients.Caller.SendAsync("ActionError", new { Message = "Couldn't reload playlist." });
+                await Clients.Caller.SendAsync("ActionError", new { Message = "No cached tracks to continue with." });
                 return;
             }
 

@@ -23,5 +23,6 @@ namespace SpotifyTrivia.Services
         void DisbandLobby(string code);
         bool ResetLobbyToWaiting(string code);
         void KickPlayer (string code, string playerId);
+        Task MarkRoundAsReadyAsync(string lobbyCode, string playerId, string roundId);
     }
 }

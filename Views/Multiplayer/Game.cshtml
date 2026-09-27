@@ -685,7 +685,12 @@
     <div id="countdown-phase" class="phase-panel text-center">
         <h2 class="text-secondary uppercase fs-6 fw-bold tracking-widest">Get Ready</h2>
         <span class="text-secondary fs-3" id="prompt-text"></span>
-        <div id="countdown-number">3</div>
+        <div id="audio-loading-container" class="d-flex justify-content-center my-4">
+            <div id="audio-loading-spinner" class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading audio</span>
+            </div>
+        </div>
+        <div id="countdown-number" style="display:none;"></div>
     </div>
 
     <!-- Phase 2: Question -->
@@ -717,7 +722,8 @@
                     </div>
                 </div>
 
-                <audio id="preview-audio" src=""></audio>
+                <audio id="round-audio"></audio>
+                <audio id="next-round-audio" preload="auto"></audio>
                 
                 <div>
                     <span id="round-timer" class="timer-badge">20</span>

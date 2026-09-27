@@ -89,6 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
             showError(data.message);
         },
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },
+        onRoundPreparing: () => { window.location.href = `/multiplayer/game/${lobbyCode}`; },
         onCountdownStarted: () => { window.location.href = `/multiplayer/game/${lobbyCode}`; },
         onPreparingGame: () => {
             showToast("Preparing game, gathering song previews...", "success");

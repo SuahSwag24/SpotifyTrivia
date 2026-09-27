@@ -26,11 +26,11 @@ namespace SpotifyTrivia.Services
         private readonly ILogger<LobbyManager> _logger;
         private readonly ISpotifyService _spotifyService;
         
-        public LobbyManager(IGameModeFactory gameModeFactory, IBroadcaster lobbyBroadcaster, ILogger<LobbyManager> logger, ISpotifyService spotifyService)
+        public LobbyManager(IGameModeFactory gameModeFactory, IBroadcaster lobbyBroadcaster, ILogger<LobbyManager> logger, ISpotifyService spotifyService, LobbySettingsModel settings)
         {
             _gameModeFactory = gameModeFactory;
             _lobbyBroadcaster = lobbyBroadcaster;
-            _settings = new LobbySettingsModel();
+            _settings = settings;
             _logger = logger;
             _spotifyService = spotifyService;
         }
@@ -317,6 +317,37 @@ namespace SpotifyTrivia.Services
             }
         }
 
+        public async Task MarkRoundAsReadyAsync(string code, string playerId, string roundId)
+        {
+            var lobby = GetLobby(code);
+            if (lobby == null) return;
+
+            await lobby.StateLock.WaitAsync();
+            try
+            {
+                if (lobby.State != LobbyState.PreparingRound ||
+                    lobby.CurrentRoundId != roundId ||
+                    !lobby.Players.TryGetValue(playerId, out var player) ||
+                    player.JoinStatus != PlayerJoinStatus.Active ||
+                    !player.IsConnected)
+                {
+                    return;
+                }
+
+                lobby.RequiredRoundReadyPlayerIds.Add(playerId);
+                lobby.ReadyRoundPlayerIds.Add(playerId);
+
+                if (lobby.RequiredRoundReadyPlayerIds.IsSubsetOf(lobby.ReadyRoundPlayerIds))
+                {
+                    lobby.RoundReadiness?.TrySetResult(true);
+                }
+            }
+            finally
+            {
+                lobby.StateLock.Release();
+            }
+        }
+
         private string GenerateLobbyCode()
         {
             const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -340,6 +371,9 @@ namespace SpotifyTrivia.Services
                 for (int i = 0; i < lobby.Questions.Count; i++)
                 {
                     ct.ThrowIfCancellationRequested();
+
+                    string roundId;
+                    Task readinessTask;
 
                     List<PlayerModel> promoted = new();
                     await lobby.StateLock.WaitAsync(ct);
@@ -389,8 +423,29 @@ namespace SpotifyTrivia.Services
                     try
                     {
                         lobby.CurrentQuestionIndex = i;
-                        lobby.State = LobbyState.Countdown;
-                        lobby.CountdownStartedAtUtc = DateTime.UtcNow;
+                        lobby.State = LobbyState.PreparingRound;
+                        
+                        roundId = Guid.NewGuid().ToString("N");
+                        lobby.CurrentRoundId = roundId;
+
+                        lobby.RequiredRoundReadyPlayerIds = lobby.Players.Values
+                            .Where(p => p.JoinStatus == PlayerJoinStatus.Active
+                                && p.IsConnected
+                                && p.ConnectionId != null)
+                            .Select(p => p.PlayerId)
+                            .ToHashSet();
+
+                        lobby.ReadyRoundPlayerIds.Clear();
+
+                        var readiness = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                        lobby.RoundReadiness = readiness;
+                        readinessTask = readiness.Task;
+
+                        if (lobby.RequiredRoundReadyPlayerIds.Count == 0)
+                        {
+                            readiness.TrySetResult(true);
+                        }
+
                         foreach (var p in lobby.Players.Values)
                         {
                             if (p.Status == PlayerStatus.Disconnected)
@@ -411,7 +466,35 @@ namespace SpotifyTrivia.Services
 
                     var question = lobby.Questions[i];
 
-                    await _lobbyBroadcaster.BroadcastCountdownStart(lobby.Code, _settings.CountdownSeconds, lobby.CountdownStartedAtUtc, question.Prompt);
+                    await _lobbyBroadcaster.BroadcastRoundPreparing(lobby.Code, question.Prompt, question.PreviewUrl, roundId);
+
+                    try
+                    {
+                        await readinessTask.WaitAsync(TimeSpan.FromSeconds(_settings.AudioReadyTimeoutSeconds), ct);
+                    }
+                    catch (TimeoutException)
+                    {
+                        _logger.LogInformation(
+                            "Audio readiness timed out for round {RoundId} in lobby {LobbyCode}",
+                            roundId,
+                            lobby.Code);
+                    }
+
+                    await lobby.StateLock.WaitAsync(ct);
+                    try
+                    {
+                        lobby.State = LobbyState.Countdown;
+                        lobby.CountdownStartedAtUtc = DateTime.UtcNow;
+                    }
+                    finally { lobby.StateLock.Release(); }
+
+                    await _lobbyBroadcaster.BroadcastCountdownStart(
+                        lobby.Code,
+                        _settings.CountdownSeconds,
+                        lobby.CountdownStartedAtUtc,
+                        question.Prompt,
+                        question.PreviewUrl,
+                        roundId);
                     await Task.Delay(TimeSpan.FromSeconds(_settings.CountdownSeconds), ct);
 
                     await lobby.StateLock.WaitAsync(ct);

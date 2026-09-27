@@ -337,12 +337,25 @@ namespace SpotifyTrivia.Hubs
 
             switch (lobby.State)
             {
+                case LobbyState.PreparingRound:
+                    var preparingQuestion = lobby.Questions[lobby.CurrentQuestionIndex];
+                    await Clients.Caller.SendAsync("RoundPreparing", new
+                    {
+                        Prompt = preparingQuestion.Prompt,
+                        PreviewUrl = preparingQuestion.PreviewUrl,
+                        RoundId = lobby.CurrentRoundId
+                    });
+                    break;
+
                 case LobbyState.Countdown:
+                    var countdownQuestion = lobby.Questions[lobby.CurrentQuestionIndex];
                     await Clients.Caller.SendAsync("CountdownStarted", new
                     {
                         Seconds = _settings.CountdownSeconds,
                         StartedAtUtc = lobby.CountdownStartedAtUtc,
-                        Prompt = lobby.Questions[lobby.CurrentQuestionIndex].Prompt
+                        Prompt = countdownQuestion.Prompt,
+                        PreviewUrl = countdownQuestion.PreviewUrl,
+                        RoundId = lobby.CurrentRoundId
                     });
 
                     foreach (var player in lobby.Players.Values)
@@ -579,6 +592,15 @@ namespace SpotifyTrivia.Hubs
                     PlayerId = playerId,
                     DisplayName = targetDisplayName
                 });
+        }
+
+        public async Task RoundReady(string lobbyCode, string roundId)
+        {
+            var mapping = _lobbyManager.GetConnectionMapping(Context.ConnectionId);
+            if (!mapping.HasValue || mapping.Value.lobbyCode != lobbyCode)
+                return;
+
+            await _lobbyManager.MarkRoundAsReadyAsync(lobbyCode, mapping.Value.playerId, roundId);
         }
 
         private bool IsHost(LobbyModel lobby)

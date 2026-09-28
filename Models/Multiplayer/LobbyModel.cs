@@ -6,7 +6,8 @@ using System.Text;
 
 namespace SpotifyTrivia.Models.Multiplayer
 {
-    public enum LobbyState { Waiting, Countdown, Question, Reveal, Finished}
+    public enum LobbyState { Waiting, PreparingRound, Countdown, Question, Reveal, Finished }
+    public enum AlbumCoverVisibility { Show, Blur, Hide }
 
     public class LobbyModel
     {
@@ -30,6 +31,14 @@ namespace SpotifyTrivia.Models.Multiplayer
         public int NumberOfQuestions { get; set; }
         public HashSet<string> PlayedTrackIds { get; set; } = new();
         public int MaxPlayers { get; set; } = 10;
-        public bool BlurAlbum { get; set; } = true;
+        public AlbumCoverVisibility BlurAlbum { get; set; } = AlbumCoverVisibility.Hide;
+        public int? SampleSize { get; set; } = null;
+        public int PlaylistTotal { get; set; } = 0;
+        public int LastFetchOffset { get; set; } = 0;
+        public List<TrackModel> CachedTracks { get; set; } = new();
+        public string? CurrentRoundId { get; set; }
+        public HashSet<string> RequiredRoundReadyPlayerIds { get; set; } = new();
+        public HashSet<string> ReadyRoundPlayerIds { get; set; } = new();
+        public TaskCompletionSource<bool>? RoundReadiness { get; set; }
     }
 }

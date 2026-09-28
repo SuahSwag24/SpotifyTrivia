@@ -47,6 +47,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 li.appendChild(icon);
                 li.appendChild(nameSpan);
+
+                if (isHost && data.playerid !== playerId) {
+                    const newKickBtn = document.createElement("button");
+                    newKickBtn.type = "button";
+                    newKickBtn.className = "kick-player-btn";
+                    newKickBtn.dataset.targetPlayer = data.playerId;
+                    newKickBtn.dataset.targetName = data.displayName;
+                    newKickBtn.innerHTML = '<span>Kick</span>';
+                    newKickBtn.title = `Kick ${data.displayName}`;
+                    newKickBtn.setAttribute("aria-label", `Kick ${data.displayName}`);
+                    li.appendChild(newKickBtn);
+                }
+                
                 list.appendChild(li);
             }
 
@@ -76,11 +89,25 @@ document.addEventListener("DOMContentLoaded", () => {
             showError(data.message);
         },
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },
+        onRoundPreparing: () => { window.location.href = `/multiplayer/game/${lobbyCode}`; },
         onCountdownStarted: () => { window.location.href = `/multiplayer/game/${lobbyCode}`; },
         onPreparingGame: () => {
             showToast("Preparing game, gathering song previews...", "success");
             leaveBtn.disabled = true;
-        }
+        },
+        onPlayerKicked: (data) => {
+            document
+                .querySelector(`#player-list [data-player-id="${CSS.escape(data.playerId)}"]`)
+                ?.remove();
+
+            showToast(`${data.displayName} was kicked`, "warning");
+        },
+        onKickedFromLobby: (data) => {
+            showToast(data.message, "danger");
+            setTimeout(() => {
+                window.location.href = "/multiplayer";
+            }, 800);
+        },
     });
 
     connection.on("JoinStatus", (data) => {
@@ -102,9 +129,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const settingsBtn = document.getElementById("game-settings-btn");
         const gameModeGrid = document.getElementById("gamemode-grid");
 
-        let selectedQuestionCount = 10;
-        let selectedRoundDurationSeconds = 10;
-        let blurAlbum = true;
+        let currentSettings = {
+            questionCount: 10,
+            roundDuration: 10,
+            sampleSize: 200,
+            blurAlbum: "hide"
+        }
 
         const questionSlider = document.getElementById("question-count-slider");
         const questionDisplay = document.getElementById("question-count-display");
@@ -112,22 +142,61 @@ document.addEventListener("DOMContentLoaded", () => {
         const roundDurationSlider = document.getElementById("round-duration-slider");
         const roundDurationDisplay = document.getElementById("round-duration-display");
 
-        const blurAlbumSwitch = document.getElementById("blur-album-switch");
-
         const saveSettingsBtn = document.getElementById("save-settings-btn");
+        const backSettingsBtn = document.getElementById("back-settings-btn");
+        const settingsModal = document.getElementById("settings-modal");
+
+        const playerList = document.getElementById("player-list");
+        playerList.addEventListener("click", event => {
+            const button = event.target.closest("[data-target-player]");
+            if (!button) return;
+
+            kickPlayer(
+                button.dataset.targetPlayer,
+                button.dataset.targetName
+            );
+        })
 
         resetStartControls = () => {
             startBtn.disabled = false;
             chooseBtn.disabled = false;
             settingsBtn.disabled = false;
+            leaveBtn.disabled = false;
             startBtn.textContent = "Start Game";
         };
 
         saveSettingsBtn.addEventListener("click", () => {
-            selectedQuestionCount = parseInt(questionSlider.value, 10);
-            selectedRoundDurationSeconds = parseInt(roundDurationSlider.value, 10);
-            blurAlbum = blurAlbumSwitch.checked;
-        })
+            currentSettings = {
+                questionCount: parseInt(questionSlider.value, 10),
+                roundDuration: parseInt(roundDurationSlider.value, 10),
+                sampleSize: document.querySelector('input[name="sample-size-step"]:checked')?.value || "200",
+                blurAlbum: document.querySelector('input[name="blur-album"]:checked').value || "hide"
+            };
+            
+            bootstrap.Modal.getInstance(settingsModal).hide();
+        });
+
+        backSettingsBtn.addEventListener("click", () => {
+            questionSlider.value = currentSettings.questionCount.toString();
+            questionDisplay.textContent = currentSettings.questionCount;
+            
+            roundDurationSlider.value = currentSettings.roundDuration.toString();
+            roundDurationDisplay.textContent = currentSettings.roundDuration + 's';
+            
+            const sampleSizeValue = currentSettings.sampleSize;
+            const sampleSizeInput = document.querySelector(`input[name="sample-size-step"][value="${sampleSizeValue}"]`);
+            if (sampleSizeInput) {
+                sampleSizeInput.checked = true;
+            }
+            
+            const blurAlbumInput = document.querySelector(`input[name="blur-album"][value="${currentSettings.blurAlbum}"]`);
+            if (blurAlbumInput) {
+                blurAlbumInput.checked = true;
+            }
+            
+            // Close modal without saving
+            bootstrap.Modal.getInstance(settingsModal).hide();
+        });
 
         chooseBtn.addEventListener("click", async () => {
             const res = await fetch("/playlists/picker-partial");
@@ -175,7 +244,14 @@ document.addEventListener("DOMContentLoaded", () => {
             settingsBtn.disabled = true;
 
             startBtn.textContent = "Starting...";
-            connection.invoke("StartGame", lobbyCode, selectedQuestionCount, selectedRoundDurationSeconds, blurAlbum)
+            connection.invoke(
+                "StartGame",
+                lobbyCode,
+                currentSettings.questionCount,
+                currentSettings.roundDuration,
+                currentSettings.blurAlbum,
+                currentSettings.sampleSize === "max" ? 999999 : parseInt(currentSettings.sampleSize, 10) 
+            )
                 .catch(err => {
                     showError("Failed to start: " + err);
                     resetStartControls();
@@ -193,6 +269,23 @@ document.addEventListener("DOMContentLoaded", () => {
             .catch(err => showError("Failed to leave: " + err))
             .finally(() => { window.location.href = "/multiplayer"; });
     });
+
+    async function kickPlayer(playerId, displayName) {
+        try {
+            await connection.invoke("KickPlayer", lobbyCode, playerId);
+
+            const playerItems = document.querySelectorAll(`[data-player-id="${playerId}"]`);
+            playerItems.forEach(item => item.remove());
+
+            const playerCount = document.getElementById("player-count");
+            const currentCount = document.querySelectorAll("#player-list .player-pill-item").length;
+            playerCount.textContent = `${currentCount} / ${playerCount.dataset.maxPlayers}`;
+            
+        } catch (err) {
+            console.error('Kick failed: ', err);
+            showToast(`Failed to kick player`, "danger");
+        }
+    }
 });
 
 function setWaitingBarText(status) {

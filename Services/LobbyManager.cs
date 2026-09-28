@@ -24,13 +24,15 @@ namespace SpotifyTrivia.Services
         private readonly LobbySettingsModel _settings;
         private readonly ConcurrentDictionary<string, (string lobbyCode, string playerId)> _connectionMap = new();
         private readonly ILogger<LobbyManager> _logger;
+        private readonly ISpotifyService _spotifyService;
         
-        public LobbyManager(IGameModeFactory gameModeFactory, IBroadcaster lobbyBroadcaster, ILogger<LobbyManager> logger)
+        public LobbyManager(IGameModeFactory gameModeFactory, IBroadcaster lobbyBroadcaster, ILogger<LobbyManager> logger, ISpotifyService spotifyService, LobbySettingsModel settings)
         {
             _gameModeFactory = gameModeFactory;
             _lobbyBroadcaster = lobbyBroadcaster;
-            _settings = new LobbySettingsModel();
+            _settings = settings;
             _logger = logger;
+            _spotifyService = spotifyService;
         }
 
         public LobbyModel CreateLobby(string hostPlayerId, string hostPlayerName, string hostAccessToken, string? hostRefreshToken)
@@ -191,9 +193,24 @@ namespace SpotifyTrivia.Services
 
             var mode = _gameModeFactory.GetGameMode(lobby.GameMode);
 
-            lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount, lobby.PlayedTrackIds);
-            lobby.SessionLoopCts = new CancellationTokenSource();
+            var lobbyPlayerIds = lobby.Players.Values
+                .Where(p => p.JoinStatus == PlayerJoinStatus.Active)
+                .Select(p => p.PlayerId);
 
+            lobby.CachedTracks = tracks;
+
+            try
+            {
+                lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds);
+            }
+            catch (PlaylistExhaustedException) when (CanRetryWithFreshSample(lobby))
+            {
+                var freshTracks = await RefetchSample(lobby);
+                lobby.CachedTracks = freshTracks;
+                lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds);
+            }
+
+            lobby.SessionLoopCts = new CancellationTokenSource();
             lobby.RoundDurationSeconds = roundDurationSeconds > 0 ? roundDurationSeconds : _settings.RoundDurationSeconds;
 
             _ = RunSessionLoop(lobby, lobby.SessionLoopCts.Token);
@@ -204,8 +221,22 @@ namespace SpotifyTrivia.Services
             if (!_lobbies.TryGetValue(code, out var lobby)) return;
 
             var mode = _gameModeFactory.GetGameMode(lobby.GameMode);
-            lobby.Questions = await mode.GenerateQuestionsAsync(tracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds);
-            
+
+            var lobbyPlayerIds = lobby.Players.Values
+                .Where(p => p.JoinStatus == PlayerJoinStatus.Active)
+                .Select(p => p.PlayerId);
+
+            try
+            {
+                lobby.Questions = await mode.GenerateQuestionsAsync(tracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds, lobbyPlayerIds);
+            }
+            catch (PlaylistExhaustedException) when (CanRetryWithFreshSample(lobby))
+            {
+                var freshTracks = await RefetchSample(lobby);
+                lobby.CachedTracks = freshTracks;
+                lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds, lobbyPlayerIds);
+            }
+
             foreach (var p in lobby.Players.Values)
             {
                 p.AnswerHistory.Clear();
@@ -254,6 +285,7 @@ namespace SpotifyTrivia.Services
             lobby.CurrentQuestionIndex = 0;
             lobby.SelectedPlaylistId = null;
             lobby.SelectedPlaylistName = null;
+            lobby.PlayedTrackIds.Clear();
 
             foreach (var p in lobby.Players.Values)
             {
@@ -266,6 +298,54 @@ namespace SpotifyTrivia.Services
             }
 
             return true;
+        }
+
+        public void KickPlayer(string code, string playerId)
+        {
+            if (!_lobbies.TryGetValue(code, out var lobby)) return;
+
+            lobby.Players.TryRemove(playerId, out _);
+
+            var staleConnections = _connectionMap
+                .Where(kvp => kvp.Value.lobbyCode == code && kvp.Value.playerId == playerId)
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var connectionId in staleConnections)
+            {
+                _connectionMap.TryRemove(connectionId, out _);
+            }
+        }
+
+        public async Task MarkRoundAsReadyAsync(string code, string playerId, string roundId)
+        {
+            var lobby = GetLobby(code);
+            if (lobby == null) return;
+
+            await lobby.StateLock.WaitAsync();
+            try
+            {
+                if (lobby.State != LobbyState.PreparingRound ||
+                    lobby.CurrentRoundId != roundId ||
+                    !lobby.Players.TryGetValue(playerId, out var player) ||
+                    player.JoinStatus != PlayerJoinStatus.Active ||
+                    !player.IsConnected)
+                {
+                    return;
+                }
+
+                lobby.RequiredRoundReadyPlayerIds.Add(playerId);
+                lobby.ReadyRoundPlayerIds.Add(playerId);
+
+                if (lobby.RequiredRoundReadyPlayerIds.IsSubsetOf(lobby.ReadyRoundPlayerIds))
+                {
+                    lobby.RoundReadiness?.TrySetResult(true);
+                }
+            }
+            finally
+            {
+                lobby.StateLock.Release();
+            }
         }
 
         private string GenerateLobbyCode()
@@ -291,6 +371,9 @@ namespace SpotifyTrivia.Services
                 for (int i = 0; i < lobby.Questions.Count; i++)
                 {
                     ct.ThrowIfCancellationRequested();
+
+                    string roundId;
+                    Task readinessTask;
 
                     List<PlayerModel> promoted = new();
                     await lobby.StateLock.WaitAsync(ct);
@@ -340,8 +423,29 @@ namespace SpotifyTrivia.Services
                     try
                     {
                         lobby.CurrentQuestionIndex = i;
-                        lobby.State = LobbyState.Countdown;
-                        lobby.CountdownStartedAtUtc = DateTime.UtcNow;
+                        lobby.State = LobbyState.PreparingRound;
+                        
+                        roundId = Guid.NewGuid().ToString("N");
+                        lobby.CurrentRoundId = roundId;
+
+                        lobby.RequiredRoundReadyPlayerIds = lobby.Players.Values
+                            .Where(p => p.JoinStatus == PlayerJoinStatus.Active
+                                && p.IsConnected
+                                && p.ConnectionId != null)
+                            .Select(p => p.PlayerId)
+                            .ToHashSet();
+
+                        lobby.ReadyRoundPlayerIds.Clear();
+
+                        var readiness = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                        lobby.RoundReadiness = readiness;
+                        readinessTask = readiness.Task;
+
+                        if (lobby.RequiredRoundReadyPlayerIds.Count == 0)
+                        {
+                            readiness.TrySetResult(true);
+                        }
+
                         foreach (var p in lobby.Players.Values)
                         {
                             if (p.Status == PlayerStatus.Disconnected)
@@ -362,7 +466,35 @@ namespace SpotifyTrivia.Services
 
                     var question = lobby.Questions[i];
 
-                    await _lobbyBroadcaster.BroadcastCountdownStart(lobby.Code, _settings.CountdownSeconds, lobby.CountdownStartedAtUtc, question.Prompt);
+                    await _lobbyBroadcaster.BroadcastRoundPreparing(lobby.Code, question.Prompt, question.PreviewUrl, roundId);
+
+                    try
+                    {
+                        await readinessTask.WaitAsync(TimeSpan.FromSeconds(_settings.AudioReadyTimeoutSeconds), ct);
+                    }
+                    catch (TimeoutException)
+                    {
+                        _logger.LogInformation(
+                            "Audio readiness timed out for round {RoundId} in lobby {LobbyCode}",
+                            roundId,
+                            lobby.Code);
+                    }
+
+                    await lobby.StateLock.WaitAsync(ct);
+                    try
+                    {
+                        lobby.State = LobbyState.Countdown;
+                        lobby.CountdownStartedAtUtc = DateTime.UtcNow;
+                    }
+                    finally { lobby.StateLock.Release(); }
+
+                    await _lobbyBroadcaster.BroadcastCountdownStart(
+                        lobby.Code,
+                        _settings.CountdownSeconds,
+                        lobby.CountdownStartedAtUtc,
+                        question.Prompt,
+                        question.PreviewUrl,
+                        roundId);
                     await Task.Delay(TimeSpan.FromSeconds(_settings.CountdownSeconds), ct);
 
                     await lobby.StateLock.WaitAsync(ct);
@@ -456,5 +588,123 @@ namespace SpotifyTrivia.Services
             }    
         }
 
+        private async Task<List<TrackModel>> RefetchPlaylistWindow(LobbyModel lobby, int offset)
+        {
+            var result = await _spotifyService.GetPlaylistTracksAsync(
+                lobby.HostSpotifyAccessToken, lobby.HostSpotifyRefreshToken, lobby.SelectedPlaylistId!,
+                sampleSize: lobby.SampleSize, offset: offset);
+
+            if (result.RefreshedAccessToken != null)
+            {
+                lobby.HostSpotifyAccessToken = result.RefreshedAccessToken;
+                if (lobby.Players.TryGetValue(lobby.PlayerHostId, out var host))
+                {
+                    host.SpotifyAccessToken = result.RefreshedAccessToken;
+                }
+            }
+
+            lobby.PlaylistTotal = result.Total;
+            lobby.LastFetchOffset = offset;
+
+            var tracks = result.Data ?? new List<TrackModel>();
+
+            var spotifyIdToPlayerId = lobby.Players.Values
+                .Where(p => !string.IsNullOrEmpty(p.SpotifyUserId))
+                .ToDictionary(p => p.SpotifyUserId!, p => p.PlayerId);
+
+            foreach (var track in tracks)
+            {
+                if (!string.IsNullOrEmpty(track.AddedBySpotifyUserId) &&
+                    spotifyIdToPlayerId.TryGetValue(track.AddedBySpotifyUserId, out var matchedPlayerId))
+                {
+                    track.ContributedByPlayerIds.Add(matchedPlayerId);
+                }
+            }
+
+            return tracks;
+        }
+
+        private async Task<List<TrackModel>> RefetchLikedSongsForAllPlayers(LobbyModel lobby)
+        {
+            var eligiblePlayers = lobby.Players.Values
+                .Where(p => !string.IsNullOrEmpty(p.SpotifyAccessToken)
+                            && lobby.SampleSize.HasValue
+                            && p.LikedSongsLastOffset + lobby.SampleSize.Value < p.LikedSongsTotal)
+                .ToList();
+
+            var perPlayerResult = await Task.WhenAll(
+                eligiblePlayers.Select(async p =>
+                {
+                    try
+                    {
+                        var nextOffset = p.LikedSongsLastOffset + lobby.SampleSize!.Value;
+
+                        var result = await _spotifyService.GetLikedSongsAsync(
+                            p.SpotifyAccessToken, p.SpotifyRefreshToken,
+                            sampleSize: lobby.SampleSize, offset: nextOffset);
+
+                        if (result.RefreshedAccessToken != null)
+                        {
+                            p.SpotifyAccessToken = result.RefreshedAccessToken;
+                        }
+
+                        p.LikedSongsTotal = result.Total;
+                        p.LikedSongsLastOffset = nextOffset;
+
+                        var playerTracks = result.Data ?? new List<TrackModel>();
+
+                        foreach (var t in playerTracks)
+                        {
+                            t.ContributedByPlayerIds.Add(p.PlayerId);
+                        }
+
+                        return playerTracks;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to refetch liked songs for player {PlayerId} in Lobby {Lobby}", p.PlayerId, lobby.Code);
+                        return new List<TrackModel>();
+                    }
+                })
+            );
+
+            return perPlayerResult
+                .SelectMany(t => t)
+                .GroupBy(t => t.Id)
+                .Select(g =>
+                {
+                    var merged = g.First();
+                    merged.ContributedByPlayerIds = g.SelectMany(t => t.ContributedByPlayerIds).Distinct().ToList();
+                    return merged;
+                })
+                .ToList();
+        }
+
+        private bool CanRetryWithFreshSample(LobbyModel lobby)
+        {
+            if (!lobby.SampleSize.HasValue) return false;
+
+            if (lobby.SelectedPlaylistId == "__liked_songs__")
+            {
+                return lobby.Players.Values.Any(p =>
+                    !string.IsNullOrEmpty(p.SpotifyAccessToken)
+                    && p.LikedSongsLastOffset + lobby.SampleSize!.Value < p.LikedSongsTotal);
+            }
+
+            if (lobby.SelectedPlaylistId == "__recent_songs__")
+            {
+                return false; // no sampling/offset applies to this source
+            }
+
+            return lobby.PlaylistTotal > 0
+                && lobby.LastFetchOffset + lobby.SampleSize.Value < lobby.PlaylistTotal;
+        }
+
+        private async Task<List<TrackModel>> RefetchSample(LobbyModel lobby)
+        {
+            return lobby.SelectedPlaylistId == "__liked_songs__"
+                ? await RefetchLikedSongsForAllPlayers(lobby)
+                : await RefetchPlaylistWindow(lobby, lobby.LastFetchOffset + lobby.SampleSize!.Value);
+        }
     }
 }

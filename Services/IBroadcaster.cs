@@ -9,8 +9,9 @@ namespace SpotifyTrivia.Services
     public interface IBroadcaster
     {
         Task BroadcastPreparingGame(string lobbyCode);
-        Task BroadcastCountdownStart(string lobbyCode, int seconds, DateTime startedAtUtc, string prompt);
-        Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds, int questionNumber, int totalQuestions, bool blurAlbum);
+        Task BroadcastRoundPreparing(string lobbyCode, string prompt, string previewUrl, string roundId);
+        Task BroadcastCountdownStart(string lobbyCode, int seconds, DateTime startedAtUtc, string prompt, string previewUrl, string roundId);
+        Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds, int questionNumber, int totalQuestions, AlbumCoverVisibility blurAlbum);
         Task BroadcastRoundEnded(string lobbyCode, string correctAnswer, List<PlayerModel> players, string albumCoverUrl);
         Task BroadcastGameEnded(string lobbyCode, List<PlayerModel> leaderboardScores, List<object> songResult);
         Task BroadcastPlayerJoined(string lobbyCode, PlayerModel player);
@@ -18,6 +19,7 @@ namespace SpotifyTrivia.Services
         Task BroadcastLobbyDisbanded(string lobbyCode);
         Task BroadcastPlayerJoining(string code, List<string> list);
         Task BroadcastPlayerStatusChanged(string code, string playerId, PlayerStatus status);
+        Task BroadcastPlayerKicked(string code, string playerId, string displayName);
         Task SendPromotedToActive(string connectionId);
     }
 }

@@ -33,7 +33,7 @@ namespace SpotifyTrivia.Controllers
 
             try
             {
-                var result = await _spotifyService.GetPlaylistTracksAsync(accessToken, null, playlistId);
+                var result = await _spotifyService.GetPlaylistTracksAsync(accessToken, null, playlistId, sampleSize: null, offset: 0);
                 var tracks = result.Data ?? new List<TrackModel>();
 
                 if (tracks == null || tracks.Count < 4)
@@ -44,7 +44,7 @@ namespace SpotifyTrivia.Controllers
 
                 //  TODO: Implement mode selection for single player
                 var gameMode = _gameModeFactory.GetGameMode(GameModeType.ClassicGuessSong);
-                var questions = await gameMode.GenerateQuestionsAsync(tracks, numberOfQuestions: 10, new HashSet<string>());
+                var questions = await gameMode.GenerateQuestionsAsync(tracks, numberOfQuestions: 10, new HashSet<string>(), lobbyPlayerIds: Enumerable.Empty<string>());
 
                 ViewBag.SpotifyAccessToken = accessToken;
 

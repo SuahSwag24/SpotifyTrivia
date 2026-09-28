@@ -5,8 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const displayName = container.dataset.displayName;
     const isHost = container.dataset.isHost === "true";
 
-    const connection = createLobbyConnection();
-    const audio = document.getElementById("preview-audio");
+    const connection = createLobbyConnection();;
 
     const previousScores = new Map();
 
@@ -24,6 +23,63 @@ document.addEventListener("DOMContentLoaded", () => {
         errorBox.textContent = message;
         errorBox.style.display = "block";
     }
+
+    function addKickButton(playerElement, targetPlayerId, targetDisplayName) {
+        if (!isHost || targetPlayerId === playerId || playerElement.querySelector("[data-target-player]")) return;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "kick-player-btn";
+        button.dataset.targetPlayer = targetPlayerId;
+        button.dataset.targetName = targetDisplayName;
+        button.title = `Remove ${targetDisplayName} from the game`;
+        button.setAttribute("aria-label", `Remove ${targetDisplayName} from the game`);
+        button.innerHTML = '<span aria-hidden="true">&#x22EE;</span>';
+        playerElement.appendChild(button);
+    }
+
+    function removePlayerFromList(targetPlayerId) {
+        document.querySelector(`#side-player-list [data-player-id="${CSS.escape(targetPlayerId)}"]`)?.remove();
+    }
+
+    const kickModalElement = document.getElementById("kick-confirmation-modal");
+    const kickModal = bootstrap.Modal.getOrCreateInstance(kickModalElement);
+    const kickMessage = document.getElementById("kick-confirmation-message");
+    const confirmKickButton = document.getElementById("confirm-kick-btn");
+    let pendingKick = null;
+
+    function confirmKickPlayer(targetPlayerId, targetDisplayName) {
+        pendingKick = { targetPlayerId, targetDisplayName };
+        kickMessage.textContent = `Remove ${targetDisplayName} from the game?`;
+        confirmKickButton.disabled = false;
+        confirmKickButton.textContent = "Remove Player";
+        kickModal.show();
+    }
+
+    confirmKickButton.addEventListener("click", async () => {
+        if (!pendingKick) return;
+
+        const { targetPlayerId, targetDisplayName } = pendingKick;
+        confirmKickButton.disabled = true;
+        confirmKickButton.textContent = "Removing...";
+
+        try {
+            await connection.invoke("KickPlayer", lobbyCode, targetPlayerId);
+            removePlayerFromList(targetPlayerId);
+            kickModal.hide();
+        } catch (err) {
+            showError("Failed to remove player: " + err);
+            confirmKickButton.disabled = false;
+            confirmKickButton.textContent = "Remove Player";
+        }
+    });
+
+    document.getElementById("side-player-list").addEventListener("click", event => {
+        const button = event.target.closest("[data-target-player]");
+        if (!button) return;
+
+        confirmKickPlayer(button.dataset.targetPlayer, button.dataset.targetName);
+    });
 
     function showPhase(id) {
         document.querySelectorAll(".phase-panel").forEach(p => p.style.display = "none");
@@ -45,17 +101,63 @@ document.addEventListener("DOMContentLoaded", () => {
             })
     })
 
+    let activeAudio = document.getElementById("round-audio");
+    let nextAudio = document.getElementById("next-round-audio");
+
+    function preloadRound(data) {
+        const previewUrl = new URL(data.previewUrl, document.baseURI).href;
+        let readinessSent = false;
+
+        nextAudio.addEventListener("canplaythrough", () => {
+            if (readinessSent || nextAudio.src !== previewUrl) return;
+            readinessSent = true;
+            connection.invoke("RoundReady", lobbyCode, data.roundId)
+                .catch(err => console.error("Round-ready signal failed:", err));
+        }, { once: true });
+
+        nextAudio.pause();
+        nextAudio.src = data.previewUrl;
+        nextAudio.load();
+    }
+
+    function startRoundAudio(data) {
+        if (nextAudio.src !== new URL(data.previewUrl, document.baseURI).href) {
+            nextAudio.src = data.previewUrl;
+            nextAudio.load();
+        }
+
+        activeAudio.pause();
+        [activeAudio, nextAudio] = [nextAudio, activeAudio];
+        activeAudio.currentTime = 0;
+        activeAudio.play().catch(() => console.log("Autoplay blocked."));
+    }
+
     setupLobbyHandlers(connection, {
         onCountdownStarted: (data) => {
             showPhase("countdown-phase");
+            const audioLoadingContainer = document.getElementById("audio-loading-container");
+            audioLoadingContainer.classList.remove("d-flex");
+            audioLoadingContainer.classList.add("d-none");
+            document.getElementById("countdown-number").style.display = "block";
             runLocalCountdown(data.startedAtUtc, data.seconds);
-
             previousScores.clear();
-
             document.getElementById("prompt-text").textContent = `${data.prompt}`;
+        },
+        onRoundPreparing: (data) => {
+            showPhase("countdown-phase");
+            const audioLoadingContainer = document.getElementById("audio-loading-container");
+            audioLoadingContainer.classList.remove("d-none");
+            audioLoadingContainer.classList.add("d-flex");
+            document.getElementById("countdown-number").style.display = "none";
+            document.getElementById("prompt-text").textContent = `${data.prompt}`;
+
+            preloadRound(data);
         },
         onRoundStarted: (data) => {
             showPhase("question-phase");
+
+            startRoundAudio(data);
+
             document.querySelectorAll("#side-player-list .player-pill-item")
                 .forEach(li => li.classList.remove("has-answered", "answer-correct", "answer-incorrect"));
 
@@ -63,14 +165,24 @@ document.addEventListener("DOMContentLoaded", () => {
             const roundPercent = Math.min(100, Math.round(((data.questionNumber - 1) / data.totalQuestions) * 100))
 
             albumCover.src = data.albumCoverUrl;
-            albumCover.classList.toggle("album-blurred", data.blurAlbum);
+
+            const visibility = (data.blurAlbum ?? "hide").toString().toLowerCase();
+            const albumPlaceholder = document.getElementById("album-cover-hidden-placeholder");
+
+            // Reset to default visible state first
+            albumCover.style.display = "block";
+            albumCover.classList.remove("album-blurred");
+            if (albumPlaceholder) albumPlaceholder.style.display = "none";
+
+            if (visibility === "hide" || visibility === "2") {
+                albumCover.style.display = "none";
+                if (albumPlaceholder) albumPlaceholder.style.display = "flex";
+            } else if (visibility === "blur" || visibility === "1") {
+                albumCover.classList.add("album-blurred");
+            }
 
             document.getElementById("round-counter").textContent = `Question ${data.questionNumber}/${data.totalQuestions}`;
             document.getElementById('progress-fill').style.width = roundPercent + '%';
-
-            audio.src = data.previewUrl;
-            audio.currentTime = 0;
-            audio.play().catch(() => console.log("Autoplay blocked — user interaction required."));
 
             renderAnswerChoices(data.answerChoices);
             runRoundTimer(data.startedAtUtc, data.durationSeconds);
@@ -119,6 +231,16 @@ document.addEventListener("DOMContentLoaded", () => {
             showError(data.message)
         },
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },
+        onPlayerKicked: (data) => {
+            removePlayerFromList(data.playerId);
+            showToast(`${data.displayName} was removed from the game`, "warning");
+        },
+        onKickedFromLobby: (data) => {
+            showToast(data.message, "danger");
+            setTimeout(() => {
+                window.location.href = "/multiplayer";
+            }, 800);
+        },
         onPlayerJoined: (data) => {
             showToast(`${data.displayName} joined the game`, "success");
             if (!document.querySelector(`#side-player-list [data-player-id="${data.playerId}"]`)) {
@@ -126,6 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 li.className = "player-pill-item";
                 li.dataset.playerId = data.playerId;
                 li.innerHTML = `<span class="player-dot status-active"></span><span class="player-name">${data.displayName}</span><span class="player-status-text active">Pondering...</span>`;
+                addKickButton(li, data.playerId, data.displayName);
                 document.getElementById("side-player-list").appendChild(li);
             }
         },
@@ -165,6 +288,7 @@ document.addEventListener("DOMContentLoaded", () => {
             playerId
         });
         try {
+            await syncServerTime(connection);
             await connection.invoke("JoinLobby", lobbyCode, playerId, displayName);
             await connection.invoke("RequestGamePhase", lobbyCode);
             showToast("Reconnected!", "success");
@@ -184,6 +308,10 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     connection.start()
+        .then(async () => {
+            await syncServerTime(connection)
+            setInterval(() => syncServerTime(connection), 10000);
+        })
         .then(() => connection.invoke("JoinLobby", lobbyCode, playerId, displayName))
         .then(() => connection.invoke("RequestGamePhase", lobbyCode))
         .catch(err => console.error(err));
@@ -212,14 +340,29 @@ document.addEventListener("DOMContentLoaded", () => {
             .catch(err => console.error("Answer submit failed:", err));
     }
 
+    let serverTimeOffset = 0;
+
+    async function syncServerTime(connection) {
+        const clientSentAt = Date.now();
+        const serverUtcNow = await connection.invoke("GetServerTimeUtc");
+        const clientReceivedAt = Date.now();
+
+        const tripTime = clientReceivedAt - clientSentAt;
+        const serverTime = new Date(serverUtcNow).getTime() + tripTime / 2;
+        serverTimeOffset = serverTime - clientReceivedAt;
+    }
+
     function runLocalCountdown(startedAtUtc, totalSeconds) {
         const el = document.getElementById("countdown-number");
         const startTime = new Date(startedAtUtc).getTime();
         let interval;
 
         function tick() {
-            const elapsed = (Date.now() - startTime) / 1000;
-            const remaining = Math.max(0, Math.ceil(totalSeconds - elapsed));
+            const elapsed = ((Date.now() + serverTimeOffset) - startTime) / 1000;
+            const remaining = Math.min(
+                totalSeconds,
+                Math.max(0, Math.ceil(totalSeconds - elapsed))
+            );
             el.textContent = remaining;
             if (remaining <= 0) clearInterval(interval);
         }
@@ -234,8 +377,11 @@ document.addEventListener("DOMContentLoaded", () => {
         let interval;
 
         function tick() {
-            const elapsed = (Date.now() - startTime) / 1000;
-            const remaining = Math.max(0, Math.ceil(totalSeconds - elapsed));
+            const elapsed = ((Date.now() + serverTimeOffset) - startTime) / 1000;
+            const remaining = Math.min(
+                totalSeconds,
+                Math.max(0, Math.ceil(totalSeconds - elapsed))
+            );
             el.textContent = remaining;
             if (remaining <= 0) clearInterval(interval);
         }
@@ -274,7 +420,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const rankClass = rank === 1 ? "rank-gold" : rank === 2 ? "rank-silver" : rank === 3 ? "rank-bronze" : "";
 
             const resultTag = p.lastAnswerCorrect === true ? "✅" : (p.lastAnswerCorrect === false ? "❌" : "—");
-            const penaltyTag = p.lastAnswerPenalized ? ` <span class="penalty-tag">(-50% own song)</span>` : "";
+            const penaltyTag = p.lastAnswerPenalized ? ` <span class="penalty-tag">(-20% own song)</span>` : "";
 
             const prevScore = previousScores.has(p.playerId) ? previousScores.get(p.playerId) : p.score - (p.scoreDelta ?? 0);
             const delta = p.score - prevScore;
@@ -440,12 +586,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     volumeSlider.value = initialVolume;
-    audio.volume = initialVolume / 100;
+    activeAudio.volume = initialVolume / 100;
+    nextAudio.volume = initialVolume / 100;
     updateVolumeIcon(initialVolume);
 
     volumeSlider.addEventListener("input", () => {
         const value = parseInt(volumeSlider.value, 10);
-        audio.volume = value / 100;
+        activeAudio.volume = value / 100;
+        nextAudio.volume = value / 100;
         localStorage.setItem("triviaVolume", value);
         updateVolumeIcon(value);
     });
@@ -459,15 +607,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const url = btn.dataset.previewUrl;
 
         if (currentlyPlayingBtn === btn) {
-            if (audio.paused) {
-                if (audio.ended) {
-                    audio.currentTime = 0;
+            if (activeAudio.paused) {
+                if (activeAudio.ended) {
+                    activeAudio.currentTime = 0;
                 }
 
-                audio.play();
+                activeAudio.play();
                 btn.textContent = "Pause";
             } else {
-                audio.pause();
+                activeAudio.pause();
                 btn.textContent = "Play";
             }
 
@@ -478,10 +626,10 @@ document.addEventListener("DOMContentLoaded", () => {
             currentlyPlayingBtn.textContent = "Play";
         }
 
-        audio.src = url;
-        audio.currentTime = 0;
+        activeAudio.src = url;
+        activeAudio.currentTime = 0;
 
-        audio.play()
+        activeAudio.play()
             .then(() => {
                 btn.textContent = "Pause";
                 currentlyPlayingBtn = btn;

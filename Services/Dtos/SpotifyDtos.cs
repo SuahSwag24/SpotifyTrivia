@@ -20,7 +20,9 @@ namespace SpotifyTrivia.Services.Dtos
 
     //  Playlist Tracks DTOs
     internal record SpotifyPlaylistTracksResponse(
-        [property: JsonPropertyName("items")] List<SpotifyPlaylistTracksDto>? Items
+        [property: JsonPropertyName("items")] List<SpotifyPlaylistTracksDto>? Items,
+        [property: JsonPropertyName("next")] string? Next,
+        [property: JsonPropertyName("total")] int Total
     );
 
     internal record SpotifyPlaylistTracksDto(
@@ -34,7 +36,12 @@ namespace SpotifyTrivia.Services.Dtos
         [property: JsonPropertyName("artists")] List<SpotifyArtistDto>? Artists,
         [property: JsonPropertyName("album")] SpotifyAlbumDto? Album,
         [property: JsonPropertyName("preview_url")] string? PreviewUrl,
-        [property: JsonPropertyName("external_urls")] SpotifyExternalUrlsDto? ExternalUrls
+        [property: JsonPropertyName("external_urls")] SpotifyExternalUrlsDto? ExternalUrls,
+        [property: JsonPropertyName("external_ids")] SpotifyExternalIdsDto? ExternalIds
+    );
+
+    internal record SpotifyExternalIdsDto(
+        [property: JsonPropertyName("isrc")] string? Isrc
     );
 
     internal record SpotifyAddedByDto(
@@ -69,7 +76,9 @@ namespace SpotifyTrivia.Services.Dtos
 
     //  Saved Tracks DTOs
     internal record SpotifySavedTracksResponse(
-        [property: JsonPropertyName("items")] List<SpotifySavedTrackItemDto>? Items
+        [property: JsonPropertyName("items")] List<SpotifySavedTrackItemDto>? Items,
+        [property: JsonPropertyName("next")] String? Next,
+        [property: JsonPropertyName("total")] int? Total
     );
 
     internal record SpotifySavedTrackItemDto(

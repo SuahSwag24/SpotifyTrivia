@@ -144,23 +144,6 @@
     }
 </div>
 
-<!-- Stats Grid -->
-<div class="row g-3 mb-4">
-    <div class="col-12 col-md-6">
-        <div class="stat-card p-4 text-center">
-            <div class="text-muted-custom small fw-bold text-uppercase mb-1">Games Played</div>
-            <div class="display-5 fw-bold text-white">@(Model.IsAuthenticated ? Model.GamesPlayed.ToString() : "—")</div>
-        </div>
-    </div>
-
-    <div class="col-12 col-md-6">
-        <div class="stat-card p-4 text-center">
-            <div class="text-muted-custom small fw-bold text-uppercase mb-1">Playlists Available</div>
-            <div class="display-5 fw-bold text-info">@(Model.IsAuthenticated ? Model.TopPlaylists.Count.ToString() : "—")</div>
-        </div>
-    </div>
-</div>
-
 <!-- Actions Grid -->
 <div class="row g-4">
     <!-- Single Player CTA -->

@@ -8,5 +8,6 @@ namespace SpotifyTrivia.Services
     {
         public T? Data { get; set; }
         public string? RefreshedAccessToken { get; set; }
+        public int Total {  get; set; }
     }
 }

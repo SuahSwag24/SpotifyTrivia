@@ -62,6 +62,16 @@
         gap: 0.5rem;
     }
 
+    .player-pill-item {
+        min-width: 0;
+        justify-content: flex-start;
+    }
+
+    .player-pill-item .text-truncate {
+        flex: 1;
+        min-width: 0;
+    }
+
     /* Buttons */
     .btn-spotify {
         background-color: #1DB954;
@@ -98,6 +108,33 @@
         background-color: rgba(255, 255, 255, 0.1);
     }
 
+    .kick-player-btn {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        border: 1px solid rgba(231, 76, 60, 0.55);
+        border-radius: 999px;
+        background: transparent;
+        color: #ff7675;
+        padding: 0.25rem 0.55rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .kick-player-btn:hover,
+    .kick-player-btn:focus-visible {
+        background: #e74c3c;
+        color: #fff;
+        outline: none;
+    }
+
+    .kick-player-btn span:first-child {
+        font-size: 1rem;
+        line-height: 1;
+    }
+
     /* Sliders */
     .custom-range-spotify {
         -webkit-appearance: none;
@@ -123,31 +160,6 @@
     .custom-range-spotify::-webkit-slider-thumb:hover {
         transform: scale(1.2);
         background: #1ed760;
-    }
-
-    /* Switches */
-    #blur-album-switch {
-        width: 3.25rem;
-        height: 1.75rem;
-        margin: 0;
-        background-color: #3e3e3e;
-        border: 1px solid #535353;
-        cursor: pointer;
-        transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    #blur-album-switch:checked {
-        background-color: #1DB954;
-        border-color: #1DB954;
-    }
-
-    #blur-album-switch:focus {
-        border-color: #1ed760;
-        box-shadow: 0 0 0 0.2rem rgba(29, 185, 84, 0.2);
-    }
-
-    #blur-album-switch:active {
-        filter: brightness(1);
     }
 
     /* Game Modes */
@@ -207,16 +219,92 @@
         background: #535353;
     }
 
-    /* Settings */
+    /* Refined Artwork Settings */
     .blur-setting-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 1rem;
-        padding: 1rem;
+        padding: 1.25rem;
         background-color: #242424;
         border: 1px solid #333333;
         border-radius: 12px;
+    }
+
+    /* Segmented Control for 3-way toggles */
+    .segmented-control {
+        display: flex;
+        background-color: #121212;
+        border: 1px solid #333333;
+        border-radius: 8px;
+        padding: 4px;
+        gap: 4px;
+    }
+
+    .segmented-label {
+        color: #b3b3b3;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0.4rem 1rem;
+        margin: 0;
+        cursor: pointer;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        user-select: none;
+        text-align: center;
+    }
+
+    .segmented-label:hover {
+        color: #ffffff;
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    /* When the hidden radio is checked, style the adjacent label */
+    .btn-check:checked + .segmented-label {
+        background-color: #3e3e3e;
+        color: #1DB954;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    /* Sample size option styles */
+    .sample-size-control {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 4px;
+        padding: 4px;
+        background-color: #121212;
+        border: 1px solid #333333;
+        border-radius: 10px;
+    }
+
+    .sample-size-option {
+        min-width: 0;
+        padding: 0.55rem 0.35rem;
+        color: #b3b3b3;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-align: center;
+        border-radius: 6px;
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    .sample-size-option:hover {
+        color: #ffffff;
+        background-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .btn-check:checked + .sample-size-option {
+        color: #1DB954;
+        background-color: #3e3e3e;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    }
+
+    @@media (max-width: 400px) {
+        .sample-size-control {
+            grid-template-columns: repeat(3, 1fr);
+        }
     }
 </style>
 
@@ -250,6 +338,12 @@
                             <li class="player-pill-item" data-player-id="@player.PlayerId">
                                 <span>👤</span>
                                 <span class="text-truncate">@player.DisplayName</span>
+                                @if (isHost && player.PlayerId != Model.PlayerHostId)
+                                {
+                                    <button type="button" class="kick-player-btn" data-target-player="@player.PlayerId" data-target-name="@player.DisplayName" title="Kick @player.DisplayName" aria-label="Kick @player.DisplayName">
+                                    <span>Kick</span>
+                                </button>
+                                }
                             </li>
                         }
                     </ul>
@@ -296,7 +390,7 @@
 
                         <div class="d-flex flex-wrap gap-2 mt-auto pt-3" style="border-top: 1px solid #282828;">
                             <button id="start-game-btn" type="button" class="btn btn-spotify flex-grow-1" disabled>Start Game</button>
-                            <button id="game-settings-btn" type="button" class="btn btn-outline-custom" data-bs-toggle="modal" data-bs-target="#settingsModal">
+                            <button id="game-settings-btn" type="button" class="btn btn-outline-custom" data-bs-toggle="modal" data-bs-target="#settings-modal">
                                 ⚙️ Settings
                             </button>
                         </div>
@@ -373,12 +467,11 @@
     </div>
 
     <!-- Game Settings Modal -->
-    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+    <div class="modal fade" id="settings-modal" tabindex="-1" aria-labelledby="settings-modal-label" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" style="background-color: #181818; border: 1px solid #282828;">
                 <div class="modal-header" style="border-bottom: 1px solid #282828;">
-                    <h5 class="modal-title text-white fw-bold" id="settingsModalLabel">Game Rules</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title text-white fw-bold" id="settings-modal-label">Game Rules</h5>
                 </div>
                 <div class="modal-body pb-4">
                     <div class="mb-4">
@@ -403,24 +496,80 @@
                         </div>
                     </div>
 
+                    <!-- Sample Size Slider -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label for="sample-size-slider" class="form-label text-secondary fw-bold mb-0">Sample Size (Tracks)</label>
+                        </div>
+                        
+                        <!-- Stepped Slider -->
+                        <div class="sample-size-control" role="group" aria-label="Sample size">
+                            <input type="radio" class="btn-check" name="sample-size-step" id="step-50" value="50">
+                            <label class="sample-size-option" for="step-50">50</label>
+
+                            <input type="radio" class="btn-check" name="sample-size-step" id="step-100" value="100">
+                            <label class="sample-size-option" for="step-100">100</label>
+
+                            <input type="radio" class="btn-check" name="sample-size-step" id="step-200" value="200" checked>
+                            <label class="sample-size-option" for="step-200">200</label>
+
+                            <input type="radio" class="btn-check" name="sample-size-step" id="step-500" value="500">
+                            <label class="sample-size-option" for="step-500">500</label>
+
+                            <input type="radio" class="btn-check" name="sample-size-step" id="step-max" value="max">
+                            <label class="sample-size-option" for="step-max">MAX</label>
+                        </div>
+                        
+                        <small class="text-secondary d-block mt-1">
+                            How many tracks to sample from the playlist in one instance
+                        </small>
+                    </div>
+
                    <div class="blur-setting-row mb-4">
-                        <div>
-                            <label for="blur-album-switch" class="form-label text-white fw-bold mb-1">
-                                Blur album artwork
-                            </label>
-                            <small class="d-block text-secondary">
-                                Keep artwork hidden while players answer
+                        <div class="pe-2">
+                            <h6 class="text-white fw-bold mb-1">Album Artwork</h6>
+                            <small class="text-secondary d-block lh-sm">
+                                Control cover visibility during gameplay
                             </small>
                         </div>
 
-                        <div class="form-check form-switch mb-0">
-                            <input type="checkbox" class="form-check-input" id="blur-album-switch" role="switch" checked>
+                        <!-- Blur Setting -->
+                        <div class="segmented-control">
+                            <input type="radio" class="btn-check" name="blur-album" id="blur-album-show" value="show">
+                            <label class="segmented-label" for="blur-album-show">Show</label>
+
+                            <input type="radio" class="btn-check" name="blur-album" id="blur-album-blur" value="blur">
+                            <label class="segmented-label" for="blur-album-blur">Blur</label>
+
+                            <input type="radio" class="btn-check" name="blur-album" id="blur-album-hide" value="hide" checked>
+                            <label class="segmented-label" for="blur-album-hide">Hide</label>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid #282828;">
-                    <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-spotify px-4" id="save-settings-btn" data-bs-dismiss="modal">Save Changes</button>
+                    <button type="button" class="btn btn-outline-custom" id="back-settings-btn">Back</button>
+                    <button type="button" class="btn btn-spotify px-4" id="save-settings-btn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="kick-confirmation-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background-color: #181818; border: 1px solid #282828;">
+                <div class="modal-header" style="border-bottom: 1px solid #282828;">
+                    <h5 class="modal-title text-danger fw-bold">Kick Player?</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="kick-target-name" class="fw-bold text-white mb-2"></p>
+                    <p id="kick-reason-display" class="text-secondary mb-3"></p>
+                    <label for="kick-reason-input" class="form-label text-secondary small">Reason (optional)</label>
+                    <input type="text" id="kick-reason-input" class="form-control" placeholder="Reason for kicking..." />
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #282828;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" id="confirm-kick-btn" class="btn btn-danger">Kick Player</button>
                 </div>
             </div>
         </div>

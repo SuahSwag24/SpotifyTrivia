@@ -23,13 +23,19 @@ namespace SpotifyTrivia.Services
                 .SendAsync("PreparingGame");
         }
 
-        public Task BroadcastCountdownStart(string lobbyCode, int seconds, DateTime startedAtUtc, string prompt)
+        public Task BroadcastRoundPreparing(string lobbyCode, string prompt, string previewUrl, string roundId)
         {
             return _hubContext.Clients.Group(lobbyCode)
-                .SendAsync("CountdownStarted", new { Seconds = seconds, StartedAtUtc = startedAtUtc, Prompt = prompt });
+                .SendAsync("RoundPreparing", new { Prompt = prompt, PreviewUrl = previewUrl, RoundId = roundId });
         }
 
-        public Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds, int questionNumber, int totalQuestions, bool blurAlbum)
+        public Task BroadcastCountdownStart(string lobbyCode, int seconds, DateTime startedAtUtc, string prompt, string previewUrl, string roundId)
+        {
+            return _hubContext.Clients.Group(lobbyCode)
+                .SendAsync("CountdownStarted", new { Seconds = seconds, StartedAtUtc = startedAtUtc, Prompt = prompt, PreviewUrl = previewUrl, RoundId = roundId });
+        }
+
+        public Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds, int questionNumber, int totalQuestions, AlbumCoverVisibility blurAlbum)
         {
             var payload = new
             {
@@ -104,6 +110,12 @@ namespace SpotifyTrivia.Services
         {
             var payload = new { PlayerId = playerId, Status = status.ToString().ToLowerInvariant() };
             return _hubContext.Clients.Group(lobbyCode).SendAsync("PlayerStatusChanged", payload);
+        }
+
+        public Task BroadcastPlayerKicked(string lobbyCode, string playerId, string displayName)
+        {
+            var payload = new { playerId = playerId, DisplayName = displayName };
+            return _hubContext.Clients.Group(lobbyCode).SendAsync("PlayerKicked", payload);
         }
 
         public Task SendPromotedToActive(string connectionId)

@@ -6,6 +6,6 @@ namespace SpotifyTrivia.Services
 {
     public interface IDeezerService
     {
-        Task<string?> GetPreviewUrlAsync(string artist, string title);
+        Task<string?> GetPreviewUrlAsync(string isrc);
     }
 }

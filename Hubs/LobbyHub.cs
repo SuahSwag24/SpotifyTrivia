@@ -97,7 +97,7 @@ namespace SpotifyTrivia.Hubs
             }
         }
 
-        public async Task StartGame(string lobbyCode, int questionCount, int roundDurationSeconds, bool blurAlbum)
+        public async Task StartGame(string lobbyCode, int questionCount, int roundDurationSeconds, AlbumCoverVisibility? blurAlbum = AlbumCoverVisibility.Hide, int sampleSize = 200)
         {
             var lobby = _lobbyManager.GetLobby(lobbyCode);
             if (lobby == null) return;
@@ -120,7 +120,31 @@ namespace SpotifyTrivia.Hubs
                 return;
             }
 
+            if (blurAlbum.HasValue)
+            {
+                if (!Enum.IsDefined(typeof(AlbumCoverVisibility), blurAlbum))
+                {
+                    await Clients.Caller.SendAsync("ActionError", new { Message = "Invalid blur setting value." });
+                    return;
+                }
+                lobby.BlurAlbum = blurAlbum.Value;
+            }
+            else
+            {
+                lobby.BlurAlbum = AlbumCoverVisibility.Hide;
+            }
+
+            if (sampleSize < 1 || sampleSize > 999999)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Invalid sample size" });
+                return;
+            }
+
             await _broadcaster.BroadcastPreparingGame(lobbyCode);
+
+            lobby.SampleSize = sampleSize;
+            lobby.RoundDurationSeconds = roundDurationSeconds;
+            lobby.NumberOfQuestions = questionCount;
 
             List<TrackModel> tracks;
             try
@@ -157,10 +181,6 @@ namespace SpotifyTrivia.Hubs
                 return;
             }
 
-            lobby.RoundDurationSeconds = roundDurationSeconds;
-            lobby.NumberOfQuestions = questionCount;
-            lobby.BlurAlbum = blurAlbum;
-
             try
             {
                 await _lobbyManager.StartSessionAsync(lobbyCode, tracks, questionCount, roundDurationSeconds);
@@ -193,6 +213,18 @@ namespace SpotifyTrivia.Hubs
                 return;
             }
 
+            var displayName = player?.DisplayName ?? "A player";
+
+            if (lobby.State == LobbyState.Waiting)
+            {
+                _lobbyManager.RemovePlayer(lobbyCode, playerId);
+
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, lobbyCode);
+                await Clients.Group(lobbyCode).SendAsync("PlayerDisconnected", new { PlayerId = playerId, DisplayName = displayName });
+
+                await _broadcaster.BroadcastPlayerLeft(lobbyCode, playerId, displayName);
+            }
+
             if (lobby.PlayerHostId == playerId)
             {
                 await _broadcaster.BroadcastLobbyDisbanded(lobbyCode);
@@ -200,8 +232,6 @@ namespace SpotifyTrivia.Hubs
             }
             else
             { 
-                var displayName = player?.DisplayName ?? "A player";
-
                 _lobbyManager.MarkPlayerAsLeft(lobbyCode, playerId);
 
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, lobbyCode);
@@ -307,12 +337,25 @@ namespace SpotifyTrivia.Hubs
 
             switch (lobby.State)
             {
+                case LobbyState.PreparingRound:
+                    var preparingQuestion = lobby.Questions[lobby.CurrentQuestionIndex];
+                    await Clients.Caller.SendAsync("RoundPreparing", new
+                    {
+                        Prompt = preparingQuestion.Prompt,
+                        PreviewUrl = preparingQuestion.PreviewUrl,
+                        RoundId = lobby.CurrentRoundId
+                    });
+                    break;
+
                 case LobbyState.Countdown:
+                    var countdownQuestion = lobby.Questions[lobby.CurrentQuestionIndex];
                     await Clients.Caller.SendAsync("CountdownStarted", new
                     {
                         Seconds = _settings.CountdownSeconds,
                         StartedAtUtc = lobby.CountdownStartedAtUtc,
-                        Prompt = lobby.Questions[lobby.CurrentQuestionIndex].Prompt
+                        Prompt = countdownQuestion.Prompt,
+                        PreviewUrl = countdownQuestion.PreviewUrl,
+                        RoundId = lobby.CurrentRoundId
                     });
 
                     foreach (var player in lobby.Players.Values)
@@ -465,25 +508,10 @@ namespace SpotifyTrivia.Hubs
 
             await _broadcaster.BroadcastPreparingGame(lobbyCode);
 
-            List<TrackModel> tracks;
-            try
+            var tracks = lobby.CachedTracks;
+            if (tracks == null || tracks.Count == 0)
             {
-                if (lobby.SelectedPlaylistId == "__liked_songs__")
-                {
-                    tracks = await FetchLikedSongsForAllPlayers(lobby);
-                }
-                else if (lobby.SelectedPlaylistId == "__recent_songs__")
-                {
-                    tracks = await FetchRecentlyPlayedSongsForAllPlayers(lobby);
-                }
-                else
-                {
-                    tracks = await PreparePlaylistTracks(lobby);
-                }
-            }
-            catch (Exception)
-            {
-                await Clients.Caller.SendAsync("ActionError", new { Message = "Couldn't reload playlist." });
+                await Clients.Caller.SendAsync("ActionError", new { Message = "No cached tracks to continue with." });
                 return;
             }
 
@@ -499,6 +527,80 @@ namespace SpotifyTrivia.Hubs
             {
                 await Clients.Caller.SendAsync("ActionError", new { Message = ex.Message });
             }
+        }
+
+        public DateTime GetServerTimeUtc()
+        {
+            return DateTime.UtcNow;
+        }
+
+        public async Task KickPlayer(string lobbyCode, string playerId)
+        {
+            var lobby = _lobbyManager.GetLobby(lobbyCode);
+            if (lobby == null)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Lobby not found" });
+                return;
+            }
+
+            if (!IsHost(lobby))
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Only the host can kick players." });
+                return;
+            }
+
+            if (lobby.State == LobbyState.Finished)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Cannot kick players when the game has ended." });
+                return;
+            }
+
+            if (!lobby.Players.TryGetValue(playerId, out var player) || player.ConnectionId == null)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Player not found or disconnected." });
+                return;
+            }
+
+            var caller = _lobbyManager.GetConnectionMapping(Context.ConnectionId);
+            if (caller?.playerId == playerId)
+            {
+                await Clients.Caller.SendAsync(
+                    "ActionError",
+                    new { Message = "You cannot kick yourself." });
+                return;
+            }
+
+            if (player.PlayerId == lobby.PlayerHostId)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Cannot kick the host." });
+                return;
+            }
+
+            var targetConnectionId = player.ConnectionId!;
+            var targetDisplayName = player.DisplayName;
+
+            _lobbyManager.RemovePlayer(lobbyCode, playerId);
+
+            await Groups.RemoveFromGroupAsync(targetConnectionId, lobbyCode);
+            await Clients.Client(targetConnectionId).SendAsync(
+                "KickedFromLobby",
+                new { Message = "You were removed from the lobby." });
+
+            await Clients.GroupExcept(lobbyCode, new[] { targetConnectionId })
+                .SendAsync("PlayerKicked", new
+                {
+                    PlayerId = playerId,
+                    DisplayName = targetDisplayName
+                });
+        }
+
+        public async Task RoundReady(string lobbyCode, string roundId)
+        {
+            var mapping = _lobbyManager.GetConnectionMapping(Context.ConnectionId);
+            if (!mapping.HasValue || mapping.Value.lobbyCode != lobbyCode)
+                return;
+
+            await _lobbyManager.MarkRoundAsReadyAsync(lobbyCode, mapping.Value.playerId, roundId);
         }
 
         private bool IsHost(LobbyModel lobby)
@@ -518,7 +620,7 @@ namespace SpotifyTrivia.Hubs
                 {
                     try
                     {
-                        var result = await _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken, p.SpotifyRefreshToken);
+                        var result = await _spotifyService.GetLikedSongsAsync(p.SpotifyAccessToken, p.SpotifyRefreshToken, sampleSize: lobby.SampleSize, offset: p.LikedSongsLastOffset);
 
                         if (result.RefreshedAccessToken != null)
                         {
@@ -605,9 +707,9 @@ namespace SpotifyTrivia.Hubs
             return tracks;
         }
 
-        private async Task<List<TrackModel>> PreparePlaylistTracks(LobbyModel lobby)
+        private async Task<List<TrackModel>> PreparePlaylistTracks(LobbyModel lobby, int offset = 0)
         {
-            var result = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.HostSpotifyRefreshToken, lobby.SelectedPlaylistId!);
+            var result = await _spotifyService.GetPlaylistTracksAsync(lobby.HostSpotifyAccessToken, lobby.HostSpotifyRefreshToken, lobby.SelectedPlaylistId!, lobby.SampleSize, offset);
 
             if (result.RefreshedAccessToken != null)
             {
@@ -618,6 +720,9 @@ namespace SpotifyTrivia.Hubs
                 }
                 Context.GetHttpContext()?.Session.SetString("SpotifyAccessToken", result.RefreshedAccessToken);
             }
+
+            lobby.PlaylistTotal = result.Total;
+            lobby.LastFetchOffset = offset;
 
             var tracks = result.Data ?? new List<TrackModel>();
 

@@ -31,6 +31,73 @@
     }
 
     /* Album Cover & Media */
+    .album-frame-wrapper {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        margin: 0 auto 1.5rem auto;
+    }
+
+    /* Hidden placeholder box */
+    .album-hidden-placeholder {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #2a2a2a;
+        border-radius: 12px;
+        border: 2px dashed #444;
+        color: #888;
+        font-size: 0.8rem;
+        overflow: hidden;
+        height: 200px;
+        min-height: 200px;
+    }
+
+    .equalizer-bars {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        z-index: 1;
+    }
+    
+    .bar {
+        flex: 1;
+        height: 100px;
+        background: linear-gradient(180deg, #444 0%, #2a2a2a 100%);
+        border-radius: 4px;
+        transform: scaleY(0.3);
+        animation: equalizer 1.5s infinite ease-in-out alternate;
+    }
+
+    /* Stagger animations for organic feel */
+    .bar:nth-child(1) { animation-delay: 0s; }
+    .bar:nth-child(2) { animation-delay: 0.2s; }
+    .bar:nth-child(3) { animation-delay: 0.4s; }
+    .bar:nth-child(4) { animation-delay: 0.6s; }
+    .bar:nth-child(5) { animation-delay: 0.8s; }
+
+    @@keyframes equalizer {
+        0% { transform: scaleY(0.3); }
+        50% { transform: scaleY(1.2); }
+        100% { transform: scaleY(0.5); }
+    }
+
+    .album-hidden-placeholder span {
+        font-size: 2rem;
+    }
+
+    .album-hidden-placeholder p {
+        margin: 0;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
     .album-frame {
         width: 200px;
         height: 200px;
@@ -38,8 +105,8 @@
         border-radius: 12px;
         border: 2px solid #282828;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-        margin: 0 auto 1.5rem auto;
         display: block;
+        transition: filter 0.5s ease;
     }
 
     .album-blurred {
@@ -49,7 +116,8 @@
     .reveal-album-cover {
         width: 160px;
         height: 160px;
-        margin-bottom: 1.25rem;
+        display: block;
+        margin: 0 auto 1.25rem auto;
         filter: blur(16px) brightness(0.6);
     }
 
@@ -67,6 +135,21 @@
             filter: blur(0) brightness(1);
             transform: scale(1);
         }
+    }
+
+    .hidden-icon, .hidden-text {
+        z-index: 2;
+    }
+
+    .hidden-icon {
+        font-size: 2rem;
+    }
+
+    .hidden-text {
+        margin: 0;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 
     /* Timer Pill */
@@ -261,6 +344,7 @@
         align-items: center;
         gap: 0.5rem;
         padding: 0.5rem 0.75rem;
+        position: relative;
         border-radius: 8px;
         margin-bottom: 0.35rem;
         background-color: #242424;
@@ -390,6 +474,60 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    .kick-player-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: absolute;
+        top: 50%;
+        right: 0.75rem;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        overflow: hidden;
+        transform: translate(0, -50%) scaleX(0);
+        transform-origin: right center;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: #888;
+        opacity: 0;
+        transition: transform 0.2s ease, opacity 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+    }
+
+    .side-player-list li:has(.kick-player-btn):hover .kick-player-btn,
+    .side-player-list li:has(.kick-player-btn):focus-within .kick-player-btn {
+        transform: translate(0, -50%) scaleX(1);
+        opacity: 1;
+    }
+
+    .side-player-list li:has(.kick-player-btn):hover .player-status-text,
+    .side-player-list li:has(.kick-player-btn):focus-within .player-status-text {
+        transform: translateX(-2rem);
+    }
+
+    .player-status-text {
+        transition: transform 0.2s ease, color 0.3s ease, font-weight 0.3s ease;
+    }
+
+    .kick-player-btn:hover,
+    .kick-player-btn:focus-visible {
+        color: #f15e6c;
+        background-color: rgba(226, 33, 52, 0.15);
+        border-color: rgba(226, 33, 52, 0.35);
+    }
+
+    @@media (max-width: 991.98px) {
+        .kick-player-btn {
+            transform: translate(0, -50%) scaleX(1);
+            opacity: 1;
+        }
+
+        .player-status-text {
+            transform: none;
+        }
     }
 
     .reveal-row {
@@ -547,7 +685,12 @@
     <div id="countdown-phase" class="phase-panel text-center">
         <h2 class="text-secondary uppercase fs-6 fw-bold tracking-widest">Get Ready</h2>
         <span class="text-secondary fs-3" id="prompt-text"></span>
-        <div id="countdown-number">3</div>
+        <div id="audio-loading-container" class="d-flex justify-content-center my-4">
+            <div id="audio-loading-spinner" class="spinner-border text-success" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading audio</span>
+            </div>
+        </div>
+        <div id="countdown-number" style="display:none;"></div>
     </div>
 
     <!-- Phase 2: Question -->
@@ -564,8 +707,23 @@
                     </div>
                 </div>
 
-                <img id="album-cover" class="album-frame" src="" alt="Album Artwork" />
-                <audio id="preview-audio" src=""></audio>
+                <div id="album-cover-wrapper" class="album-frame-wrapper">
+                    <img id="album-cover" class="album-frame" src="" alt="Album Artwork" />
+                    <div id="album-cover-hidden-placeholder" class="album-hidden-placeholder">
+                        <div class="equalizer-bars">
+                            <span class="bar"></span>
+                            <span class="bar"></span>
+                            <span class="bar"></span>
+                            <span class="bar"></span>
+                            <span class="bar"></span>
+                        </div>
+                        <span class="hidden-icon">🚫</span>
+                        <p class="hidden-text">Album hidden</p>
+                    </div>
+                </div>
+
+                <audio id="round-audio"></audio>
+                <audio id="next-round-audio" preload="auto"></audio>
                 
                 <div>
                     <span id="round-timer" class="timer-badge">20</span>
@@ -586,6 +744,17 @@
                             <span class="player-dot status-@(player.Status.ToString().ToLower())"></span>
                             <span class="player-name">@player.DisplayName</span>
                             <span class="player-status-text">@player.Status.ToString().ToLower()</span>
+                            @if (ViewBag.IsHost == true && player.PlayerId != ViewBag.PlayerId)
+                            {
+                                <button type="button"
+                                        class="kick-player-btn"
+                                        data-target-player="@player.PlayerId"
+                                        data-target-name="@player.DisplayName"
+                                        title="Remove @player.DisplayName from the game"
+                                        aria-label="Remove @player.DisplayName from the game">
+                                    <span aria-hidden="true">&#x22EE;</span>
+                                </button>
+                            }
                         </li>
                     }
                 </ul>
@@ -654,6 +823,35 @@
                 <button type="button" id="confirm-leave-btn"
                         class="btn btn-danger">
                     Leave Game
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="kick-confirmation-modal" tabindex="-1"
+     aria-labelledby="kick-confirmation-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content leave-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="kick-confirmation-title">Remove player?</h5>
+                <button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <p id="kick-confirmation-message" class="mb-0">
+                    Remove this player from the game?
+                </p>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-light"
+                        data-bs-dismiss="modal">
+                    Cancel
+                </button>
+                <button type="button" id="confirm-kick-btn" class="btn btn-danger">
+                    Remove Player
                 </button>
             </div>
         </div>

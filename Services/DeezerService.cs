@@ -15,12 +15,11 @@ namespace SpotifyTrivia.Services
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<string?> GetPreviewUrlAsync(string artist, string title)
+        public async Task<string?> GetPreviewUrlAsync(string isrc)
         {
             var client = _httpClientFactory.CreateClient();
 
-            var query = $"{artist} {title}";
-            var url = $"https://api.deezer.com/search?q={Uri.EscapeDataString(query)}";
+            var url = $"https://api.deezer.com/track/isrc:{Uri.EscapeDataString(isrc)}";
 
             var response = await client.GetAsync(url);
             if (!response.IsSuccessStatusCode)
@@ -30,10 +29,9 @@ namespace SpotifyTrivia.Services
 
             var json = await response.Content.ReadAsStringAsync();
             var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var result = JsonSerializer.Deserialize<DeezerSearchResponse>(json, jsonOptions);
+            var result = JsonSerializer.Deserialize<DeezerTrackResponse>(json, jsonOptions);
 
-            var firstMatch = result?.Data?.FirstOrDefault();
-            return firstMatch?.Preview;
+            return result?.Preview;
         }
     }
 }

@@ -16,6 +16,7 @@ function setupLobbyHandlers(connection, callbacks) {
     connection.on("PlayerAnswered", (data) => callbacks.onPlayerAnswered?.(data));
 
     connection.on("CountdownStarted", (data) => callbacks.onCountdownStarted?.(data));
+    connection.on("RoundPreparing", (data) => callbacks.onRoundPreparing?.(data));
     connection.on("PreparingGame", () => callbacks.onPreparingGame?.());
     connection.on("RoundStarted", (data) => callbacks.onRoundStarted?.(data));
     connection.on("RoundEnded", (data) => callbacks.onRoundEnded?.(data));
@@ -37,6 +38,8 @@ function setupLobbyHandlers(connection, callbacks) {
 
     connection.on("ReturnedToLobby", () => callbacks.onReturnedToLobby?.());
     connection.on("PlayerStatusChanged", (data) => callbacks.onPlayerStatusChanged?.(data));
+    connection.on("PlayerKicked", data => callbacks.onPlayerKicked?.(data));
+    connection.on("KickedFromLobby", data => callbacks.onKickedFromLobby?.(data));
 }
 
 function showLeaveConfirmation(isHost) {

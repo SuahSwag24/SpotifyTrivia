@@ -31,6 +31,28 @@ namespace SpotifyTrivia.Hubs
 
         public async Task JoinLobby(string lobbyCode, string playerId, string displayName)
         {
+            var httpContext = Context.GetHttpContext();
+            var sessionPlayerId = httpContext?.Session.GetString("PlayerId");
+
+            if (string.IsNullOrWhiteSpace(sessionPlayerId) ||
+                !string.Equals(playerId, sessionPlayerId, StringComparison.Ordinal))
+            {
+                await Clients.Caller.SendAsync("ActionError", new
+                {
+                    Message = "Your lobby session is invalid. Please rejoin.",
+                    Code = "INVALIDPLAYERSESSION"
+                });
+                return;
+            }
+
+            playerId = sessionPlayerId;
+            displayName = httpContext?.Session.GetString("DisplayName") ?? "Player";
+
+            if (!await ValidateSpotifyLoginAsync())
+            {
+                return;
+            }
+
             bool joined = _lobbyManager.TryAddPlayer(lobbyCode, playerId, displayName, Context.ConnectionId, out var player, out bool isNewPlayer);
             
             if (!joined || player == null)
@@ -740,6 +762,43 @@ namespace SpotifyTrivia.Hubs
             }
 
             return tracks;
+        }
+
+        private async Task<bool> ValidateSpotifyLoginAsync()
+        {
+            var httpContext = Context.GetHttpContext();
+            var accessToken = httpContext?.Session.GetString("SpotifyAccessToken");
+            var refreshToken = httpContext?.Session.GetString("SpotifyRefreshToken");
+
+            if (string.IsNullOrWhiteSpace(accessToken))
+            {
+                await SendLoginRequiredAsync();
+                return false;
+            }
+
+            var result = await _spotifyService.GetSpotifyUserIdAsync(accessToken, refreshToken);
+
+            if (result.RefreshedAccessToken != null)
+            {
+                httpContext?.Session.SetString("SpotifyAccessToken", result.RefreshedAccessToken);
+            }
+
+            if (string.IsNullOrWhiteSpace(result.Data))
+            {
+                await SendLoginRequiredAsync();
+                return false;
+            }
+
+            return true;
+        }
+
+        private Task SendLoginRequiredAsync()
+        {
+            return Clients.Caller.SendAsync("ActionError", new
+            {
+                Message = "Please log in with Spotify before joining the lobby.",
+                Code = "PLAYERNOTLOGGEDIN"
+            });
         }
     }
 }

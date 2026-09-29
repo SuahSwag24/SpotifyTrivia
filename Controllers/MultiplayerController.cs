@@ -18,12 +18,12 @@ namespace SpotifyTrivia.Controllers
         }
 
         [HttpGet("multiplayer")]
-        public IActionResult Index()
+        public IActionResult Index(bool loginRequired = false)
         {
-            var token = HttpContext.Session.GetString("SpotifyAccessToken");
-            if (string.IsNullOrEmpty(token))
+            if (loginRequired)
             {
-                return RedirectToAction("Login", "Auth");
+                TempData["ErrorMessage"] = "Please log in with Spotify to enter a multiplayer lobby.";
+                TempData["RedirectToLogin"] = "true";
             }
 
             return View();
@@ -33,7 +33,7 @@ namespace SpotifyTrivia.Controllers
         public IActionResult CreateLobby()
         {
             var token = HttpContext.Session.GetString("SpotifyAccessToken");
-            if (string.IsNullOrEmpty(token)) return RedirectToAction("Login", "Auth");
+            if (string.IsNullOrWhiteSpace(token)) return RedirectToLoginNotice();
 
             var refreshToken = HttpContext.Session.GetString("SpotifyRefreshToken");
 
@@ -48,6 +48,11 @@ namespace SpotifyTrivia.Controllers
         [HttpGet("multiplayer/lobby/{code}")]
         public IActionResult Lobby(string code)
         {
+            if (string.IsNullOrWhiteSpace(HttpContext.Session.GetString("SpotifyAccessToken")))
+            {
+                return RedirectToLoginNotice();
+            }
+
             var lobby = _lobbyManager.GetLobby(code);
             if (lobby == null)
             {
@@ -65,7 +70,7 @@ namespace SpotifyTrivia.Controllers
         public IActionResult JoinLobby(string code)
         {
             var token = HttpContext.Session.GetString("SpotifyAccessToken");
-            if (string.IsNullOrEmpty(token)) return RedirectToAction("Login", "Auth");
+            if (string.IsNullOrWhiteSpace(token)) return RedirectToLoginNotice();
 
             code = code?.Trim().ToUpperInvariant() ?? string.Empty;
 
@@ -91,7 +96,7 @@ namespace SpotifyTrivia.Controllers
         public IActionResult Game(string code)
         {
             var token = HttpContext.Session.GetString("SpotifyAccessToken");
-            if (string.IsNullOrEmpty(token)) return RedirectToAction("Login", "Auth");
+            if (string.IsNullOrWhiteSpace(token)) return RedirectToLoginNotice();
 
             var lobby = _lobbyManager.GetLobby(code);
             if (lobby == null)
@@ -135,6 +140,13 @@ namespace SpotifyTrivia.Controllers
         private string ResolveDisplayName()
         {
             return HttpContext.Session.GetString("DisplayName") ?? "Player";
+        }
+
+        private IActionResult RedirectToLoginNotice()
+        {
+            TempData["ErrorMessage"] = "Please log in with Spotify to enter a multiplayer lobby.";
+            TempData["RedirectToLogin"] = "true";
+            return RedirectToAction(nameof(Index));
         }
     }
 }

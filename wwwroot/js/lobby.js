@@ -86,6 +86,12 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onActionError: (data) => {
             resetStartControls();
+
+            if (data.code === "PLAYERNOTLOGGEDIN") {
+                window.location.href = "/multiplayer?loginRequired=true";
+                return;
+            }
+
             showError(data.message);
         },
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },

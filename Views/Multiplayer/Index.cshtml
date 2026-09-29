@@ -96,6 +96,13 @@
         </div>
     }
 
+    @if (TempData["RedirectToLogin"]?.ToString() == "true")
+    {
+        <script>
+            window.setTimeout(() => window.location.assign("/login"), 2000);
+        </script>
+    }
+
     <div class="row g-4">
         <!-- Host Game Section -->
         <div class="col-12 col-md-6">

@@ -32,6 +32,11 @@ builder.Services.AddSingleton<LobbySettingsModel>();
 builder.Services.AddSingleton<IGameMode, ClassicGuessSongGameMode>();
 builder.Services.AddSingleton<IGameMode, GuessArtistGameMode>();
 builder.Services.AddSingleton<IGameModeFactory, GameModeFactory>();
+builder.Services.AddHttpClient<IStemSeparator, HttpStemSeparator>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["StemWorker:BaseUrl"]!);
+    client.Timeout = TimeSpan.FromSeconds(90);
+});
 
 var app = builder.Build();
 

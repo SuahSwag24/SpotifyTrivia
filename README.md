@@ -17,11 +17,21 @@ The app includes the following features:
 - Multiple game modes (Classic Guess Song, Guess Artist, and Stem Guess)
 - Audio stem separation worker (FastAPI + Demucs) for isolated instrument trivia rounds
 
+### Stem Guess Audio Pipeline
+
+When a lobby selects the **Stem Guess** mode:
+1. Deezer preview URLs are fetched for fair-distributed playlist tracks via ISRC.
+2. Separation jobs (`StemJob`) are queued into an asynchronous in-memory channel (`StemPipeline`).
+3. An ASP.NET Core background hosted service calls the FastAPI stem worker (`POST /separate`).
+4. The worker trims the audio, separates 4 instrument layers (`drums`, `bass`, `other`, `vocals`) via Demucs (`htdemucs`), filters silent stems using FFmpeg `volumedetect`, and packages MP3 stems with `manifest.json`.
+5. Stems are cached in-memory (`StemStore`) and streamed to players via `GET /api/stems/{jobId}/{stem}`.
+
 ## Tech Stack
 
 - ASP.NET Core MVC for streamlined code maintenance and feature additions
 - .NET 10
 - SignalR for real-time multiplayer interaction
+- Background hosted services & `System.Threading.Channels` for asynchronous audio processing pipelines
 - Spotify Web API
 - Deezer preview API for track previews
 - Python 3 & FastAPI for the stem separation microservice worker
@@ -38,6 +48,7 @@ Before running the project, make sure you have:
 - A Spotify app created in the Spotify Developer Dashboard
 - A local URL configured for the OAuth redirect
 - (Optional / For Stem Mode) Python 3.10+ and FFmpeg installed and available in your system PATH
+  - *Performance note:* Demucs (`htdemucs`) runs AI stem separation. A CUDA-supported GPU is recommended for faster separation; CPU processing takes ~5–15 seconds per 15-second snippet.
 
 Note that **Spotify Premium is not required**.
 
@@ -89,7 +100,7 @@ The Python stem separation worker requires an API key configured via environment
    ```env
    STEM_WORKER_API_KEY=your-stem-worker-api-key
    ```
-2. Make sure this matches the `StemWorker:ApiKey` configured in the .NET user secrets.
+2. Make sure this matches the `StemWorker:ApiKey` configured in the .NET user secrets (keep `"ApiKey": ""` empty in `appsettings.json`).
 
 ## Executing the App
 
@@ -143,7 +154,7 @@ This project already includes the core functionality for:
 - multiple game modes:
   - Classic Guess Song
   - Guess Artist
-  - Stem Guess (using the Python Demucs worker for instrument layer separation)
+  - Stem Guess (using the Python Demucs worker for instrument layer separation, background queue pipeline, in-memory caching, and stem audio streaming API)
 
 The remaining work is mainly in the next-phase area: analytics, UX polish, error clarity, and additional gameplay variations.
 

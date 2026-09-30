@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using SpotifyTrivia.Models;
 using SpotifyTrivia.Models.Multiplayer;
+using SpotifyTrivia.Services.Stems;
 
 namespace SpotifyTrivia.Services.GameModes
 {
@@ -31,7 +32,7 @@ namespace SpotifyTrivia.Services.GameModes
 
             if (shuffledPool.Count < 4)
             {
-                throw new PlaylistExhaustedException("Not enough remaining unplayed tracks to generate more questions.")
+                throw new PlaylistExhaustedException("Not enough remaining unplayed tracks to generate more questions.");
             }
 
             shuffledPool = BuildFairShuffledPool(shuffledPool, lobbyPlayerIds, numberOfQuestions);
@@ -99,8 +100,7 @@ namespace SpotifyTrivia.Services.GameModes
 
                 quizQuestions.Add(question);
                 _pendingByJobId[jobId] = question;
-
-                _stemPipeline.Enqueue(new StemJob(jobId, previewUrl, StartSec: 5, Duration: ))
+                _stemPipeline.Enqueue(new StemJob(jobId, previewUrl, StartSec: 5, DurationSec: 15));
 
                 excludedTrackIds.Add(candidate.Id);
             }

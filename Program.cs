@@ -3,6 +3,7 @@ using SpotifyTrivia.Hubs;
 using SpotifyTrivia.Models.Multiplayer;
 using SpotifyTrivia.Services;
 using SpotifyTrivia.Services.GameModes;
+using SpotifyTrivia.Services.Stems;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +33,11 @@ builder.Services.AddSingleton<LobbySettingsModel>();
 builder.Services.AddSingleton<IGameMode, ClassicGuessSongGameMode>();
 builder.Services.AddSingleton<IGameMode, GuessArtistGameMode>();
 builder.Services.AddSingleton<IGameModeFactory, GameModeFactory>();
+builder.Services.AddSingleton<IGameMode, StemGuessGameMode>();
+builder.Services.AddSingleton<StemStore>();
+builder.Services.AddSingleton<PendingStemQuestions>();
+builder.Services.AddSingleton<StemPipeline>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<StemPipeline>());
 builder.Services.AddHttpClient<IStemSeparator, HttpStemSeparator>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["StemWorker:BaseUrl"]!);
@@ -64,5 +70,9 @@ app.MapControllerRoute(
 
 app.MapHub<LobbyHub>("/hubs/lobby");
 
+app.MapGet("/api/stems/{jobId}/{stem}", (string jobId, string stem, StemStore store) =>
+    store.TryGetStem(jobId, stem, out var bytes)
+        ? Results.File(bytes, "audio/mpeg")
+        : Results.NotFound());
 
 app.Run();

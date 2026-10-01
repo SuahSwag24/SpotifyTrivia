@@ -122,5 +122,16 @@ namespace SpotifyTrivia.Services
         {
             return _hubContext.Clients.Client(connectionId).SendAsync("PromotedToActive");
         }
+
+        public Task BroadcastRevealLayer(string lobbyCode, string roundId, int layerIndex, string stem)
+        {
+            var payload = new
+            {
+                RoundId = roundId,
+                LayerIndex = layerIndex,
+                Stem = stem
+            };
+            return _hubContext.Clients.Group(lobbyCode).SendAsync("RevealLayer", payload);
+        }
     }
 }

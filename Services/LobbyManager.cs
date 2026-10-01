@@ -213,7 +213,14 @@ namespace SpotifyTrivia.Services
             lobby.SessionLoopCts = new CancellationTokenSource();
             lobby.RoundDurationSeconds = roundDurationSeconds > 0 ? roundDurationSeconds : _settings.RoundDurationSeconds;
 
-            _ = RunSessionLoop(lobby, lobby.SessionLoopCts.Token);
+            if (lobby.GameMode == GameModeType.StemGuess)
+            {
+                _ = RunStemSessionLoop(lobby, lobby.SessionLoopCts.Token);
+            }
+            else
+            {
+                _ = RunSessionLoop(lobby, lobby.SessionLoopCts.Token);
+            }
         }
 
         public async Task ContinueSessionAsync(string code, List<TrackModel> tracks)
@@ -246,7 +253,15 @@ namespace SpotifyTrivia.Services
             }
 
             lobby.SessionLoopCts = new CancellationTokenSource();
-            _ = RunSessionLoop(lobby, lobby.SessionLoopCts.Token);
+
+            if (lobby.GameMode == GameModeType.StemGuess)
+            {
+                _ = RunStemSessionLoop(lobby, lobby.SessionLoopCts.Token);
+            }
+            else
+            {
+                _ = RunSessionLoop(lobby, lobby.SessionLoopCts.Token);
+            }
         }
 
         public (string lobbyCode, string playerId)? GetConnectionMapping(string connectionId)
@@ -547,6 +562,218 @@ namespace SpotifyTrivia.Services
             }
 
             _logger.LogInformation("Lobby session loop ending for lobby {Code} with reason {Reason}", lobby.Code, endReason);
+            await HandleSessionEnd(lobby, endReason);
+        }
+
+        //  Separate function for Stem GameMode game flow
+        private async Task RunStemSessionLoop(LobbyModel lobby, CancellationToken ct)
+        {
+            LobbySessionEndReason endReason = LobbySessionEndReason.CompletedNormally;
+
+            try
+            {
+                for (int i = 0; i < lobby.Questions.Count; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    string roundId;
+                    Task readinessTask;
+
+                    List<PlayerModel> promoted = new();
+                    await lobby.StateLock.WaitAsync(ct);
+
+                    try
+                    {
+                        promoted = lobby.Players.Values
+                            .Where(p => p.JoinStatus == PlayerJoinStatus.PendingJoin)
+                            .ToList();
+
+                        foreach (var p in promoted)
+                        {
+                            p.JoinStatus = PlayerJoinStatus.Active;
+
+                            for (int missed = 0; missed < i; missed++)
+                            {
+                                p.AnswerHistory.Add(new AnswerResultModel
+                                {
+                                    Success = true,
+                                    WasCorrect = false,
+                                    SubmittedIndex = -1,
+                                    CorrectIndex = lobby.Questions[missed].AnswerChoices.IndexOf(lobby.Questions[missed].CorrectAnswer),
+                                    CorrectAnswerText = lobby.Questions[missed].CorrectAnswer,
+                                    AwardedScore = 0
+                                });
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        lobby.StateLock.Release();
+                    }
+
+                    if (promoted.Count > 0)
+                    {
+                        await _lobbyBroadcaster.BroadcastPlayerJoining(lobby.Code, promoted.Select(p => p.DisplayName).ToList());
+                        await Task.Delay(TimeSpan.FromSeconds(_settings.JoinGraceSeconds), ct);
+
+                        foreach (var p in promoted)
+                        {
+                            if (p.ConnectionId != null)
+                            {
+                                await _lobbyBroadcaster.SendPromotedToActive(p.ConnectionId);
+                            }
+                        }
+                    }
+
+                    await lobby.StateLock.WaitAsync(ct);
+                    try
+                    {
+                        lobby.CurrentQuestionIndex = i;
+                        lobby.State = LobbyState.PreparingRound;
+
+                        roundId = Guid.NewGuid().ToString("N");
+                        lobby.CurrentRoundId = roundId;
+
+                        lobby.RequiredRoundReadyPlayerIds = lobby.Players.Values
+                            .Where(p => p.JoinStatus == PlayerJoinStatus.Active
+                                && p.IsConnected
+                                && p.ConnectionId != null)
+                            .Select(p => p.PlayerId)
+                            .ToHashSet();
+
+                        lobby.ReadyRoundPlayerIds.Clear();
+
+                        var readiness = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                        lobby.RoundReadiness = readiness;
+                        readinessTask = readiness.Task;
+
+                        if (lobby.RequiredRoundReadyPlayerIds.Count == 0)
+                        {
+                            readiness.TrySetResult(true);
+                        }
+
+                        foreach (var p in lobby.Players.Values)
+                        {
+                            if (p.Status == PlayerStatus.Disconnected)
+                            {
+                                lobby.Players.Remove(p.PlayerId, out _);
+                                await _lobbyBroadcaster.BroadcastPlayerLeft(lobby.Code, p.PlayerId, p.DisplayName);
+                                continue;
+                            }
+
+                            p.HasAnsweredCurrentQuestion = false;
+                            p.LastAnswerCorrect = null;
+                            p.LastAnswerPenalized = false;
+                            p.Status = PlayerStatus.Active;
+                            await _lobbyBroadcaster.BroadcastPlayerStatusChanged(lobby.Code, p.PlayerId, p.Status);
+                        }
+                    }
+                    finally
+                    {
+                        lobby.StateLock.Release();
+                    }
+
+                    var question = lobby.Questions[i];
+
+                    await _lobbyBroadcaster.BroadcastRoundPreparing(lobby.Code, question.Prompt, question.PreviewUrl, roundId);
+
+                    var stemsReadyDeadline = DateTime.UtcNow.AddSeconds(_settings.StemReadyTimeoutSeconds);
+                    while (question.StemRevealOrder.Count == 0 && DateTime.UtcNow < stemsReadyDeadline)
+                    {
+                        await Task.Delay(500, ct);
+                    }
+
+                    if (question.StemRevealOrder.Count == 0)
+                    {
+                        _logger.LogWarning("Stem separation timed out for round {RoundId} in lobby {LobbyCode}; falling back to full preview", roundId, lobby.Code);
+                        // Fallback: treat it like a single-layer reveal (full mix only), so the round doesn't hang indefinitely. Adjust if you'd rather skip the question entirely.
+                        question.StemRevealOrder = new List<string> { "drums", "bass", "other", "vocals" };
+                    }
+
+                    try
+                    {
+                        await readinessTask.WaitAsync(TimeSpan.FromSeconds(_settings.AudioReadyTimeoutSeconds), ct);
+                    }
+                    catch (TimeoutException)
+                    {
+                        _logger.LogInformation("Audio readiness timed out for round {RoundId} in lobby {LobbyCode}", roundId, lobby.Code);
+                    }
+
+                    await lobby.StateLock.WaitAsync(ct);
+                    try
+                    {
+                        lobby.State = LobbyState.Countdown;
+                        lobby.CountdownStartedAtUtc = DateTime.UtcNow;
+                    }
+                    finally { lobby.StateLock.Release(); }
+
+                    await _lobbyBroadcaster.BroadcastCountdownStart(lobby.Code, _settings.CountdownSeconds, lobby.CountdownStartedAtUtc, question.Prompt, question.PreviewUrl, roundId);
+                    await Task.Delay(TimeSpan.FromSeconds(_settings.CountdownSeconds), ct);
+
+                    await lobby.StateLock.WaitAsync(ct);
+                    try
+                    {
+                        lobby.State = LobbyState.Question;
+                        lobby.RoundStartedAtUtc = DateTime.UtcNow;
+                    }
+                    finally { lobby.StateLock.Release(); }
+
+                    //  Stem Game Mode Exclusive: Incremental layer-by-layer reveal
+                    await _lobbyBroadcaster.BroadcastRoundStarted(lobby.Code, question, lobby.RoundStartedAtUtc, lobby.RoundDurationSeconds, questionNumber: i + 1, totalQuestions: lobby.Questions.Count, blurAlbum: lobby.BlurAlbum);
+
+                    int layerCount = question.StemRevealOrder.Count;
+                    double layerIntervalSeconds = lobby.RoundDurationSeconds / (double)layerCount;
+
+                    await _lobbyBroadcaster.BroadcastRevealLayer(lobby.Code, roundId, layerIndex: 0, stem: question.StemRevealOrder[0]);
+
+                    for (int layer = 1; layer < layerCount; layer++)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(layerIntervalSeconds), ct);
+                        ct.ThrowIfCancellationRequested();
+                        await _lobbyBroadcaster.BroadcastRevealLayer(lobby.Code, roundId, layerIndex: layer, stem: question.StemRevealOrder[layer]);
+                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(layerIntervalSeconds), ct);
+
+                    await lobby.StateLock.WaitAsync(ct);
+                    try
+                    {
+                        lobby.State = LobbyState.Reveal;
+
+                        foreach (var p in lobby.Players.Values)
+                        {
+                            if (!p.HasAnsweredCurrentQuestion)
+                            {
+                                p.AnswerHistory.Add(new AnswerResultModel
+                                {
+                                    Success = true,
+                                    WasCorrect = false,
+                                    SubmittedIndex = -1,
+                                    CorrectIndex = question.AnswerChoices.IndexOf(question.CorrectAnswer),
+                                    CorrectAnswerText = question.CorrectAnswer,
+                                    AwardedScore = 0
+                                });
+                            }
+                        }
+                    }
+                    finally { lobby.StateLock.Release(); }
+
+                    await _lobbyBroadcaster.BroadcastRoundEnded(lobby.Code, question.CorrectAnswer, lobby.Players.Values.ToList(), question.AlbumCoverUrl);
+                    await Task.Delay(TimeSpan.FromSeconds(_settings.RevealSeconds), ct);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                endReason = LobbySessionEndReason.Disbanded;
+                _logger.LogInformation("Stem lobby session loop canceled for lobby {Code}", lobby.Code);
+            }
+            catch (Exception ex)
+            {
+                endReason = LobbySessionEndReason.Error;
+                _logger.LogError(ex, "Stem lobby session loop failed unexpectedly for lobby {Code}", lobby.Code);
+            }
+
+            _logger.LogInformation("Stem lobby session loop ending for lobby {Code} with reason {Reason}", lobby.Code, endReason);
             await HandleSessionEnd(lobby, endReason);
         }
 

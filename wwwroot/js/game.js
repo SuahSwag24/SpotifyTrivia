@@ -104,7 +104,94 @@ document.addEventListener("DOMContentLoaded", () => {
     let activeAudio = document.getElementById("round-audio");
     let nextAudio = document.getElementById("next-round-audio");
 
+    //  Audio controls exclusive to Stem Game Mode
+    let audioContext = null;
+    let stemBuffers = {};
+    let stemNodes = {};
+    let masterGainNode = null;
+    let currentRoundIsStem = false;
+
+    function getAudioContext() {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            masterGainNode = audioContext.createGain();
+            masterGainNode.gain.value = activeAudio.volume ?? 1;
+            masterGainNode.connect(audioContext.destination);
+        }
+        return audioContext;
+    }
+
+    async function fetchStemWithRetry(url, { timeoutMs = 30000, intervalMs = 1000 } = {}) {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+            const resp = await fetch(url);
+            if (resp.ok) return await resp.arrayBuffer();
+            if (resp.status !== 404) throw new Error(`Unexpected status ${resp.status} for ${url}`);
+            await new Promise(r => setTimeout(r, intervalMs));
+        }
+        throw new Error(`Timed out waiting for stem: ${url}`);
+    }
+
+    async function preloadStems(data) {
+        const ctx = getAudioContext();
+        const stemNames = ["drums", "bass", "other", "vocals"];
+        stemBuffers = {};
+
+        await Promise.all(data.stemUrls.map(async (relativeUrl, i) => {
+            const stemName = stemNames[i];
+            const url = new URL(relativeUrl, document.baseURI).href;
+            const arrayBuffer = await fetchStemWithRetry(url);
+            stemBuffers[stemName] = await ctx.decodeAudioData(arrayBuffer);
+        }));
+
+        connection.invoke("RoundReady", lobbyCode, data.roundId)
+            .catch(err => console.error("Round-ready signal failed:", err));
+    }
+
+    function startStemRound(data) {
+        const ctx = getAudioContext();
+        stopStemNodes();
+
+        const startAt = ctx.currentTime + 0.1;
+
+        for (const stemName of Object.keys(stemBuffers)) {
+            const source = ctx.createBufferSource();
+            source.buffer = stemBuffers[stemName];
+
+            const gain = ctx.createGain();
+            gain.gain.value = 0;
+
+            source.connect(gain).connect(masterGainNode);
+            source.start(startAt);
+
+            stemNodes[stemName] = { source, gain };
+        }
+    }
+
+    function revealStemLayer(stemName) {
+        const node = stemNodes[stemName];
+        if (!node) return;
+        node.gain.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.05);
+    }
+
+    function stopStemNodes() {
+        for (const name in stemNodes) {
+            try {
+                stemNodes[name].source.stop();
+            }
+            catch {}
+        }
+        stemNodes = {};
+    }
+
     function preloadRound(data) {
+        if (data.stemUrls && data.stemUrls.length > 0) {
+            currentRoundIsStem = true;
+            preloadStems(data).catch(err => console.error("Stem preload failed:", err));
+            return;
+        }
+
+        currentRoundIsStem = false;
         const previewUrl = new URL(data.previewUrl, document.baseURI).href;
         let readinessSent = false;
 
@@ -121,6 +208,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function startRoundAudio(data) {
+        if (currentRoundIsStem) {
+            startStemRound(data);
+            return;
+        }
+
         if (nextAudio.src !== new URL(data.previewUrl, document.baseURI).href) {
             nextAudio.src = data.previewUrl;
             nextAudio.load();
@@ -144,6 +236,7 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("prompt-text").textContent = `${data.prompt}`;
         },
         onRoundPreparing: (data) => {
+            console.log(data)
             showPhase("countdown-phase");
             const audioLoadingContainer = document.getElementById("audio-loading-container");
             audioLoadingContainer.classList.remove("d-none");
@@ -268,6 +361,9 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onPlayerStatusChanged: (data) => {
             updatePlayerStatus(data.playerId, data.status);
+        },
+        onRevealLayer: (data) => {
+            revealStemLayer(data.Stem.toLowerCase());
         }
     });
 
@@ -588,12 +684,14 @@ document.addEventListener("DOMContentLoaded", () => {
     volumeSlider.value = initialVolume;
     activeAudio.volume = initialVolume / 100;
     nextAudio.volume = initialVolume / 100;
+    if (masterGainNode) masterGainNode.gain.value = initialVolume / 100;
     updateVolumeIcon(initialVolume);
 
     volumeSlider.addEventListener("input", () => {
         const value = parseInt(volumeSlider.value, 10);
         activeAudio.volume = value / 100;
         nextAudio.volume = value / 100;
+        if (masterGainNode) masterGainNode.gain.value = value / 100;
         localStorage.setItem("triviaVolume", value);
         updateVolumeIcon(value);
     });

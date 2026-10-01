@@ -23,10 +23,11 @@ namespace SpotifyTrivia.Services
                 .SendAsync("PreparingGame");
         }
 
-        public Task BroadcastRoundPreparing(string lobbyCode, string prompt, string previewUrl, string roundId)
+        public Task BroadcastRoundPreparing(string lobbyCode, string prompt, string previewUrl, string roundId, List<string>? stemUrls = null)
         {
+            var payload = new { Prompt = prompt, PreviewUrl = previewUrl, RoundId = roundId, StemUrls = stemUrls ?? new List<string>() };
             return _hubContext.Clients.Group(lobbyCode)
-                .SendAsync("RoundPreparing", new { Prompt = prompt, PreviewUrl = previewUrl, RoundId = roundId });
+                .SendAsync("RoundPreparing", payload);
         }
 
         public Task BroadcastCountdownStart(string lobbyCode, int seconds, DateTime startedAtUtc, string prompt, string previewUrl, string roundId)

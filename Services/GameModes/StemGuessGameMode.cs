@@ -16,11 +16,11 @@ namespace SpotifyTrivia.Services.GameModes
         private const double FAIRDISTRIBUTIONWEIGHTAGE = 0.6;
         private readonly ConcurrentDictionary<string, TriviaQuestionModel> _pendingByJobId;
 
-        public StemGuessGameMode(IDeezerService deezerService, StemPipeline stemPipeline, ConcurrentDictionary<string, TriviaQuestionModel> pendingByJobId)
+        public StemGuessGameMode(IDeezerService deezerService, StemPipeline stemPipeline, PendingStemQuestions pendingStemQuestions)
         {
             _deezerService = deezerService;
             _stemPipeline = stemPipeline;
-            _pendingByJobId = pendingByJobId;
+            _pendingByJobId = pendingStemQuestions.Map;
         }
 
         public GameModeType ModeType => GameModeType.StemGuess;
@@ -84,7 +84,7 @@ namespace SpotifyTrivia.Services.GameModes
                     AlbumCoverUrl = candidate.AlbumCoverUrl ?? string.Empty,
                     SongTitle = candidate.Title,
                     ArtistName = candidate.Artist,
-                    Prompt = "Name the Song & Artist",
+                    Prompt = "Use the Stems to Guess the Song",
                     CorrectAnswer = correctAnswer,
                     AnswerChoices = choices,
                     SpotifyUrl = candidate.SpotifyUrl ?? "",

@@ -675,7 +675,7 @@ namespace SpotifyTrivia.Services
 
                     var question = lobby.Questions[i];
 
-                    await _lobbyBroadcaster.BroadcastRoundPreparing(lobby.Code, question.Prompt, question.PreviewUrl, roundId);
+                    await _lobbyBroadcaster.BroadcastRoundPreparing(lobby.Code, question.Prompt, question.PreviewUrl, roundId, question.StemUrls);
 
                     var stemsReadyDeadline = DateTime.UtcNow.AddSeconds(_settings.StemReadyTimeoutSeconds);
                     while (question.StemRevealOrder.Count == 0 && DateTime.UtcNow < stemsReadyDeadline)

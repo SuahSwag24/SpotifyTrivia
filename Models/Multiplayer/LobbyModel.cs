@@ -20,6 +20,7 @@ namespace SpotifyTrivia.Models.Multiplayer
         public ConcurrentDictionary<string, PlayerModel> Players { get; set; } = new();
         public SemaphoreSlim StateLock { get; set; } = new(1, 1);
         public CancellationTokenSource? SessionLoopCts { get; set; }
+        public CancellationTokenSource LifetimeCts { get; } = new();
         public DateTime RoundStartedAtUtc { get; set; }
         public DateTime CountdownStartedAtUtc { get; set; }
         public string HostSpotifyAccessToken { get; set; } = string.Empty;

@@ -24,7 +24,13 @@ namespace SpotifyTrivia.Services.GameModes
         }
 
         public GameModeType ModeType => GameModeType.StemGuess;
-        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds, IEnumerable<string> lobbyPlayerIds, int roundDurationSeconds = 15)
+
+        public Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds, IEnumerable<string> lobbyPlayerIds, int roundDurationSeconds = 15)
+        {
+            return GenerateQuestionsAsync(tracks, numberOfQuestions, excludedTrackIds, lobbyPlayerIds, roundDurationSeconds, CancellationToken.None);
+        }
+
+        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds, IEnumerable<string> lobbyPlayerIds, int roundDurationSeconds, CancellationToken cancellationToken)
         {
             var shuffledPool = new List<TrackModel>(tracks)
                 .Where(t => !excludedTrackIds.Contains(t.Id))
@@ -43,6 +49,8 @@ namespace SpotifyTrivia.Services.GameModes
 
             for (int i = 0; i < maxAttempts; i++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (quizQuestions.Count >= numberOfQuestions)
                 {
                     break;
@@ -54,6 +62,7 @@ namespace SpotifyTrivia.Services.GameModes
                 if (string.IsNullOrEmpty(isrc)) continue;
 
                 var previewUrl = await _deezerService.GetPreviewUrlAsync(isrc);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (string.IsNullOrEmpty(previewUrl))
                 {
                     continue;
@@ -103,7 +112,7 @@ namespace SpotifyTrivia.Services.GameModes
 
                 quizQuestions.Add(question);
                 _pendingByJobId[jobId] = question;
-                _stemPipeline.Enqueue(new StemJob(jobId, previewUrl, StartSec: startSec, DurationSec: duration));
+                _stemPipeline.Enqueue(new StemJob(jobId, previewUrl, StartSec: startSec, DurationSec: duration, CancellationToken: cancellationToken));
 
                 excludedTrackIds.Add(candidate.Id);
             }

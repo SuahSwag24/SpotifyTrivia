@@ -196,21 +196,34 @@ namespace SpotifyTrivia.Services
             var lobbyPlayerIds = lobby.Players.Values
                 .Where(p => p.JoinStatus == PlayerJoinStatus.Active)
                 .Select(p => p.PlayerId);
+            var cancellationToken = lobby.LifetimeCts.Token;
 
             lobby.CachedTracks = tracks;
 
             try
             {
-                lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds, roundDurationSeconds);
+                try
+                {
+                    lobby.Questions = await GenerateLobbyQuestionsAsync(mode, tracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds, roundDurationSeconds, cancellationToken);
+                }
+                catch (PlaylistExhaustedException) when (CanRetryWithFreshSample(lobby))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var freshTracks = await RefetchSample(lobby);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    lobby.CachedTracks = freshTracks;
+                    lobby.Questions = await GenerateLobbyQuestionsAsync(mode, freshTracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds, roundDurationSeconds, cancellationToken);
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
             }
-            catch (PlaylistExhaustedException) when (CanRetryWithFreshSample(lobby))
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                var freshTracks = await RefetchSample(lobby);
-                lobby.CachedTracks = freshTracks;
-                lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds, roundDurationSeconds);
+                return;
             }
 
-            lobby.SessionLoopCts = new CancellationTokenSource();
+            lobby.SessionLoopCts?.Cancel();
+            lobby.SessionLoopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             lobby.RoundDurationSeconds = roundDurationSeconds > 0 ? roundDurationSeconds : _settings.RoundDurationSeconds;
 
             if (lobby.GameMode == GameModeType.StemGuess)
@@ -232,18 +245,31 @@ namespace SpotifyTrivia.Services
             var lobbyPlayerIds = lobby.Players.Values
                 .Where(p => p.JoinStatus == PlayerJoinStatus.Active)
                 .Select(p => p.PlayerId);
+            var cancellationToken = lobby.LifetimeCts.Token;
 
             try
             {
-                lobby.Questions = await mode.GenerateQuestionsAsync(tracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds, lobbyPlayerIds);
+                try
+                {
+                    lobby.Questions = await GenerateLobbyQuestionsAsync(mode, tracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds, lobbyPlayerIds, 15, cancellationToken);
+                }
+                catch (PlaylistExhaustedException) when (CanRetryWithFreshSample(lobby))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var freshTracks = await RefetchSample(lobby);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    lobby.CachedTracks = freshTracks;
+                    lobby.Questions = await GenerateLobbyQuestionsAsync(mode, freshTracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds, lobbyPlayerIds, 15, cancellationToken);
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
             }
-            catch (PlaylistExhaustedException) when (CanRetryWithFreshSample(lobby))
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                var freshTracks = await RefetchSample(lobby);
-                lobby.CachedTracks = freshTracks;
-                lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, lobby.NumberOfQuestions, lobby.PlayedTrackIds, lobbyPlayerIds);
+                return;
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             foreach (var p in lobby.Players.Values)
             {
                 p.AnswerHistory.Clear();
@@ -252,7 +278,8 @@ namespace SpotifyTrivia.Services
                 p.LastAnswerCorrect = null;
             }
 
-            lobby.SessionLoopCts = new CancellationTokenSource();
+            lobby.SessionLoopCts?.Cancel();
+            lobby.SessionLoopCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
             if (lobby.GameMode == GameModeType.StemGuess)
             {
@@ -278,6 +305,7 @@ namespace SpotifyTrivia.Services
         {
             if (!_lobbies.TryRemove(code, out var lobby)) return;
 
+            lobby.LifetimeCts.Cancel();
             lobby.SessionLoopCts?.Cancel();
 
             var staleConnecctions = _connectionMap
@@ -905,6 +933,31 @@ namespace SpotifyTrivia.Services
                     return merged;
                 })
                 .ToList();
+        }
+
+        private Task<List<TriviaQuestionModel>> GenerateLobbyQuestionsAsync(
+            IGameMode mode,
+            List<TrackModel> tracks,
+            int questionCount,
+            HashSet<string> excludedTrackIds,
+            IEnumerable<string> lobbyPlayerIds,
+            int roundDurationSeconds,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (mode is StemGuessGameMode stemGuessMode)
+            {
+                return stemGuessMode.GenerateQuestionsAsync(
+                    tracks,
+                    questionCount,
+                    excludedTrackIds,
+                    lobbyPlayerIds,
+                    roundDurationSeconds,
+                    cancellationToken);
+            }
+
+            return mode.GenerateQuestionsAsync(tracks, questionCount, excludedTrackIds, lobbyPlayerIds, roundDurationSeconds);
         }
 
         private bool CanRetryWithFreshSample(LobbyModel lobby)

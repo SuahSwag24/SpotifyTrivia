@@ -31,18 +31,42 @@ namespace SpotifyTrivia.Services.Stems
             var opts = new ParallelOptions { MaxDegreeOfParallelism = 3, CancellationToken = ct };
             await Parallel.ForEachAsync(_jobs.Reader.ReadAllAsync(ct), opts, async (job, token) =>
             {
+                if (job.CancellationToken.IsCancellationRequested)
+                {
+                    _pending.TryRemove(job.JobId, out _);
+                    return;
+                }
+
                 if (string.IsNullOrWhiteSpace(job.PreviewUrl) || !Uri.TryCreate(job.PreviewUrl, UriKind.Absolute, out _))
                 {
                     _logger.LogWarning("Skipping stem job {JobId}: invalid previewUrl", job.JobId);
                     return;
                 }
 
-                var (stems, manifest) = await _separator.SeparateAsync(job.PreviewUrl, job.StartSec, job.DurationSec, token);
-                _store.Put(job.JobId, stems, manifest);
-                if (_pending.TryRemove(job.JobId, out var question))
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, job.CancellationToken);
+                try
                 {
-                    question.StemRevealOrder = manifest.Stems.Except(manifest.Silent).ToList();
-                    question.StemDurationMs = manifest.DurationMs;
+                    var (stems, manifest) = await _separator.SeparateAsync(job.PreviewUrl, job.StartSec, job.DurationSec, linkedCts.Token);
+                    job.CancellationToken.ThrowIfCancellationRequested();
+                    _store.Put(job.JobId, stems, manifest);
+                    if (_pending.TryRemove(job.JobId, out var question))
+                    {
+                        question.StemRevealOrder = manifest.Stems.Except(manifest.Silent).ToList();
+                        question.StemDurationMs = manifest.DurationMs;
+                    }
+                }
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (OperationCanceledException) when (job.CancellationToken.IsCancellationRequested)
+                {
+                    _pending.TryRemove(job.JobId, out _);
+                }
+                catch (Exception ex)
+                {
+                    _pending.TryRemove(job.JobId, out _);
+                    _logger.LogError(ex, "Stem job {JobId} failed", job.JobId);
                 }
             });
         }

@@ -1,4 +1,5 @@
 import os
+import asyncio
 import shutil
 import subprocess
 import tempfile
@@ -50,6 +51,33 @@ def rms_is_silent(wav_path: Path, threshold_db: float = -50.0) -> bool:
                 pass
     return False
 
+async def fetch_preview(preview_url: str, raw_path: Path, max_attempts: int = 3):
+    for attempt in range(1, max_attempts + 1):
+        try:
+            timeout = httpx.Timeout(10.0, connect=5.0)
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                async with client.stream("GET", preview_url) as resp:
+                    if resp.status_code != 200:
+                        raise HTTPException(status_code=502, detail=f"failed to fetch previewUrl (status {resp.status_code})")
+
+                    total = 0
+                    with open(raw_path, "wb") as f:
+                        async for chunk in resp.aiter_bytes():
+                            total += len(chunk)
+                            if total > MAX_DOWNLOAD_BYTES:
+                                raise HTTPException(status_code=413, detail="preview too large")
+                            f.write(chunk)
+            return  # success
+
+        except httpx.ConnectTimeout as exc:
+            last_exc = exc
+            print(f"[fetch_preview] attempt {attempt}/{max_attempts} timed out: {exc}")
+            if attempt < max_attempts:
+                await asyncio.sleep(1.5 * attempt)  # 1.5s, then 3s
+                continue
+
+    raise HTTPException(status_code=502, detail=f"preview fetch timed out after {max_attempts} attempts") from last_exc
+
 #   Request
 @app.post("/separate")
 async def separate(req: SeparationRequest, x_api_key: Annotated[str, Header()]):
@@ -62,22 +90,7 @@ async def separate(req: SeparationRequest, x_api_key: Annotated[str, Header()]):
         clip_path = d / "clip.wav"
 
         #   Step 1: Download the preview and make sure it is within capped size
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Referer": "https://www.deezer.com/",
-        }
-        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True, headers=headers) as client:
-            async with client.stream("GET", req.previewUrl) as response:
-                if response.status_code != 200:
-                    raise HTTPException(status_code=502, detail=f"failed to fetch previewUrl: status {response.status_code}") #    In cases when the backend (to get previewUrl) has failed
-
-                total = 0
-                with open(raw_path, "wb") as f:
-                    async for chunk in response.aiter_bytes():
-                        total += len(chunk)
-                        if total > MAX_DOWNLOAD_BYTES:
-                            raise HTTPException(status_code=413, detail="preview is too large") #   Payload too large
-                        f.write(chunk)
+        await fetch_preview(req.previewUrl, raw_path)
 
         #   Step 2: Trim audio to the requested window
         run([

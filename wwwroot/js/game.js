@@ -103,6 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let activeAudio = document.getElementById("round-audio");
     let nextAudio = document.getElementById("next-round-audio");
+    const enableAudioButton = document.getElementById("enable-audio-btn");
 
     //  Audio controls exclusive to Stem Game Mode
     let audioContext = null;
@@ -111,6 +112,46 @@ document.addEventListener("DOMContentLoaded", () => {
     let masterGainNode = null;
     let currentRoundIsStem = false;
     let stemProgressInterval = null;
+    let pendingFallbackAudio = null;
+    let pendingStemRoundData = null;
+    let revealedStemLayers = new Set();
+
+    function showAudioUnlockButton(forStemAudio) {
+        enableAudioButton.textContent = forStemAudio ? "Enable stem audio" : "Enable audio";
+        enableAudioButton.classList.remove("d-none");
+    }
+
+    function hideAudioUnlockButton() {
+        enableAudioButton.classList.add("d-none");
+    }
+
+    async function unlockAudio() {
+        enableAudioButton.disabled = true;
+        try {
+            if (pendingStemRoundData && Object.keys(stemBuffers).length > 0) {
+                const context = getAudioContext();
+                await context.resume();
+                if (context.state !== "running") throw new Error("Audio context is still suspended.");
+
+                const roundData = pendingStemRoundData;
+                pendingStemRoundData = null;
+                pendingFallbackAudio = null;
+                startStemRound(roundData);
+            } else if (pendingFallbackAudio) {
+                const audio = pendingFallbackAudio;
+                await audio.play();
+                if (pendingFallbackAudio === audio) pendingFallbackAudio = null;
+                hideAudioUnlockButton();
+            }
+        } catch (err) {
+            console.warn("Audio could not be enabled.", err);
+            showAudioUnlockButton(!!pendingStemRoundData);
+        } finally {
+            enableAudioButton.disabled = false;
+        }
+    }
+
+    enableAudioButton.addEventListener("click", unlockAudio);
 
     function getAudioContext() {
         if (!audioContext) {
@@ -178,21 +219,29 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log('[stem] startStemRound — stemBuffers keys:', Object.keys(stemBuffers));
         activeAudio.pause();
         nextAudio.pause();
+        pendingFallbackAudio = null;
+        pendingStemRoundData = null;
+        hideAudioUnlockButton();
 
         const ctx = getAudioContext();
         stopStemNodes();
 
         const startAt = ctx.currentTime + 0.1;
+        const startedAtUtc = data.startedAtUtc || data.StartedAtUtc;
+        const startedAt = startedAtUtc ? new Date(startedAtUtc).getTime() : Date.now() + serverTimeOffset;
+        const elapsedSeconds = Math.max(0, (Date.now() + serverTimeOffset - startedAt) / 1000);
 
         for (const stemName of Object.keys(stemBuffers)) {
+            if (elapsedSeconds >= stemBuffers[stemName].duration) continue;
+
             const source = ctx.createBufferSource();
             source.buffer = stemBuffers[stemName];
 
             const gain = ctx.createGain();
-            gain.gain.value = 0;
+            gain.gain.value = revealedStemLayers.has(stemName) ? 1 : 0;
 
             source.connect(gain).connect(masterGainNode);
-            source.start(startAt);
+            source.start(startAt, elapsedSeconds);
 
             stemNodes[stemName] = { source, gain };
         }
@@ -200,6 +249,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function revealStemLayer(stemName) {
         console.log('[stem] revealStemLayer:', stemName, '— node:', !!stemNodes[stemName]);
+        revealedStemLayers.add(stemName);
         const node = stemNodes[stemName];
         if (!node) return;
         const ctx = getAudioContext();
@@ -327,7 +377,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const stemUrls = data.stemUrls || data.stemurls;
         if (stemUrls && stemUrls.length > 0) {
             currentRoundIsStem = true;
-            preloadStems(data).catch(err => console.error("Stem preload failed:", err));
+            preloadStems(data).catch(err => {
+                currentRoundIsStem = false;
+                stemBuffers = {};
+                console.error("Stem preload failed; using the preview fallback.", err);
+            });
             return;
         }
 
@@ -347,23 +401,66 @@ document.addEventListener("DOMContentLoaded", () => {
         nextAudio.load();
     }
 
-    function startRoundAudio(data) {
-        if (currentRoundIsStem) {
-            startStemRound(data);
-            return;
+    async function startRoundAudio(data) {
+        pendingFallbackAudio = null;
+        pendingStemRoundData = null;
+        hideAudioUnlockButton();
+
+        if (currentRoundIsStem && Object.keys(stemBuffers).length > 0) {
+            try {
+                const context = getAudioContext();
+                if (context.state === "running") {
+                    startStemRound(data);
+                } else {
+                    pendingStemRoundData = data;
+                    showAudioUnlockButton(true);
+                }
+                return;
+            } catch (err) {
+                console.warn("Stem audio is unavailable; using the preview fallback.", err);
+            }
         }
 
         stopStemNodes();
+        await playPreviewFallback(data);
+    }
 
-        if (nextAudio.src !== new URL(data.previewUrl, document.baseURI).href) {
-            nextAudio.src = data.previewUrl;
-            nextAudio.load();
+    async function playPreviewFallback(data) {
+        const previewUrl = new URL(data.previewUrl, document.baseURI).href;
+        const previewAudio = nextAudio;
+        activeAudio.pause();
+        pendingFallbackAudio = null;
+
+        if (previewAudio.src !== previewUrl) {
+            previewAudio.src = previewUrl;
+            previewAudio.load();
         }
 
-        activeAudio.pause();
-        [activeAudio, nextAudio] = [nextAudio, activeAudio];
-        activeAudio.currentTime = 0;
-        activeAudio.play().catch(() => console.log("Autoplay blocked."));
+        try {
+            if (previewAudio.readyState < HTMLMediaElement.HAVE_METADATA) {
+                await new Promise((resolve, reject) => {
+                    previewAudio.addEventListener("loadedmetadata", resolve, { once: true });
+                    previewAudio.addEventListener("error", reject, { once: true });
+                });
+            }
+
+            if (previewAudio.src !== previewUrl) return;
+
+            [activeAudio, nextAudio] = [previewAudio, activeAudio];
+            const startedAtUtc = data.startedAtUtc || data.StartedAtUtc;
+            const startedAt = startedAtUtc ? new Date(startedAtUtc).getTime() : Date.now() + serverTimeOffset;
+            const elapsedSeconds = Math.max(0, (Date.now() + serverTimeOffset - startedAt) / 1000);
+            const finalPlayableSecond = Number.isFinite(activeAudio.duration)
+                ? Math.max(0, activeAudio.duration - 0.05)
+                : elapsedSeconds;
+
+            activeAudio.currentTime = Math.min(elapsedSeconds, finalPlayableSecond);
+            await activeAudio.play();
+        } catch (err) {
+            pendingFallbackAudio = previewAudio;
+            showAudioUnlockButton(false);
+            console.warn("Preview autoplay was blocked or failed; it will retry after user interaction.", err);
+        }
     }
 
     setupLobbyHandlers(connection, {
@@ -391,6 +488,7 @@ document.addEventListener("DOMContentLoaded", () => {
         onRoundStarted: (data) => {
             showPhase("question-phase");
 
+            revealedStemLayers.clear();
             startRoundAudio(data);
 
             document.querySelectorAll("#side-player-list .player-pill-item")
@@ -421,7 +519,7 @@ document.addEventListener("DOMContentLoaded", () => {
             resetStemProgress(data);
             runStemProgressClock(data.startedAtUtc || data.StartedAtUtc, data.durationSeconds || data.DurationSeconds);
 
-            renderAnswerChoices(data.answerChoices);
+            renderAnswerChoices(data.answerChoices, data.canAnswer ?? data.CanAnswer ?? true);
             runRoundTimer(data.startedAtUtc, data.durationSeconds);
         },
         onRoundEnded: (data) => {
@@ -563,7 +661,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .then(() => connection.invoke("RequestGamePhase", lobbyCode))
         .catch(err => console.error(err));
 
-    function renderAnswerChoices(choices) {
+    function renderAnswerChoices(choices, canAnswer = true) {
         const container = document.getElementById("answer-choices");
         container.innerHTML = "";
 
@@ -572,9 +670,14 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.textContent = choiceText;
             btn.className = "answer-btn";
             btn.dataset.index = index;
+            btn.disabled = !canAnswer;
             btn.addEventListener("click", () => handleAnswerSelected(index, btn));
             container.appendChild(btn);
         });
+
+        if (!canAnswer) {
+            showToast("This round was locked when you rejoined. You can answer next round.", "warning");
+        }
     }
 
     function handleAnswerSelected(index, btn) {
@@ -902,18 +1005,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const dotEl = playerEl.querySelector('.player-dot');
         if (dotEl) {
-            dotEl.classList.remove('status-active', 'status-answered', 'status-disconnected');
+            dotEl.classList.remove('status-active', 'status-answered', 'status-locked', 'status-disconnected');
             dotEl.classList.add(`status-${normalized}`);
         }
 
         const textEl = playerEl.querySelector('.player-status-text');
         if (textEl) {
-            const statusText = normalized === 'answered' ? 'Answered' : normalized === 'disconnected' ? 'Disconnected' : 'Pondering...';
+            const statusText = normalized === 'answered'
+                ? 'Answered'
+                : normalized === 'locked'
+                    ? 'Locked'
+                    : normalized === 'disconnected'
+                        ? 'Disconnected'
+                        : 'Pondering...';
             textEl.textContent = statusText;
-            textEl.classList.remove('active', 'answered', 'disconnected');
+            textEl.classList.remove('active', 'answered', 'locked', 'disconnected');
             textEl.classList.add(normalized);
         }
 
         playerEl.classList.toggle('has-answered', normalized === 'answered');
+        playerEl.classList.toggle('is-locked', normalized === 'locked');
     }
 });

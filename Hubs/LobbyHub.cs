@@ -393,6 +393,25 @@ namespace SpotifyTrivia.Hubs
 
                 case LobbyState.Question:
                     var question = lobby.Questions[lobby.CurrentQuestionIndex];
+                    var mapping = _lobbyManager.GetConnectionMapping(Context.ConnectionId);
+                    var mappedPlayerId = mapping.HasValue && mapping.Value.lobbyCode == lobbyCode
+                        ? mapping.Value.playerId
+                        : null;
+                    var canAnswer = mappedPlayerId != null;
+                    if (mappedPlayerId != null && lobby.GameMode == GameModeType.StemGuess)
+                    {
+                        canAnswer = await _lobbyManager.InvalidatePlayerAnswerAsync(lobbyCode, mappedPlayerId);
+                    }
+
+                    if (!canAnswer && mappedPlayerId != null)
+                    {
+                        await Clients.Group(lobbyCode).SendAsync("PlayerAnswered", new { PlayerId = mappedPlayerId });
+                        if (lobby.Players.TryGetValue(mappedPlayerId, out var answeredPlayer))
+                        {
+                            await _broadcaster.BroadcastPlayerStatusChanged(lobbyCode, answeredPlayer.PlayerId, answeredPlayer.Status);
+                        }
+                    }
+
                     await Clients.Caller.SendAsync("RoundStarted", new
                     {
                         question.PreviewUrl,
@@ -402,7 +421,8 @@ namespace SpotifyTrivia.Hubs
                         DurationSeconds = lobby.RoundDurationSeconds,
                         QuestionNumber = lobby.CurrentQuestionIndex + 1,
                         TotalQuestions = lobby.Questions.Count,
-                        BlurAlbum = lobby.BlurAlbum
+                        BlurAlbum = lobby.BlurAlbum,
+                        CanAnswer = canAnswer
                     });
 
                     foreach (var player in lobby.Players.Values)

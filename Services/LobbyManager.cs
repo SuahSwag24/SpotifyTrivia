@@ -170,6 +170,46 @@ namespace SpotifyTrivia.Services
             }
         }
 
+        public async Task<bool> InvalidatePlayerAnswerAsync(string code, string playerId)
+        {
+            if (!_lobbies.TryGetValue(code, out var lobby)) return false;
+
+            await lobby.StateLock.WaitAsync();
+            try
+            {
+                if (lobby.State != LobbyState.Question) return true;
+
+                if (!lobby.Players.TryGetValue(playerId, out var player)) return false;
+                if (player.JoinStatus != PlayerJoinStatus.Active) return !player.HasAnsweredCurrentQuestion;
+                if (player.HasAnsweredCurrentQuestion)
+                {
+                    player.Status = PlayerStatus.Locked;
+                    return false;
+                }
+
+                var question = lobby.Questions[lobby.CurrentQuestionIndex];
+                player.HasAnsweredCurrentQuestion = true;
+                player.LastAnswerCorrect = false;
+                player.LastAnswerSubmittedUtc = DateTime.UtcNow;
+                player.AnswerHistory.Add(new AnswerResultModel
+                {
+                    Success = true,
+                    WasCorrect = false,
+                    SubmittedIndex = -1,
+                    CorrectIndex = question.AnswerChoices.IndexOf(question.CorrectAnswer),
+                    CorrectAnswerText = question.CorrectAnswer,
+                    AwardedScore = 0
+                });
+                player.Status = PlayerStatus.Locked;
+
+                return false;
+            }
+            finally
+            {
+                lobby.StateLock.Release();
+            }
+        }
+
         public void RemovePlayer(string code, string playerId)
         {
             if (!_lobbies.TryGetValue(code, out var lobby)) return;

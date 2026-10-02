@@ -14,6 +14,7 @@ namespace SpotifyTrivia.Models.Multiplayer
     {
         Active,
         Answered,
+        Locked,
         Disconnected
     }
 

@@ -110,6 +110,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let stemNodes = {};
     let masterGainNode = null;
     let currentRoundIsStem = false;
+    let stemProgressInterval = null;
 
     function getAudioContext() {
         if (!audioContext) {
@@ -216,6 +217,112 @@ document.addEventListener("DOMContentLoaded", () => {
         stemNodes = {};
     }
 
+    function resetStemProgress(data) {
+        clearInterval(stemProgressInterval);
+        stemProgressInterval = null;
+
+        const container = document.getElementById("stem-progress");
+        const segmentsContainer = document.getElementById("stem-progress-segments");
+        const currentLabel = document.getElementById("stem-progress-current");
+        const revealOrder = data.stemRevealOrder || data.StemRevealOrder || [];
+
+        segmentsContainer.replaceChildren();
+        if (!currentRoundIsStem || revealOrder.length === 0) {
+            container.classList.add("d-none");
+            return;
+        }
+
+        container.classList.remove("d-none");
+        segmentsContainer.style.gridTemplateColumns = `repeat(${revealOrder.length}, minmax(0, 1fr))`;
+        segmentsContainer.setAttribute("aria-valuemax", revealOrder.length);
+        segmentsContainer.setAttribute("aria-valuenow", "0");
+        segmentsContainer.setAttribute("aria-valuetext", "No layers revealed");
+        currentLabel.textContent = "Waiting for first layer";
+
+        for (const stemName of revealOrder) {
+            const segment = document.createElement("div");
+            segment.className = "stem-progress-segment";
+            segment.dataset.stem = stemName.toLowerCase();
+
+            const track = document.createElement("div");
+            track.className = "stem-progress-track";
+            track.setAttribute("aria-hidden", "true");
+
+            const fill = document.createElement("div");
+            fill.className = "stem-progress-fill";
+            track.appendChild(fill);
+
+            const label = document.createElement("span");
+            label.className = "stem-progress-name";
+            label.textContent = stemName;
+
+            segment.append(track, label);
+            segmentsContainer.appendChild(segment);
+        }
+    }
+
+    function runStemProgressClock(startedAtUtc, durationSeconds) {
+        const segmentsContainer = document.getElementById("stem-progress-segments");
+        const segments = [...segmentsContainer.children];
+        if (!currentRoundIsStem || segments.length === 0) return;
+
+        const startTime = new Date(startedAtUtc).getTime();
+        const durationMs = Math.max(Number(durationSeconds) * 1000, 1);
+
+        function tick() {
+            const elapsedMs = Math.max(0, Math.min(Date.now() + serverTimeOffset - startTime, durationMs));
+            const position = (elapsedMs / durationMs) * segments.length;
+            const currentIndex = Math.min(Math.floor(position), segments.length - 1);
+            const currentStem = segments[currentIndex].dataset.stem;
+
+            segments.forEach((segment, index) => {
+                const progress = index < currentIndex
+                    ? 1
+                    : index === currentIndex
+                        ? Math.min(position - currentIndex, 1)
+                        : 0;
+
+                segment.querySelector(".stem-progress-fill").style.width = `${progress * 100}%`;
+                segment.classList.toggle("is-revealed", progress >= 1);
+            });
+
+            const currentLabel = document.getElementById("stem-progress-current");
+            currentLabel.textContent = `Now playing: ${currentStem}`;
+            segmentsContainer.setAttribute("aria-valuenow", position.toFixed(1));
+            segmentsContainer.setAttribute("aria-valuetext", `${position.toFixed(1)} of ${segments.length} stem checkpoints; ${currentStem} playing`);
+
+            if (elapsedMs >= durationMs) {
+                clearInterval(stemProgressInterval);
+                stemProgressInterval = null;
+            }
+        }
+
+        stemProgressInterval = setInterval(tick, 100);
+        tick();
+    }
+
+    function updateStemProgress(data) {
+        const segmentsContainer = document.getElementById("stem-progress-segments");
+        const layerIndex = data.layerIndex ?? data.LayerIndex;
+        const stemName = (data.stem || data.Stem || "").toLowerCase();
+        const segments = [...segmentsContainer.children];
+        const currentIndex = Number.isInteger(layerIndex)
+            ? layerIndex
+            : segments.findIndex(segment => segment.dataset.stem === stemName);
+
+        if (currentIndex < 0 || currentIndex >= segments.length) return;
+
+        for (let index = 0; index <= currentIndex; index++) {
+            segments[index].classList.add("is-revealed");
+        }
+
+        const currentStem = segments[currentIndex].dataset.stem;
+        const currentLabel = document.getElementById("stem-progress-current");
+        currentLabel.textContent = `Now playing: ${currentStem}`;
+        segmentsContainer.setAttribute("aria-valuenow", currentIndex + 1);
+        segmentsContainer.setAttribute("aria-valuetext", `${currentIndex + 1} of ${segments.length} layers revealed; now playing ${currentStem}`);
+    }
+
     function preloadRound(data) {
         const stemUrls = data.stemUrls || data.stemurls;
         if (stemUrls && stemUrls.length > 0) {
@@ -311,6 +418,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById("round-counter").textContent = `Question ${data.questionNumber}/${data.totalQuestions}`;
             document.getElementById('progress-fill').style.width = roundPercent + '%';
+            resetStemProgress(data);
+            runStemProgressClock(data.startedAtUtc || data.StartedAtUtc, data.durationSeconds || data.DurationSeconds);
 
             renderAnswerChoices(data.answerChoices);
             runRoundTimer(data.startedAtUtc, data.durationSeconds);
@@ -402,6 +511,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const stemName = (data.stem || data.Stem)?.toLowerCase();
             if (stemName) {
                 revealStemLayer(stemName);
+                updateStemProgress(data);
             } else {
                 console.warn('[stem] onRevealLayer missing stem name:', data);
             }

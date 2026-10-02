@@ -198,6 +198,71 @@
         transition: width 0.35s ease;
     }
 
+    .stem-progress {
+        margin-top: 1rem;
+        text-align: left;
+    }
+
+    .stem-progress-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+        color: #b3b3b3;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .stem-progress-current {
+        color: #1ed760;
+        text-align: right;
+    }
+
+    .stem-progress-segments {
+        display: grid;
+        gap: 0.4rem;
+    }
+
+    .stem-progress-segment {
+        min-width: 0;
+    }
+
+    .stem-progress-track {
+        height: 8px;
+        overflow: hidden;
+        border-radius: 99px;
+        background: #343434;
+    }
+
+    .stem-progress-fill {
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #1db954, #4de6c1);
+        transition: width 0.3s ease;
+    }
+
+    .stem-progress-segment.is-revealed .stem-progress-fill {
+        width: 100%;
+    }
+
+    .stem-progress-name {
+        display: block;
+        overflow: hidden;
+        margin-top: 0.3rem;
+        color: #777;
+        font-size: 0.65rem;
+        text-align: center;
+        text-overflow: ellipsis;
+        text-transform: capitalize;
+        white-space: nowrap;
+    }
+
+    .stem-progress-segment.is-revealed .stem-progress-name {
+        color: #d8f8e3;
+    }
+
     /* Answer Choices Grid */
     #answer-choices {
         display: grid;
@@ -704,6 +769,13 @@
                     </div>
                     <div class="progress-track">
                         <div id="progress-fill" class="progress-fill"></div>
+                    </div>
+                    <div id="stem-progress" class="stem-progress d-none">
+                        <div class="stem-progress-heading">
+                            <span>Stem layers</span>
+                            <span id="stem-progress-current" class="stem-progress-current" aria-live="polite">Waiting for first layer</span>
+                        </div>
+                        <div id="stem-progress-segments" class="stem-progress-segments" role="progressbar" aria-label="Stem layers revealed" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" aria-valuetext="No layers revealed"></div>
                     </div>
                 </div>
 

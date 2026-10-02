@@ -43,6 +43,7 @@ namespace SpotifyTrivia.Services
                 question.PreviewUrl,
                 question.AlbumCoverUrl,
                 question.AnswerChoices,
+                question.StemRevealOrder,
                 StartedAtUtc = gameStartedAtUtc,
                 DurationSeconds = durationSeconds,
                 QuestionNumber = questionNumber,

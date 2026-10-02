@@ -24,7 +24,7 @@ namespace SpotifyTrivia.Services.GameModes
         }
 
         public GameModeType ModeType => GameModeType.StemGuess;
-        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds, IEnumerable<string> lobbyPlayerIds)
+        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds, IEnumerable<string> lobbyPlayerIds, int roundDurationSeconds = 15)
         {
             var shuffledPool = new List<TrackModel>(tracks)
                 .Where(t => !excludedTrackIds.Contains(t.Id))
@@ -98,9 +98,12 @@ namespace SpotifyTrivia.Services.GameModes
                     }
                 };
 
+                int duration = Math.Clamp(roundDurationSeconds, 10, 25);
+                int startSec = Math.Max(0, (30 - duration) / 2);
+
                 quizQuestions.Add(question);
                 _pendingByJobId[jobId] = question;
-                _stemPipeline.Enqueue(new StemJob(jobId, previewUrl, StartSec: 5, DurationSec: 15));
+                _stemPipeline.Enqueue(new StemJob(jobId, previewUrl, StartSec: startSec, DurationSec: duration));
 
                 excludedTrackIds.Add(candidate.Id);
             }

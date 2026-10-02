@@ -201,13 +201,13 @@ namespace SpotifyTrivia.Services
 
             try
             {
-                lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds);
+                lobby.Questions = await mode.GenerateQuestionsAsync(tracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds, roundDurationSeconds);
             }
             catch (PlaylistExhaustedException) when (CanRetryWithFreshSample(lobby))
             {
                 var freshTracks = await RefetchSample(lobby);
                 lobby.CachedTracks = freshTracks;
-                lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds);
+                lobby.Questions = await mode.GenerateQuestionsAsync(freshTracks, questionCount, lobby.PlayedTrackIds, lobbyPlayerIds, roundDurationSeconds);
             }
 
             lobby.SessionLoopCts = new CancellationTokenSource();

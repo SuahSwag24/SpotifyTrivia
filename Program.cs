@@ -73,6 +73,6 @@ app.MapHub<LobbyHub>("/hubs/lobby");
 app.MapGet("/api/stems/{jobId}/{stem}", (string jobId, string stem, StemStore store) =>
     store.TryGetStem(jobId, stem, out var bytes)
         ? Results.File(bytes, "audio/mpeg")
-        : Results.NotFound());
+        : Results.StatusCode(StatusCodes.Status202Accepted));
 
 app.Run();

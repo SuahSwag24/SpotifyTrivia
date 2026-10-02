@@ -4,5 +4,5 @@ using System.Text;
 
 namespace SpotifyTrivia.Services.Stems
 {
-    public sealed record StemJob(string jobId, string PreviewUrl, int StartSec, int DurationSec);
+    public sealed record StemJob(string JobId, string PreviewUrl, int StartSec, int DurationSec);
 }

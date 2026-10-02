@@ -121,12 +121,22 @@ document.addEventListener("DOMContentLoaded", () => {
         return audioContext;
     }
 
-    async function fetchStemWithRetry(url, { timeoutMs = 30000, intervalMs = 1000 } = {}) {
+    async function fetchStemWithRetry(url, { timeoutMs = 60000, intervalMs = 1000 } = {}) {
         const deadline = Date.now() + timeoutMs;
         while (Date.now() < deadline) {
-            const resp = await fetch(url);
-            if (resp.ok) return await resp.arrayBuffer();
-            if (resp.status !== 404) throw new Error(`Unexpected status ${resp.status} for ${url}`);
+            try {
+                const resp = await fetch(url);
+                if (resp.status === 200) return await resp.arrayBuffer();
+                if (resp.status === 202 || resp.status === 404) {
+                    // Still processing - wait and retry cleanly
+                } else {
+                    throw new Error(`Unexpected status ${resp.status} for ${url}`);
+                }
+            } catch (err) {
+                if (err.message?.startsWith('Unexpected status')) throw err;
+                console.warn(`Stem fetch network error, retrying...`, err.message);
+            }
+
             await new Promise(r => setTimeout(r, intervalMs));
         }
         throw new Error(`Timed out waiting for stem: ${url}`);
@@ -135,13 +145,28 @@ document.addEventListener("DOMContentLoaded", () => {
     async function preloadStems(data) {
         const ctx = getAudioContext();
         const stemNames = ["drums", "bass", "other", "vocals"];
+        const stemUrls = data.stemUrls || data.stemurls || [];
         stemBuffers = {};
 
-        await Promise.all(data.stemUrls.map(async (relativeUrl, i) => {
+        console.log('[stem] Preloading stems:', stemUrls);
+
+        // 1. Poll only the first stem until the separation job finishes
+        if (stemUrls.length > 0) {
+            const firstUrl = new URL(stemUrls[0], document.baseURI).href;
+            await fetchStemWithRetry(firstUrl);
+        }
+
+        // 2. All stems are now guaranteed ready in memory — fetch and decode in parallel (instant 200 OK)
+        await Promise.all(stemUrls.map(async (relativeUrl, i) => {
             const stemName = stemNames[i];
             const url = new URL(relativeUrl, document.baseURI).href;
-            const arrayBuffer = await fetchStemWithRetry(url);
-            stemBuffers[stemName] = await ctx.decodeAudioData(arrayBuffer);
+            try {
+                const arrayBuffer = await fetchStemWithRetry(url, { timeoutMs: 5000 });
+                stemBuffers[stemName] = await ctx.decodeAudioData(arrayBuffer);
+                console.log(`[stem] Decoded successfully: ${stemName}`);
+            } catch (err) {
+                console.error(`[stem] Failed decoding stem "${stemName}" from ${url}:`, err);
+            }
         }));
 
         connection.invoke("RoundReady", lobbyCode, data.roundId)
@@ -149,6 +174,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function startStemRound(data) {
+        console.log('[stem] startStemRound — stemBuffers keys:', Object.keys(stemBuffers));
+        activeAudio.pause();
+        nextAudio.pause();
+
         const ctx = getAudioContext();
         stopStemNodes();
 
@@ -169,10 +198,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function revealStemLayer(stemName) {
+        console.log('[stem] revealStemLayer:', stemName, '— node:', !!stemNodes[stemName]);
         const node = stemNodes[stemName];
         if (!node) return;
-        node.gain.gain.linearRampToValueAtTime(1, audioContext.currentTime + 0.05);
+        const ctx = getAudioContext();
+        node.gain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.05);
     }
+
 
     function stopStemNodes() {
         for (const name in stemNodes) {
@@ -185,7 +217,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function preloadRound(data) {
-        if (data.stemUrls && data.stemUrls.length > 0) {
+        const stemUrls = data.stemUrls || data.stemurls;
+        if (stemUrls && stemUrls.length > 0) {
             currentRoundIsStem = true;
             preloadStems(data).catch(err => console.error("Stem preload failed:", err));
             return;
@@ -212,6 +245,8 @@ document.addEventListener("DOMContentLoaded", () => {
             startStemRound(data);
             return;
         }
+
+        stopStemNodes();
 
         if (nextAudio.src !== new URL(data.previewUrl, document.baseURI).href) {
             nextAudio.src = data.previewUrl;
@@ -363,7 +398,13 @@ document.addEventListener("DOMContentLoaded", () => {
             updatePlayerStatus(data.playerId, data.status);
         },
         onRevealLayer: (data) => {
-            revealStemLayer(data.Stem.toLowerCase());
+            console.log('[stem] onRevealLayer payload:', data);
+            const stemName = (data.stem || data.Stem)?.toLowerCase();
+            if (stemName) {
+                revealStemLayer(stemName);
+            } else {
+                console.warn('[stem] onRevealLayer missing stem name:', data);
+            }
         }
     });
 

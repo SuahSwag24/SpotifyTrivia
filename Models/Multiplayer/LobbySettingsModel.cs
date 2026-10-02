@@ -12,6 +12,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public int RevealSeconds { get; set; } = 3;
         public int JoinGraceSeconds { get; set; } = 3;
         public int AudioReadyTimeoutSeconds { get; set; } = 10;
-        public int StemReadyTimeoutSeconds { get; set; } = 20;
+        public int StemReadyTimeoutSeconds { get; set; } = 60;
     }
 }

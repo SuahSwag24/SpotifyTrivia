@@ -365,7 +365,8 @@ namespace SpotifyTrivia.Hubs
                     {
                         Prompt = preparingQuestion.Prompt,
                         PreviewUrl = preparingQuestion.PreviewUrl,
-                        RoundId = lobby.CurrentRoundId
+                        RoundId = lobby.CurrentRoundId,
+                        StemUrls = preparingQuestion.StemUrls ?? new List<string>()
                     });
                     break;
 

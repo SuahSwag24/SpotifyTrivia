@@ -28,25 +28,23 @@ namespace SpotifyTrivia.Services.Stems
         
         protected override async Task ExecuteAsync(CancellationToken ct)
         {
-            await foreach (var job in _jobs.Reader.ReadAllAsync(ct))
+            var opts = new ParallelOptions { MaxDegreeOfParallelism = 3, CancellationToken = ct };
+            await Parallel.ForEachAsync(_jobs.Reader.ReadAllAsync(ct), opts, async (job, token) =>
             {
-                try
+                if (string.IsNullOrWhiteSpace(job.PreviewUrl) || !Uri.TryCreate(job.PreviewUrl, UriKind.Absolute, out _))
                 {
-                    var (stems, manifest) = await _separator.SeparateAsync(job.PreviewUrl, job.StartSec, job.DurationSec, ct);
-                    _store.Put(job.jobId, stems, manifest);
+                    _logger.LogWarning("Skipping stem job {JobId}: invalid previewUrl", job.JobId);
+                    return;
+                }
 
-                    if (_pending.TryRemove(job.jobId, out var question))
-                    {
-                        question.StemRevealOrder = manifest.Stems.Except(manifest.Silent).ToList();
-                        question.StemDurationMs = manifest.DurationMs;
-                    }
-                }
-                catch (Exception ex)
+                var (stems, manifest) = await _separator.SeparateAsync(job.PreviewUrl, job.StartSec, job.DurationSec, token);
+                _store.Put(job.JobId, stems, manifest);
+                if (_pending.TryRemove(job.JobId, out var question))
                 {
-                    _logger.LogError(ex, "Stem separation failed for job {jobId}", job.jobId);
-                    _pending.TryRemove(job.jobId, out _);
+                    question.StemRevealOrder = manifest.Stems.Except(manifest.Silent).ToList();
+                    question.StemDurationMs = manifest.DurationMs;
                 }
-            }
+            });
         }
     }
 }

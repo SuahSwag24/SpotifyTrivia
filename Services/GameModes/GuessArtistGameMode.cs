@@ -160,7 +160,7 @@ namespace SpotifyTrivia.Services.GameModes
 
             //  Partition 1: Round-Robin, allows uneven amounts of song and cycles through players.
             var roundRobinPartition = new List<TrackModel>();
-            while (roundRobinPartition.Count < roundRobinCount && playerQueues.Any(q => q.Count > 0));
+            while (roundRobinPartition.Count < roundRobinCount && playerQueues.Any(q => q.Count > 0))
             {
                 foreach (var queue in playerQueues)
                 {

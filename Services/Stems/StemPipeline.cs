@@ -28,7 +28,7 @@ namespace SpotifyTrivia.Services.Stems
         
         protected override async Task ExecuteAsync(CancellationToken ct)
         {
-            var opts = new ParallelOptions { MaxDegreeOfParallelism = 3, CancellationToken = ct };
+            var opts = new ParallelOptions { MaxDegreeOfParallelism = 1, CancellationToken = ct };
             await Parallel.ForEachAsync(_jobs.Reader.ReadAllAsync(ct), opts, async (job, token) =>
             {
                 if (job.CancellationToken.IsCancellationRequested)

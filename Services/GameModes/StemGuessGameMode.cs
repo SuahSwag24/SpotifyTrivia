@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
@@ -45,28 +45,30 @@ namespace SpotifyTrivia.Services.GameModes
 
             int maxAttempts = Math.Min(shuffledPool.Count, numberOfQuestions * 3);
 
+            //  Pre-resolve all candidate preview URLs concurrently instead of sequentially.
+            var candidates = shuffledPool.Take(maxAttempts).ToList();
+            var previewTasks = candidates
+                .Select(c => string.IsNullOrEmpty(c.Isrc)
+                    ? Task.FromResult<string?>(null)
+                    : _deezerService.GetPreviewUrlAsync(c.Isrc))
+                .ToList();
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var previewUrls = await Task.WhenAll(previewTasks);
+            cancellationToken.ThrowIfCancellationRequested();
+
             var quizQuestions = new List<TriviaQuestionModel>();
 
-            for (int i = 0; i < maxAttempts; i++)
+            for (int i = 0; i < candidates.Count; i++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
                 if (quizQuestions.Count >= numberOfQuestions)
-                {
                     break;
-                }
 
-                var candidate = shuffledPool[i];
+                var candidate = candidates[i];
+                var previewUrl = previewUrls[i];
 
-                var isrc = candidate.Isrc;
-                if (string.IsNullOrEmpty(isrc)) continue;
-
-                var previewUrl = await _deezerService.GetPreviewUrlAsync(isrc);
-                cancellationToken.ThrowIfCancellationRequested();
                 if (string.IsNullOrEmpty(previewUrl))
-                {
                     continue;
-                }
 
                 string correctAnswer = $"{candidate.Title} - {candidate.Artist}";
 

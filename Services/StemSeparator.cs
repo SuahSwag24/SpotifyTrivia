@@ -55,5 +55,21 @@ namespace SpotifyTrivia.Services
 
             return (stems, manifest);
         }
+
+        public async Task<bool> IsAvailableAsync(CancellationToken  ct)
+        {
+            try
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(TimeSpan.FromSeconds(5));
+
+                using var resp = await _http.GetAsync("/health", cts.Token);
+                return resp.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false; //    Unreachable, timed out, etc.
+            }
+        }
     }
 }

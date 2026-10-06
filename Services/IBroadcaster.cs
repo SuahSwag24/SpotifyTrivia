@@ -22,5 +22,6 @@ namespace SpotifyTrivia.Services
         Task BroadcastPlayerKicked(string code, string playerId, string displayName);
         Task SendPromotedToActive(string connectionId);
         Task BroadcastRevealLayer(string lobbyCode, string roundId, int layerIndex, string stem);
+        Task BroadcastActionError(string lobbyCode, object payload);
     }
 }

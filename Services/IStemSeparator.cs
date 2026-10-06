@@ -9,5 +9,6 @@ namespace SpotifyTrivia.Services
     public interface IStemSeparator
     {
         Task<(Dictionary<string, byte[]> Stems, StemManifest Manifest)> SeparateAsync(string previewUrl, int startSec, int durationSec, CancellationToken ct);
+        Task<bool> IsAvailableAsync(CancellationToken ct);
     }
 }

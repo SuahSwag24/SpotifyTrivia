@@ -25,14 +25,16 @@ namespace SpotifyTrivia.Services
         private readonly ConcurrentDictionary<string, (string lobbyCode, string playerId)> _connectionMap = new();
         private readonly ILogger<LobbyManager> _logger;
         private readonly ISpotifyService _spotifyService;
+        private readonly IStemSeparator _stemSeparator;
         
-        public LobbyManager(IGameModeFactory gameModeFactory, IBroadcaster lobbyBroadcaster, ILogger<LobbyManager> logger, ISpotifyService spotifyService, LobbySettingsModel settings)
+        public LobbyManager(IGameModeFactory gameModeFactory, IBroadcaster lobbyBroadcaster, ILogger<LobbyManager> logger, ISpotifyService spotifyService, LobbySettingsModel settings, IStemSeparator stemSeparator)
         {
             _gameModeFactory = gameModeFactory;
             _lobbyBroadcaster = lobbyBroadcaster;
             _settings = settings;
             _logger = logger;
             _spotifyService = spotifyService;
+            _stemSeparator = stemSeparator;
         }
 
         public LobbyModel CreateLobby(string hostPlayerId, string hostPlayerName, string hostAccessToken, string? hostRefreshToken)
@@ -232,6 +234,21 @@ namespace SpotifyTrivia.Services
             if (!_lobbies.TryGetValue(code, out var lobby)) return;
 
             var mode = _gameModeFactory.GetGameMode(lobby.GameMode);
+
+            //  Checks if stem worker is available
+            if (lobby.GameMode == GameModeType.StemGuess)
+            {
+                bool workerUp = await _stemSeparator.IsAvailableAsync(CancellationToken.None);
+                if (!workerUp)
+                {
+                    await _lobbyBroadcaster.BroadcastActionError(lobby.Code, new
+                    {
+                        code = "STEMMWORKERUNAVAILABLE",
+                        Message = "Stem separation service is currently unavailable. Select another gamemode and try again later."
+                    });
+                    return;
+                }
+            }
 
             var lobbyPlayerIds = lobby.Players.Values
                 .Where(p => p.JoinStatus == PlayerJoinStatus.Active)

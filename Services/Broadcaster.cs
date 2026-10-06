@@ -135,5 +135,10 @@ namespace SpotifyTrivia.Services
             };
             return _hubContext.Clients.Group(lobbyCode).SendAsync("RevealLayer", payload);
         }
+
+        public Task BroadcastActionError(string lobbyCode, object errorPayload)
+        {
+            return _hubContext.Clients.Group(lobbyCode).SendAsync("ActionError", errorPayload);
+        }
     }
 }

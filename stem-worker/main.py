@@ -78,6 +78,11 @@ async def fetch_preview(preview_url: str, raw_path: Path, max_attempts: int = 3)
 
     raise HTTPException(status_code=502, detail=f"preview fetch timed out after {max_attempts} attempts") from last_exc
 
+#   Worker health check
+@app.get("/health")
+async def health():
+    return {"status" : "ok"}
+
 #   Request
 @app.post("/separate")
 async def separate(req: SeparationRequest, x_api_key: Annotated[str, Header()]):

@@ -243,7 +243,7 @@ namespace SpotifyTrivia.Services
                 {
                     await _lobbyBroadcaster.BroadcastActionError(lobby.Code, new
                     {
-                        code = "STEMMWORKERUNAVAILABLE",
+                        code = "STEMWORKERUNAVAILABLE",
                         Message = "Stem separation service is currently unavailable. Select another gamemode and try again later."
                     });
                     return;
@@ -298,6 +298,21 @@ namespace SpotifyTrivia.Services
             if (!_lobbies.TryGetValue(code, out var lobby)) return;
 
             var mode = _gameModeFactory.GetGameMode(lobby.GameMode);
+
+            //  Checks if stem worker is available
+            if (lobby.GameMode == GameModeType.StemGuess)
+            {
+                bool workerUp = await _stemSeparator.IsAvailableAsync(CancellationToken.None);
+                if (!workerUp)
+                {
+                    await _lobbyBroadcaster.BroadcastActionError(lobby.Code, new
+                    {
+                        code = "STEMWORKERUNAVAILABLE",
+                        Message = "Stem separation service is currently unavailable. Select another gamemode and try again later."
+                    });
+                    return;
+                }
+            }
 
             var lobbyPlayerIds = lobby.Players.Values
                 .Where(p => p.JoinStatus == PlayerJoinStatus.Active)

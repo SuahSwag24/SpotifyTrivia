@@ -142,12 +142,10 @@ namespace SpotifyTrivia.Services.GameModes
             int score = 0;
             if (isCorrect)
             {
-                score = CalculateScore(roundStartedAtUtc, answeredAtUtc, roundDurationSeconds, isSelfContributed);
-
-                //  Future scoring strategy
-                //  int layerIndex = GetRevealedLayerIndex(question, roundStartedAtUtc, answeredAtUtc);
-                //  double layerMultiplier = GetLayerMultiplier(layerIndex, question.StemRevealOrder.Count);
-                //  score = (int)Math.Round(score * layerMultiplier);
+                //  Stem Guess exclusive scoring strategy
+                int layerIndex = GetRevealedLayerIndex(question, roundStartedAtUtc, answeredAtUtc, roundDurationSeconds);
+                double layerMultiplier = GetLayerMultiplier(layerIndex, question.StemRevealOrder.Count);
+                score = CalculateScore(roundStartedAtUtc, answeredAtUtc, roundDurationSeconds, layerMultiplier, isSelfContributed);
             }
 
             return new AnswerResultModel
@@ -164,18 +162,19 @@ namespace SpotifyTrivia.Services.GameModes
 
         // Which stem layer was audible when the player answered.
         // Mirrors the fixed offsets used for BroadcastRevealLayer (0s, 5s, 10s, ...).
-        private int GetRevealedLayerIndex(TriviaQuestionModel question, DateTime roundStartedAtUtc, DateTime answeredAtUtc)
+        private int GetRevealedLayerIndex(TriviaQuestionModel question, DateTime roundStartedAtUtc, DateTime answeredAtUtc, double roundDurationSeconds)
         {
             double elapsedSec = (answeredAtUtc - roundStartedAtUtc).TotalSeconds;
             int layerCount = question.StemRevealOrder.Count; // e.g. 4: drums, bass, other, vocals
-            double layerIntervalSec = question.StemDurationMs / 1000.0 / layerCount;
+            if (layerCount == 0) return 0;
+            if (roundDurationSeconds <= 0) return elapsedSec >= 0 ? layerCount - 1 : 0;
 
+            double layerIntervalSec = roundDurationSeconds / layerCount;
             int layerIndex = (int)(elapsedSec / layerIntervalSec);
             return Math.Clamp(layerIndex, 0, layerCount - 1);
         }
 
         // Earlier guesses (fewer layers revealed) score higher.
-        // layerIndex 0 = only first stem playing; last index = full mix.
         private double GetLayerMultiplier(int layerIndex, int layerCount)
         {
             if (layerCount <= 1) return 1.0;
@@ -257,17 +256,20 @@ namespace SpotifyTrivia.Services.GameModes
             return questionPool;
         }
 
-        private int CalculateScore(DateTime roundStartedAtUtc, DateTime playerAnsweredAtUtc, double roundDurationSeconds, bool isSelfContributed)
+        private int CalculateScore(DateTime roundStartedAtUtc, DateTime answeredAtUtc, double roundDurationSeconds, double layerMultiplier, bool isSelfContributed)
         {
-            double elapsedSeconds = (playerAnsweredAtUtc - roundStartedAtUtc).TotalSeconds;
-            double score = 100 * (1 - elapsedSeconds / roundDurationSeconds);
+            double elapsedSeconds = (answeredAtUtc - roundStartedAtUtc).TotalSeconds;
+            double remainingFraction = roundDurationSeconds > 0
+                ? Math.Max(0, 1 - elapsedSeconds / roundDurationSeconds)
+                : 0;
+            double score = 500 * remainingFraction * layerMultiplier;
 
             if (isSelfContributed)
             {
                 score *= SELFCONTRIBUTIONPENALTYMULTIPLIER;
             }
 
-            return Math.Clamp((int)Math.Round(score), 1, 100);
+            return Math.Clamp((int)Math.Round(score), 1, 500);
         }
     }
 }

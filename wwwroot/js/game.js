@@ -103,8 +103,284 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let activeAudio = document.getElementById("round-audio");
     let nextAudio = document.getElementById("next-round-audio");
+    const enableAudioButton = document.getElementById("enable-audio-btn");
+
+    //  Audio controls exclusive to Stem Game Mode
+    let audioContext = null;
+    let stemBuffers = {};
+    let stemNodes = {};
+    let masterGainNode = null;
+    let currentRoundIsStem = false;
+    let stemProgressInterval = null;
+    let pendingFallbackAudio = null;
+    let pendingStemRoundData = null;
+    let revealedStemLayers = new Set();
+
+    function showAudioUnlockButton(forStemAudio) {
+        enableAudioButton.textContent = forStemAudio ? "Enable stem audio" : "Enable audio";
+        enableAudioButton.classList.remove("d-none");
+    }
+
+    function hideAudioUnlockButton() {
+        enableAudioButton.classList.add("d-none");
+    }
+
+    async function unlockAudio() {
+        enableAudioButton.disabled = true;
+        try {
+            if (pendingStemRoundData && Object.keys(stemBuffers).length > 0) {
+                const context = getAudioContext();
+                await context.resume();
+                if (context.state !== "running") throw new Error("Audio context is still suspended.");
+
+                const roundData = pendingStemRoundData;
+                pendingStemRoundData = null;
+                pendingFallbackAudio = null;
+                startStemRound(roundData);
+            } else if (pendingFallbackAudio) {
+                const audio = pendingFallbackAudio;
+                await audio.play();
+                if (pendingFallbackAudio === audio) pendingFallbackAudio = null;
+                hideAudioUnlockButton();
+            }
+        } catch (err) {
+            console.warn("Audio could not be enabled.", err);
+            showAudioUnlockButton(!!pendingStemRoundData);
+        } finally {
+            enableAudioButton.disabled = false;
+        }
+    }
+
+    enableAudioButton.addEventListener("click", unlockAudio);
+
+    function getAudioContext() {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            masterGainNode = audioContext.createGain();
+            masterGainNode.gain.value = activeAudio.volume ?? 1;
+            masterGainNode.connect(audioContext.destination);
+        }
+        return audioContext;
+    }
+
+    async function fetchStemWithRetry(url, { timeoutMs = 60000, intervalMs = 1000 } = {}) {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+            try {
+                const resp = await fetch(url);
+                if (resp.status === 200) return await resp.arrayBuffer();
+                if (resp.status === 202 || resp.status === 404) {
+                    // Still processing - wait and retry cleanly
+                } else {
+                    throw new Error(`Unexpected status ${resp.status} for ${url}`);
+                }
+            } catch (err) {
+                if (err.message?.startsWith('Unexpected status')) throw err;
+                console.warn(`Stem fetch network error, retrying...`, err.message);
+            }
+
+            await new Promise(r => setTimeout(r, intervalMs));
+        }
+        throw new Error(`Timed out waiting for stem: ${url}`);
+    }
+
+    async function preloadStems(data) {
+        const ctx = getAudioContext();
+        const stemNames = ["drums", "bass", "other", "vocals"];
+        const stemUrls = data.stemUrls || data.stemurls || [];
+        stemBuffers = {};
+
+        // 1. Poll only the first stem until the separation job finishes
+        if (stemUrls.length > 0) {
+            const firstUrl = new URL(stemUrls[0], document.baseURI).href;
+            await fetchStemWithRetry(firstUrl);
+        }
+
+        // 2. All stems are now guaranteed ready in memory — fetch and decode in parallel (instant 200 OK)
+        await Promise.all(stemUrls.map(async (relativeUrl, i) => {
+            const stemName = stemNames[i];
+            const url = new URL(relativeUrl, document.baseURI).href;
+            try {
+                const arrayBuffer = await fetchStemWithRetry(url, { timeoutMs: 5000 });
+                stemBuffers[stemName] = await ctx.decodeAudioData(arrayBuffer);
+            } catch (err) {
+                console.error(`[stem] Failed decoding stem "${stemName}" from ${url}:`, err);
+            }
+        }));
+
+        connection.invoke("RoundReady", lobbyCode, data.roundId)
+            .catch(err => console.error("Round-ready signal failed:", err));
+    }
+
+    function startStemRound(data) {
+        activeAudio.pause();
+        nextAudio.pause();
+        pendingFallbackAudio = null;
+        pendingStemRoundData = null;
+        hideAudioUnlockButton();
+
+        const ctx = getAudioContext();
+        stopStemNodes();
+
+        const startAt = ctx.currentTime + 0.1;
+        const startedAtUtc = data.startedAtUtc || data.StartedAtUtc;
+        const startedAt = startedAtUtc ? new Date(startedAtUtc).getTime() : Date.now() + serverTimeOffset;
+        const elapsedSeconds = Math.max(0, (Date.now() + serverTimeOffset - startedAt) / 1000);
+
+        for (const stemName of Object.keys(stemBuffers)) {
+            if (elapsedSeconds >= stemBuffers[stemName].duration) continue;
+
+            const source = ctx.createBufferSource();
+            source.buffer = stemBuffers[stemName];
+
+            const gain = ctx.createGain();
+            gain.gain.value = revealedStemLayers.has(stemName) ? 1 : 0;
+
+            source.connect(gain).connect(masterGainNode);
+            source.start(startAt, elapsedSeconds);
+
+            stemNodes[stemName] = { source, gain };
+        }
+    }
+
+    function revealStemLayer(stemName) {
+        revealedStemLayers.add(stemName);
+        const node = stemNodes[stemName];
+        if (!node) return;
+        const ctx = getAudioContext();
+        node.gain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.05);
+    }
+
+
+    function stopStemNodes() {
+        for (const name in stemNodes) {
+            try {
+                stemNodes[name].source.stop();
+            }
+            catch {}
+        }
+        stemNodes = {};
+    }
+
+    function resetStemProgress(data) {
+        clearInterval(stemProgressInterval);
+        stemProgressInterval = null;
+
+        const container = document.getElementById("stem-progress");
+        const segmentsContainer = document.getElementById("stem-progress-segments");
+        const currentLabel = document.getElementById("stem-progress-current");
+        const revealOrder = data.stemRevealOrder || data.StemRevealOrder || [];
+
+        segmentsContainer.replaceChildren();
+        if (!currentRoundIsStem || revealOrder.length === 0) {
+            container.classList.add("d-none");
+            return;
+        }
+
+        container.classList.remove("d-none");
+        segmentsContainer.style.gridTemplateColumns = `repeat(${revealOrder.length}, minmax(0, 1fr))`;
+        segmentsContainer.setAttribute("aria-valuemax", revealOrder.length);
+        segmentsContainer.setAttribute("aria-valuenow", "0");
+        segmentsContainer.setAttribute("aria-valuetext", "No layers revealed");
+        currentLabel.textContent = "Waiting for first layer";
+
+        for (const stemName of revealOrder) {
+            const segment = document.createElement("div");
+            segment.className = "stem-progress-segment";
+            segment.dataset.stem = stemName.toLowerCase();
+
+            const track = document.createElement("div");
+            track.className = "stem-progress-track";
+            track.setAttribute("aria-hidden", "true");
+
+            const fill = document.createElement("div");
+            fill.className = "stem-progress-fill";
+            track.appendChild(fill);
+
+            const label = document.createElement("span");
+            label.className = "stem-progress-name";
+            label.textContent = stemName;
+
+            segment.append(track, label);
+            segmentsContainer.appendChild(segment);
+        }
+    }
+
+    function runStemProgressClock(startedAtUtc, durationSeconds) {
+        const segmentsContainer = document.getElementById("stem-progress-segments");
+        const segments = [...segmentsContainer.children];
+        if (!currentRoundIsStem || segments.length === 0) return;
+
+        const startTime = new Date(startedAtUtc).getTime();
+        const durationMs = Math.max(Number(durationSeconds) * 1000, 1);
+
+        function tick() {
+            const elapsedMs = Math.max(0, Math.min(Date.now() + serverTimeOffset - startTime, durationMs));
+            const position = (elapsedMs / durationMs) * segments.length;
+            const currentIndex = Math.min(Math.floor(position), segments.length - 1);
+            const currentStem = segments[currentIndex].dataset.stem;
+
+            segments.forEach((segment, index) => {
+                const progress = index < currentIndex
+                    ? 1
+                    : index === currentIndex
+                        ? Math.min(position - currentIndex, 1)
+                        : 0;
+
+                segment.querySelector(".stem-progress-fill").style.width = `${progress * 100}%`;
+                segment.classList.toggle("is-revealed", progress >= 1);
+            });
+
+            const currentLabel = document.getElementById("stem-progress-current");
+            currentLabel.textContent = `Now playing: ${currentStem}`;
+            segmentsContainer.setAttribute("aria-valuenow", position.toFixed(1));
+            segmentsContainer.setAttribute("aria-valuetext", `${position.toFixed(1)} of ${segments.length} stem checkpoints; ${currentStem} playing`);
+
+            if (elapsedMs >= durationMs) {
+                clearInterval(stemProgressInterval);
+                stemProgressInterval = null;
+            }
+        }
+
+        stemProgressInterval = setInterval(tick, 100);
+        tick();
+    }
+
+    function updateStemProgress(data) {
+        const segmentsContainer = document.getElementById("stem-progress-segments");
+        const layerIndex = data.layerIndex ?? data.LayerIndex;
+        const stemName = (data.stem || data.Stem || "").toLowerCase();
+        const segments = [...segmentsContainer.children];
+        const currentIndex = Number.isInteger(layerIndex)
+            ? layerIndex
+            : segments.findIndex(segment => segment.dataset.stem === stemName);
+
+        if (currentIndex < 0 || currentIndex >= segments.length) return;
+
+        for (let index = 0; index <= currentIndex; index++) {
+            segments[index].classList.add("is-revealed");
+        }
+
+        const currentStem = segments[currentIndex].dataset.stem;
+        const currentLabel = document.getElementById("stem-progress-current");
+        currentLabel.textContent = `Now playing: ${currentStem}`;
+        segmentsContainer.setAttribute("aria-valuenow", currentIndex + 1);
+        segmentsContainer.setAttribute("aria-valuetext", `${currentIndex + 1} of ${segments.length} layers revealed; now playing ${currentStem}`);
+    }
 
     function preloadRound(data) {
+        const stemUrls = data.stemUrls || data.stemurls;
+        if (stemUrls && stemUrls.length > 0) {
+            currentRoundIsStem = true;
+            preloadStems(data).catch(err => {
+                currentRoundIsStem = false;
+                stemBuffers = {};
+                console.error("Stem preload failed; using the preview fallback.", err);
+            });
+            return;
+        }
+
+        currentRoundIsStem = false;
         const previewUrl = new URL(data.previewUrl, document.baseURI).href;
         let readinessSent = false;
 
@@ -120,16 +396,66 @@ document.addEventListener("DOMContentLoaded", () => {
         nextAudio.load();
     }
 
-    function startRoundAudio(data) {
-        if (nextAudio.src !== new URL(data.previewUrl, document.baseURI).href) {
-            nextAudio.src = data.previewUrl;
-            nextAudio.load();
+    async function startRoundAudio(data) {
+        pendingFallbackAudio = null;
+        pendingStemRoundData = null;
+        hideAudioUnlockButton();
+
+        if (currentRoundIsStem && Object.keys(stemBuffers).length > 0) {
+            try {
+                const context = getAudioContext();
+                if (context.state === "running") {
+                    startStemRound(data);
+                } else {
+                    pendingStemRoundData = data;
+                    showAudioUnlockButton(true);
+                }
+                return;
+            } catch (err) {
+                console.warn("Stem audio is unavailable; using the preview fallback.", err);
+            }
         }
 
+        stopStemNodes();
+        await playPreviewFallback(data);
+    }
+
+    async function playPreviewFallback(data) {
+        const previewUrl = new URL(data.previewUrl, document.baseURI).href;
+        const previewAudio = nextAudio;
         activeAudio.pause();
-        [activeAudio, nextAudio] = [nextAudio, activeAudio];
-        activeAudio.currentTime = 0;
-        activeAudio.play().catch(() => console.log("Autoplay blocked."));
+        pendingFallbackAudio = null;
+
+        if (previewAudio.src !== previewUrl) {
+            previewAudio.src = previewUrl;
+            previewAudio.load();
+        }
+
+        try {
+            if (previewAudio.readyState < HTMLMediaElement.HAVE_METADATA) {
+                await new Promise((resolve, reject) => {
+                    previewAudio.addEventListener("loadedmetadata", resolve, { once: true });
+                    previewAudio.addEventListener("error", reject, { once: true });
+                });
+            }
+
+            if (previewAudio.src !== previewUrl) return;
+
+            [activeAudio, nextAudio] = [previewAudio, activeAudio];
+            const startedAtUtc = data.startedAtUtc || data.StartedAtUtc;
+            const startedAt = startedAtUtc ? new Date(startedAtUtc).getTime() : Date.now() + serverTimeOffset;
+            const elapsedSeconds = Math.max(0, (Date.now() + serverTimeOffset - startedAt) / 1000);
+            const finalPlayableSecond = Number.isFinite(activeAudio.duration)
+                ? Math.max(0, activeAudio.duration - 0.05)
+                : elapsedSeconds;
+
+            activeAudio.currentTime = Math.min(elapsedSeconds, finalPlayableSecond);
+            await activeAudio.play();
+        } catch (err) {
+            pendingFallbackAudio = previewAudio;
+            showAudioUnlockButton(false);
+            console.warn("Preview autoplay was blocked or failed; it will retry after user interaction.", err);
+        }
     }
 
     setupLobbyHandlers(connection, {
@@ -156,6 +482,7 @@ document.addEventListener("DOMContentLoaded", () => {
         onRoundStarted: (data) => {
             showPhase("question-phase");
 
+            revealedStemLayers.clear();
             startRoundAudio(data);
 
             document.querySelectorAll("#side-player-list .player-pill-item")
@@ -183,8 +510,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
             document.getElementById("round-counter").textContent = `Question ${data.questionNumber}/${data.totalQuestions}`;
             document.getElementById('progress-fill').style.width = roundPercent + '%';
+            resetStemProgress(data);
+            runStemProgressClock(data.startedAtUtc || data.StartedAtUtc, data.durationSeconds || data.DurationSeconds);
 
-            renderAnswerChoices(data.answerChoices);
+            renderAnswerChoices(data.answerChoices, data.canAnswer ?? data.CanAnswer ?? true);
             runRoundTimer(data.startedAtUtc, data.durationSeconds);
         },
         onRoundEnded: (data) => {
@@ -268,6 +597,15 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         onPlayerStatusChanged: (data) => {
             updatePlayerStatus(data.playerId, data.status);
+        },
+        onRevealLayer: (data) => {
+            const stemName = (data.stem || data.Stem)?.toLowerCase();
+            if (stemName) {
+                revealStemLayer(stemName);
+                updateStemProgress(data);
+            } else {
+                console.warn('[stem] onRevealLayer missing stem name:', data);
+            }
         }
     });
 
@@ -316,7 +654,7 @@ document.addEventListener("DOMContentLoaded", () => {
         .then(() => connection.invoke("RequestGamePhase", lobbyCode))
         .catch(err => console.error(err));
 
-    function renderAnswerChoices(choices) {
+    function renderAnswerChoices(choices, canAnswer = true) {
         const container = document.getElementById("answer-choices");
         container.innerHTML = "";
 
@@ -325,9 +663,14 @@ document.addEventListener("DOMContentLoaded", () => {
             btn.textContent = choiceText;
             btn.className = "answer-btn";
             btn.dataset.index = index;
+            btn.disabled = !canAnswer;
             btn.addEventListener("click", () => handleAnswerSelected(index, btn));
             container.appendChild(btn);
         });
+
+        if (!canAnswer) {
+            showToast("This round was locked when you rejoined. You can answer next round.", "warning");
+        }
     }
 
     function handleAnswerSelected(index, btn) {
@@ -588,12 +931,14 @@ document.addEventListener("DOMContentLoaded", () => {
     volumeSlider.value = initialVolume;
     activeAudio.volume = initialVolume / 100;
     nextAudio.volume = initialVolume / 100;
+    if (masterGainNode) masterGainNode.gain.value = initialVolume / 100;
     updateVolumeIcon(initialVolume);
 
     volumeSlider.addEventListener("input", () => {
         const value = parseInt(volumeSlider.value, 10);
         activeAudio.volume = value / 100;
         nextAudio.volume = value / 100;
+        if (masterGainNode) masterGainNode.gain.value = value / 100;
         localStorage.setItem("triviaVolume", value);
         updateVolumeIcon(value);
     });
@@ -653,18 +998,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const dotEl = playerEl.querySelector('.player-dot');
         if (dotEl) {
-            dotEl.classList.remove('status-active', 'status-answered', 'status-disconnected');
+            dotEl.classList.remove('status-active', 'status-answered', 'status-locked', 'status-disconnected');
             dotEl.classList.add(`status-${normalized}`);
         }
 
         const textEl = playerEl.querySelector('.player-status-text');
         if (textEl) {
-            const statusText = normalized === 'answered' ? 'Answered' : normalized === 'disconnected' ? 'Disconnected' : 'Pondering...';
+            const statusText = normalized === 'answered'
+                ? 'Answered'
+                : normalized === 'locked'
+                    ? 'Locked'
+                    : normalized === 'disconnected'
+                        ? 'Disconnected'
+                        : 'Pondering...';
             textEl.textContent = statusText;
-            textEl.classList.remove('active', 'answered', 'disconnected');
+            textEl.classList.remove('active', 'answered', 'locked', 'disconnected');
             textEl.classList.add(normalized);
         }
 
         playerEl.classList.toggle('has-answered', normalized === 'answered');
+        playerEl.classList.toggle('is-locked', normalized === 'locked');
     }
 });

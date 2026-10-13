@@ -92,6 +92,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
+            if (data.code === "STEMWORKERUNAVAILABLE") {
+                showToast(data.message, "danger");
+                return;
+            }
+
             showError(data.message);
         },
         onLobbyDisbanded: () => { window.location.href = "/multiplayer"; },

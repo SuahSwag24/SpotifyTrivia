@@ -7,6 +7,7 @@ namespace SpotifyTrivia.Models.Multiplayer
     public enum GameModeType
     {
         ClassicGuessSong = 0,
-        GuessArtist = 1
+        GuessArtist = 1,
+        StemGuess = 2
     }
 }

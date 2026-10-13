@@ -21,7 +21,7 @@ namespace SpotifyTrivia.Services.GameModes
 
         public GameModeType ModeType => GameModeType.ClassicGuessSong;
 
-        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds, IEnumerable<string> lobbyPlayerIds)
+        public async Task<List<TriviaQuestionModel>> GenerateQuestionsAsync(List<TrackModel> tracks, int numberOfQuestions, HashSet<string> excludedTrackIds, IEnumerable<string> lobbyPlayerIds, int roundDurationSeconds)
         {
             var shuffledPool = new List<TrackModel>(tracks)
                 .Where(t => !excludedTrackIds.Contains(t.Id))

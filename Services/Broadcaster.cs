@@ -23,10 +23,11 @@ namespace SpotifyTrivia.Services
                 .SendAsync("PreparingGame");
         }
 
-        public Task BroadcastRoundPreparing(string lobbyCode, string prompt, string previewUrl, string roundId)
+        public Task BroadcastRoundPreparing(string lobbyCode, string prompt, string previewUrl, string roundId, List<string>? stemUrls = null)
         {
+            var payload = new { Prompt = prompt, PreviewUrl = previewUrl, RoundId = roundId, StemUrls = stemUrls ?? new List<string>() };
             return _hubContext.Clients.Group(lobbyCode)
-                .SendAsync("RoundPreparing", new { Prompt = prompt, PreviewUrl = previewUrl, RoundId = roundId });
+                .SendAsync("RoundPreparing", payload);
         }
 
         public Task BroadcastCountdownStart(string lobbyCode, int seconds, DateTime startedAtUtc, string prompt, string previewUrl, string roundId)
@@ -42,6 +43,7 @@ namespace SpotifyTrivia.Services
                 question.PreviewUrl,
                 question.AlbumCoverUrl,
                 question.AnswerChoices,
+                question.StemRevealOrder,
                 StartedAtUtc = gameStartedAtUtc,
                 DurationSeconds = durationSeconds,
                 QuestionNumber = questionNumber,
@@ -121,6 +123,22 @@ namespace SpotifyTrivia.Services
         public Task SendPromotedToActive(string connectionId)
         {
             return _hubContext.Clients.Client(connectionId).SendAsync("PromotedToActive");
+        }
+
+        public Task BroadcastRevealLayer(string lobbyCode, string roundId, int layerIndex, string stem)
+        {
+            var payload = new
+            {
+                RoundId = roundId,
+                LayerIndex = layerIndex,
+                Stem = stem
+            };
+            return _hubContext.Clients.Group(lobbyCode).SendAsync("RevealLayer", payload);
+        }
+
+        public Task BroadcastActionError(string lobbyCode, object errorPayload)
+        {
+            return _hubContext.Clients.Group(lobbyCode).SendAsync("ActionError", errorPayload);
         }
     }
 }

@@ -190,8 +190,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const stemUrls = data.stemUrls || data.stemurls || [];
         stemBuffers = {};
 
-        console.log('[stem] Preloading stems:', stemUrls);
-
         // 1. Poll only the first stem until the separation job finishes
         if (stemUrls.length > 0) {
             const firstUrl = new URL(stemUrls[0], document.baseURI).href;
@@ -205,7 +203,6 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 const arrayBuffer = await fetchStemWithRetry(url, { timeoutMs: 5000 });
                 stemBuffers[stemName] = await ctx.decodeAudioData(arrayBuffer);
-                console.log(`[stem] Decoded successfully: ${stemName}`);
             } catch (err) {
                 console.error(`[stem] Failed decoding stem "${stemName}" from ${url}:`, err);
             }
@@ -216,7 +213,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function startStemRound(data) {
-        console.log('[stem] startStemRound — stemBuffers keys:', Object.keys(stemBuffers));
         activeAudio.pause();
         nextAudio.pause();
         pendingFallbackAudio = null;
@@ -248,7 +244,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function revealStemLayer(stemName) {
-        console.log('[stem] revealStemLayer:', stemName, '— node:', !!stemNodes[stemName]);
         revealedStemLayers.add(stemName);
         const node = stemNodes[stemName];
         if (!node) return;
@@ -475,7 +470,6 @@ document.addEventListener("DOMContentLoaded", () => {
             document.getElementById("prompt-text").textContent = `${data.prompt}`;
         },
         onRoundPreparing: (data) => {
-            console.log(data)
             showPhase("countdown-phase");
             const audioLoadingContainer = document.getElementById("audio-loading-container");
             audioLoadingContainer.classList.remove("d-none");
@@ -605,7 +599,6 @@ document.addEventListener("DOMContentLoaded", () => {
             updatePlayerStatus(data.playerId, data.status);
         },
         onRevealLayer: (data) => {
-            console.log('[stem] onRevealLayer payload:', data);
             const stemName = (data.stem || data.Stem)?.toLowerCase();
             if (stemName) {
                 revealStemLayer(stemName);

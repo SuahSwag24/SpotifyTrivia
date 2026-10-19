@@ -36,13 +36,14 @@ namespace SpotifyTrivia.Services
                 .SendAsync("CountdownStarted", new { Seconds = seconds, StartedAtUtc = startedAtUtc, Prompt = prompt, PreviewUrl = previewUrl, RoundId = roundId });
         }
 
-        public Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds, int questionNumber, int totalQuestions, AlbumCoverVisibility blurAlbum)
+        public Task BroadcastRoundStarted(string lobbyCode, TriviaQuestionModel question, DateTime gameStartedAtUtc, int durationSeconds, int questionNumber, int totalQuestions, AlbumCoverVisibility blurAlbum, AnswerStyle answerStyle = AnswerStyle.MultipleChoice)
         {
             var payload = new
             {
                 question.PreviewUrl,
                 question.AlbumCoverUrl,
-                question.AnswerChoices,
+                AnswerChoices = answerStyle == AnswerStyle.Search ? new List<string>() : question.AnswerChoices,
+                AnswerStyle = answerStyle,
                 question.StemRevealOrder,
                 StartedAtUtc = gameStartedAtUtc,
                 DurationSeconds = durationSeconds,

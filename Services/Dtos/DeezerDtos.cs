@@ -13,17 +13,32 @@ namespace SpotifyTrivia.Services.Dtos
         [property: JsonPropertyName("id")] long Id,
         [property: JsonPropertyName("title")] string Title,
         [property: JsonPropertyName("preview")] string? Preview,
-        [property: JsonPropertyName("artist")] DeezerArtistDto? Artist
+        [property: JsonPropertyName("artist")] DeezerArtistDto? Artist,
+        [property: JsonPropertyName("album")] DeezerAlbumDto? Album = null
     );
 
-    internal record DeezerArtistDto(
-        [property: JsonPropertyName("name")] string Name
+    public record DeezerArtistDto(
+        [property: JsonPropertyName ("id")] long Id,
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("picture_medium")] string? PictureMedium = null
     );
 
-    internal record DeezerTrackResponse(
+    public record DeezerTrackResponse(
         [property: JsonPropertyName("id")] long Id,
         [property: JsonPropertyName("title")] string Title,
         [property: JsonPropertyName("preview")] string? Preview,
-        [property: JsonPropertyName("artist")] DeezerArtistDto? Artist
+        [property: JsonPropertyName("artist")] DeezerArtistDto? Artist,
+        [property: JsonPropertyName("isrc")] string? Isrc = null
     );
+
+    internal record DeezerAlbumDto(
+        [property: JsonPropertyName("cover_medium")] string? CoverMedium = null
+    );
+
+    internal record DeezerArtistListResponse(
+        [property: JsonPropertyName("data")] List<DeezerArtistDto>? Data
+    );
+
+    public record SearchArtistResult(long ArtistId, string Name, string? PictureUrl);
+    public record SearchTrackResult(long TrackId, string Title, long ArtistId, string ArtistName, string? AlbumCoverUrl);
 }

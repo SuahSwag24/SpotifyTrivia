@@ -2,17 +2,21 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net.WebSockets;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using SpotifyTrivia.Models;
 using SpotifyTrivia.Models.Multiplayer;
 
 namespace SpotifyTrivia.Services.GameModes
 {
-    public class ClassicGuessSongGameMode : IGameMode
+    public class ClassicGuessSongGameMode : ISearchAnswerGameMode
     {
         private readonly IDeezerService _deezerService;
         private const double SELFCONTRIBUTIONPENALTYMULTIPLIER = 0.8;
         private const double FAIRDISTRIBUTIONWEIGHTAGE = 0.6;
+        private const double ARTISTONLYSCOREMULTIPLIER = 0.4;
 
         public ClassicGuessSongGameMode(IDeezerService deezerService)
         {
@@ -50,11 +54,9 @@ namespace SpotifyTrivia.Services.GameModes
                 var isrc = candidate.Isrc;
                 if (string.IsNullOrEmpty(isrc)) continue;
 
-                var previewUrl = await _deezerService.GetPreviewUrlAsync(isrc);
-                if (string.IsNullOrEmpty(previewUrl))
-                {
-                    continue;
-                }
+                var deezerTrack = await _deezerService.GetTrackByIsrcAsync(isrc);
+                if (deezerTrack == null || string.IsNullOrEmpty(deezerTrack.Preview)) continue;
+                var previewUrl = deezerTrack.Preview;
 
                 string correctAnswer = $"{candidate.Title} - {candidate.Artist}";
 
@@ -83,8 +85,12 @@ namespace SpotifyTrivia.Services.GameModes
                     CorrectAnswer = correctAnswer,
                     AnswerChoices = choices,
                     SpotifyUrl = candidate.SpotifyUrl ?? "",
-                    ContributedByPlayerIds = candidate.ContributedByPlayerIds
-                });
+                    ContributedByPlayerIds = candidate.ContributedByPlayerIds,
+                    Isrc = isrc,
+                    DeezerTrackId = deezerTrack.Id,
+                    DeezerArtistId = deezerTrack.Artist?.Id ?? 0,
+                    DeezerTitle = deezerTrack.Title ?? string.Empty
+                }); ;
 
                 excludedTrackIds.Add(candidate.Id);
             }
@@ -121,6 +127,32 @@ namespace SpotifyTrivia.Services.GameModes
                 WasCorrect = isCorrect,
                 SubmittedIndex = choiceIndex,
                 CorrectIndex = correctIndex,
+                CorrectAnswerText = question.CorrectAnswer,
+                AwardedScore = score,
+                WasSelfContributionPenalty = isSelfContributed
+            };
+        }
+        public AnswerResultModel EvaluateSearchAnswer(TriviaQuestionModel question, SearchAnswerModel answer, DateTime roundStartedAtUtc, DateTime answeredAtUtc, double roundDurationSeconds, string playerId)
+        {
+            bool artistMatch = answer.DeezerArtistId != 0 && answer.DeezerArtistId == question.DeezerArtistId;
+
+            bool trackMatch = (answer.DeezerTrackId != 0 && answer.DeezerTrackId == question.DeezerTrackId)
+                || (!string.IsNullOrEmpty(answer.Isrc) && string.Equals(answer.Isrc, question.Isrc, StringComparison.OrdinalIgnoreCase))
+                || (artistMatch && answer.Title.Length > 0 && NormalizeTitle(answer.Title) == NormalizeTitle(question.DeezerTitle));
+
+            bool artistOnly = !trackMatch && artistMatch;
+            bool scored = trackMatch || artistOnly;
+            bool isSelfContributed = scored && question.ContributedByPlayerIds.Contains(playerId);
+
+            int score = scored ? CalculateScore(roundStartedAtUtc, answeredAtUtc, roundDurationSeconds, isSelfContributed, trackMatch ? 1.0 : ARTISTONLYSCOREMULTIPLIER) : 0;
+
+            return new AnswerResultModel
+            {
+                Success = true,
+                WasCorrect = trackMatch,
+                WasArtistCorrect = artistMatch,
+                SubmittedIndex = -1,
+                CorrectIndex = -1,
                 CorrectAnswerText = question.CorrectAnswer,
                 AwardedScore = score,
                 WasSelfContributionPenalty = isSelfContributed
@@ -200,10 +232,10 @@ namespace SpotifyTrivia.Services.GameModes
             return questionPool;
         }
 
-        private int CalculateScore(DateTime roundStartedAtUtc, DateTime playerAnsweredAtUtc, double roundDurationSeconds, bool isSelfContributed)
+        private int CalculateScore(DateTime roundStartedAtUtc, DateTime playerAnsweredAtUtc, double roundDurationSeconds, bool isSelfContributed, double scoreMultiplier = 1.0)
         {
             double elapsedSeconds = (playerAnsweredAtUtc - roundStartedAtUtc).TotalSeconds;
-            double score = 100 * (1 - elapsedSeconds / roundDurationSeconds);
+            double score = 100 * (1 - elapsedSeconds / roundDurationSeconds) * scoreMultiplier;
 
             if (isSelfContributed)
             {
@@ -211,6 +243,27 @@ namespace SpotifyTrivia.Services.GameModes
             }
 
             return Math.Clamp((int)Math.Round(score), 1, 100);
+        }
+
+        private static readonly Regex TrailingBracket =
+            new(@"\s*[\(\[（【][^\)\]）】]*[\)\]）】]\s*$", RegexOptions.Compiled);
+        private static readonly Regex TrailingDashSuffix =
+            new(@"\s+-\s+[^-]*(remaster|live|version|ver\.|edit|mix|mono|stereo|acoustic)[^-]*$",
+                RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        private static string NormalizeTitle(string title)
+        {
+            var original = title.Normalize(NormalizationForm.FormKC).Trim();   // FormKC folds full-width forms
+            var s = original;
+            string previous;
+            do
+            {
+                previous = s;
+                s = TrailingBracket.Replace(s, "");
+                s = TrailingDashSuffix.Replace(s, "");
+            } while (s != previous && s.Length > 0);
+
+            return (s.Length == 0 ? original : s).ToLowerInvariant().Trim();
         }
     }
 }

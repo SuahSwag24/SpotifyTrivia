@@ -41,5 +41,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public HashSet<string> RequiredRoundReadyPlayerIds { get; set; } = new();
         public HashSet<string> ReadyRoundPlayerIds { get; set; } = new();
         public TaskCompletionSource<bool>? RoundReadiness { get; set; }
+        public AnswerStyle AnswerStyle { get; set; } = AnswerStyle.MultipleChoice;
     }
 }

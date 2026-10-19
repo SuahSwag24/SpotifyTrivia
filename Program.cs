@@ -44,6 +44,8 @@ builder.Services.AddHttpClient<IStemSeparator, HttpStemSeparator>(client =>
     client.Timeout = TimeSpan.FromSeconds(90);
 });
 
+builder.Services.AddMemoryCache();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

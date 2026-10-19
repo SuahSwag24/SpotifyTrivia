@@ -1,3 +1,5 @@
+using SpotifyTrivia.Models.Multiplayer;
+
 namespace SpotifyTrivia.Models
 {
     public class TriviaQuestionModel
@@ -15,5 +17,10 @@ namespace SpotifyTrivia.Models
         public List<string> StemUrls { get; set; } = new();
         public List<string> StemRevealOrder { get; set; } = new();
         public int StemDurationMs { get; set; }
+        public string Isrc { get; set; } = string.Empty;
+        public long DeezerTrackId { get; set; }
+        public long DeezerArtistId { get; set; }
+        public string DeezerTitle { get; set; } = string.Empty;
+        public List<string> ChoicesFor(AnswerStyle style) => style == AnswerStyle.Search ? new List<string>() : AnswerChoices;
     }
 }

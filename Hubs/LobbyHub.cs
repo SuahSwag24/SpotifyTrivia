@@ -19,14 +19,16 @@ namespace SpotifyTrivia.Hubs
         private readonly IBroadcaster _broadcaster;
         private readonly LobbySettingsModel _settings;
         private readonly ILogger<LobbyHub> _logger;
+        private readonly IDeezerService _deezerService;
 
-        public LobbyHub(ILobbyManager lobbyManager, ISpotifyService spotifyService, IBroadcaster broadcaster, LobbySettingsModel settings, ILogger<LobbyHub> logger)
+        public LobbyHub(ILobbyManager lobbyManager, ISpotifyService spotifyService, IBroadcaster broadcaster, LobbySettingsModel settings, ILogger<LobbyHub> logger, IDeezerService deezerService)
         {
             _lobbyManager = lobbyManager;
             _spotifyService = spotifyService;
             _broadcaster = broadcaster;
             _settings = settings;
             _logger = logger;
+            _deezerService = deezerService;
         }
 
         public async Task JoinLobby(string lobbyCode, string playerId, string displayName)
@@ -216,6 +218,44 @@ namespace SpotifyTrivia.Hubs
         public async Task SubmitAnswer(string lobbyCode, string playerId, int answerIndex)
         {
             var result = await _lobbyManager.RecordPlayerAnswerAsync(lobbyCode, playerId, answerIndex);
+            if (!result.Success) return;
+
+            await Clients.Caller.SendAsync("AnswerResult", result);
+            await Clients.Groups(lobbyCode).SendAsync("PlayerAnswered", new { playerId });
+
+            await _broadcaster.BroadcastPlayerStatusChanged(lobbyCode, playerId, PlayerStatus.Answered);
+        }
+
+        public async Task SubmitSearchAnswer(string lobbyCode, string playerId, long? trackId, long? artistId)
+        {
+            var answeredAtUtc = DateTime.UtcNow;   // captured before the Deezer lookup so slow lookups cost nothing
+
+            var submission = new SearchAnswerModel();
+            if (trackId is long tid)
+            {
+                // Resolve on the server so the client can't claim arbitrary artist/title/ISRC values
+                var track = await _deezerService.GetTrackByIdAsync(tid);
+                if (track == null)
+                {
+                    await Clients.Caller.SendAsync("ActionError", "Couldn't verify that song. Please try again.");
+                    return;
+                }
+                submission.DeezerTrackId = track.Id;
+                submission.DeezerArtistId = track.Artist?.Id ?? 0;
+                submission.Title = track.Title ?? string.Empty;
+                submission.ArtistName = track.Artist?.Name ?? string.Empty;
+                submission.Isrc = track.Isrc;
+            }
+            else if (artistId is long aid)
+            {
+                submission.DeezerArtistId = aid;   // artist-only answer from step 1
+            }
+            else
+            {
+                return;
+            }
+
+            var result = await _lobbyManager.RecordPlayerSearchAnswerAsync(lobbyCode, playerId, submission, answeredAtUtc);
             if (!result.Success) return;
 
             await Clients.Caller.SendAsync("AnswerResult", result);

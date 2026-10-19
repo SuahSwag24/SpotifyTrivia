@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using SpotifyTrivia.Models;
 using SpotifyTrivia.Models.Multiplayer;
+using SpotifyTrivia.Services.Dtos;
 using SpotifyTrivia.Services.Stems;
 
 namespace SpotifyTrivia.Services.GameModes
@@ -47,14 +48,14 @@ namespace SpotifyTrivia.Services.GameModes
 
             //  Pre-resolve all candidate preview URLs concurrently instead of sequentially.
             var candidates = shuffledPool.Take(maxAttempts).ToList();
-            var previewTasks = candidates
+            var trackTasks = candidates
                 .Select(c => string.IsNullOrEmpty(c.Isrc)
-                    ? Task.FromResult<string?>(null)
-                    : _deezerService.GetPreviewUrlAsync(c.Isrc))
+                    ? Task.FromResult<DeezerTrackResponse?>(null)
+                    : _deezerService.GetTrackByIsrcAsync(c.Isrc))
                 .ToList();
 
             cancellationToken.ThrowIfCancellationRequested();
-            var previewUrls = await Task.WhenAll(previewTasks);
+            var previewUrls = await Task.WhenAll(trackTasks);
             cancellationToken.ThrowIfCancellationRequested();
 
             var quizQuestions = new List<TriviaQuestionModel>();

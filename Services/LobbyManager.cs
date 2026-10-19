@@ -127,7 +127,21 @@ namespace SpotifyTrivia.Services
             }
         }
 
-        public async Task<AnswerResultModel> RecordPlayerAnswerAsync(string code, string playerId, int choiceIndex)
+        public Task<AnswerResultModel> RecordPlayerAnswerAsync(string code, string playerId, int choiceIndex) =>
+            RecordAnswerCoreAsync(code, playerId, AnswerStyle.MultipleChoice, null,
+                (mode, q, answeredAt, lobby) => mode.EvaluateAnswer(
+                    q, choiceIndex, lobby.RoundStartedAtUtc, answeredAt, lobby.RoundDurationSeconds, playerId));
+
+        public Task<AnswerResultModel> RecordPlayerSearchAnswerAsync(
+            string code, string playerId, SearchAnswerModel answer, DateTime answeredAtUtc) =>
+            RecordAnswerCoreAsync(code, playerId, AnswerStyle.Search, answeredAtUtc,
+                (mode, q, answeredAt, lobby) => mode is ISearchAnswerGameMode searchMode
+                    ? searchMode.EvaluateSearchAnswer(
+                        q, answer, lobby.RoundStartedAtUtc, answeredAt, lobby.RoundDurationSeconds, playerId)
+                    : new AnswerResultModel { Success = false });
+
+        //  Refactor to handle Search and Multiple-choice answer mode.
+        private async Task<AnswerResultModel> RecordAnswerCoreAsync(string code, string playerId, AnswerStyle style, DateTime? answeredAtOverride, Func<IGameMode, TriviaQuestionModel, DateTime, LobbyModel, AnswerResultModel> evaluate)
         {
             if (!_lobbies.TryGetValue(code, out var lobby)) return new AnswerResultModel { Success = false };
 
@@ -135,32 +149,24 @@ namespace SpotifyTrivia.Services
             try
             {
                 if (lobby.State != LobbyState.Question) return new AnswerResultModel { Success = false };
+                if (lobby.AnswerStyle != style) return new AnswerResultModel { Success = false };
                 if (!lobby.Players.TryGetValue(playerId, out var player)) return new AnswerResultModel { Success = false };
                 if (player.HasAnsweredCurrentQuestion) return new AnswerResultModel { Success = false };
 
-                var answeredAtUtc = DateTime.UtcNow;
+                var answeredAtUtc = answeredAtOverride ?? DateTime.UtcNow;
 
                 var currentQuestion = lobby.Questions[lobby.CurrentQuestionIndex];
                 var gameMode = _gameModeFactory.GetGameMode(lobby.GameMode);
 
-                var result = gameMode.EvaluateAnswer(
-                    currentQuestion,
-                    choiceIndex,
-                    lobby.RoundStartedAtUtc,
-                    answeredAtUtc,
-                    lobby.RoundDurationSeconds,
-                    playerId
-                );
+                var result = evaluate(gameMode, currentQuestion, answeredAtUtc, lobby);
+                if (!result.Success) return result;
 
                 player.HasAnsweredCurrentQuestion = true;
                 player.LastAnswerCorrect = result.WasCorrect;
                 player.LastAnswerSubmittedUtc = DateTime.UtcNow;
                 player.LastAnswerPenalized = result.WasSelfContributionPenalty;
 
-                if (result.WasCorrect)
-                {
-                    player.Score += result.AwardedScore;
-                }
+                player.Score += result.AwardedScore;
 
                 player.AnswerHistory.Add(result);
 
@@ -620,7 +626,7 @@ namespace SpotifyTrivia.Services
                     }
                     finally { lobby.StateLock.Release(); }
 
-                    await _lobbyBroadcaster.BroadcastRoundStarted(lobby.Code, question, lobby.RoundStartedAtUtc, lobby.RoundDurationSeconds, questionNumber: i + 1, totalQuestions: lobby.Questions.Count, blurAlbum: lobby.BlurAlbum);
+                    await _lobbyBroadcaster.BroadcastRoundStarted(lobby.Code, question, lobby.RoundStartedAtUtc, lobby.RoundDurationSeconds, questionNumber: i + 1, totalQuestions: lobby.Questions.Count, blurAlbum: lobby.BlurAlbum, answerStyle: lobby.AnswerStyle);
                     await Task.Delay(TimeSpan.FromSeconds(lobby.RoundDurationSeconds), ct);
 
                     await lobby.StateLock.WaitAsync(ct);
@@ -819,7 +825,7 @@ namespace SpotifyTrivia.Services
                     finally { lobby.StateLock.Release(); }
 
                     //  Stem Game Mode Exclusive: Incremental layer-by-layer reveal
-                    await _lobbyBroadcaster.BroadcastRoundStarted(lobby.Code, question, lobby.RoundStartedAtUtc, lobby.RoundDurationSeconds, questionNumber: i + 1, totalQuestions: lobby.Questions.Count, blurAlbum: lobby.BlurAlbum);
+                    await _lobbyBroadcaster.BroadcastRoundStarted(lobby.Code, question, lobby.RoundStartedAtUtc, lobby.RoundDurationSeconds, questionNumber: i + 1, totalQuestions: lobby.Questions.Count, blurAlbum: lobby.BlurAlbum, answerStyle: lobby.AnswerStyle);
 
                     int layerCount = question.StemRevealOrder.Count;
                     double layerIntervalSeconds = lobby.RoundDurationSeconds / (double)layerCount;

@@ -18,6 +18,7 @@ namespace SpotifyTrivia.Services
         Task StartSessionAsync(string code, List<TrackModel> tracks, int questionCount, int roundDurationSeconds);
         Task ContinueSessionAsync(string code, List<TrackModel> tracks);
         Task<AnswerResultModel> RecordPlayerAnswerAsync(string code, string playerId, int choiceIndex);
+        Task<AnswerResultModel> RecordPlayerSearchAnswerAsync(string code, string playerId, SearchAnswerModel answer, DateTime answeredAtUtc);
         Task<bool> InvalidatePlayerAnswerAsync(string code, string playerId);
         (string lobbyCode, string playerId)? GetConnectionMapping(string connectionId);
         void RemoveConnectionMapping(string connectionId);

@@ -51,8 +51,9 @@ namespace SpotifyTrivia.Services.GameModes
                 var isrc = candidate.Isrc;
                 if (string.IsNullOrEmpty(isrc)) continue;
 
-                var previewUrl = await _deezerService.GetPreviewUrlAsync(isrc);
-                if (string.IsNullOrEmpty(previewUrl)) continue;
+                var deezerTrack = await _deezerService.GetTrackByIsrcAsync(isrc);
+                if (deezerTrack == null || string.IsNullOrEmpty(deezerTrack.Preview)) continue;
+                var previewUrl = deezerTrack.Preview;
 
                 string correctAnswer = candidate.Artist;
 

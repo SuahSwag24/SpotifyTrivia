@@ -14,5 +14,6 @@ namespace SpotifyTrivia.Models.Multiplayer
         public string? CorrectAnswerText { get; set; }
         public int AwardedScore { get; set; }
         public bool WasSelfContributionPenalty { get; set; }
+        public bool WasArtistCorrect { get; set; }
     }
 }

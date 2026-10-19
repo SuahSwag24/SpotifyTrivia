@@ -5,7 +5,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const displayName = container.dataset.displayName;
     const isHost = container.dataset.isHost === "true";
 
-    const connection = createLobbyConnection();;
+    const connection = createLobbyConnection();
+
+    SearchAnswerPicker.init({
+        onSubmit: ({ trackId, artistId }) =>
+            connection.invoke("SubmitSearchAnswer", lobbyCode, playerId, trackId, artistId)
+    });
 
     const previousScores = new Map();
 
@@ -513,7 +518,19 @@ document.addEventListener("DOMContentLoaded", () => {
             resetStemProgress(data);
             runStemProgressClock(data.startedAtUtc || data.StartedAtUtc, data.durationSeconds || data.DurationSeconds);
 
-            renderAnswerChoices(data.answerChoices, data.canAnswer ?? data.CanAnswer ?? true);
+            const canAnswer = data.canAnswer ?? data.CanAnswer ?? true;
+            const choicesEl = document.getElementById("answer-choices");
+            if ((data.answerStyle ?? data.AnswerStyle) === "Search") {
+                choicesEl.replaceChildren();
+                choicesEl.classList.add("d-none");
+                SearchAnswerPicker.reset();
+                SearchAnswerPicker.show(canAnswer);
+            } else {
+                choicesEl.classList.remove("d-none");
+                SearchAnswerPicker.hide();
+                renderAnswerChoices(data.answerChoices, canAnswer);
+            }
+
             runRoundTimer(data.startedAtUtc, data.durationSeconds);
         },
         onRoundEnded: (data) => {
@@ -754,15 +771,18 @@ document.addEventListener("DOMContentLoaded", () => {
                 li.classList.add("is-current-player");
             }
 
+            const artistOnly = p.lastAnswerCorrect === false && p.lastAnswerArtistCorrect === true;
+
             let stateClass = "state-noanswer";
             if (p.lastAnswerCorrect === true) stateClass = "state-correct";
+            else if (artistOnly) stateClass = "state-artist"
             else if (p.lastAnswerCorrect === false) stateClass = "state-incorrect";
             li.classList.add(stateClass);
 
             const rank = index + 1;
             const rankClass = rank === 1 ? "rank-gold" : rank === 2 ? "rank-silver" : rank === 3 ? "rank-bronze" : "";
 
-            const resultTag = p.lastAnswerCorrect === true ? "✅" : (p.lastAnswerCorrect === false ? "❌" : "—");
+            const resultTag = p.lastAnswerCorrect === true ? "✅" : (artistOnly ? "🎤" : (p.lastAnswerCorrect === false ? "❌" : "—"));
             const penaltyTag = p.lastAnswerPenalized ? ` <span class="penalty-tag">(-20% own song)</span>` : "";
 
             const prevScore = previousScores.has(p.playerId) ? previousScores.get(p.playerId) : p.score - (p.scoreDelta ?? 0);

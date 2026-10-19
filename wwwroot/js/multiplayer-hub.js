@@ -23,6 +23,11 @@ function setupLobbyHandlers(connection, callbacks) {
     connection.on("GameEnded", (leaderboard, songResults) => callbacks.onGameEnded?.(leaderboard, songResults));
 
     connection.on("AnswerResult", (data) => {
+        if (data.submittedIndex === -1) {
+            window.SearchAnswerPicker?.showResult(data);
+            return;
+        }
+
         const allButtons = document.querySelectorAll("#answer-choices .answer-btn");
 
         allButtons.forEach(b => b.classList.remove("selected"));

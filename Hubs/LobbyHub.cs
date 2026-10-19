@@ -20,8 +20,9 @@ namespace SpotifyTrivia.Hubs
         private readonly LobbySettingsModel _settings;
         private readonly ILogger<LobbyHub> _logger;
         private readonly IDeezerService _deezerService;
+        private readonly IGameModeFactory _gameModeFactory;
 
-        public LobbyHub(ILobbyManager lobbyManager, ISpotifyService spotifyService, IBroadcaster broadcaster, LobbySettingsModel settings, ILogger<LobbyHub> logger, IDeezerService deezerService)
+        public LobbyHub(ILobbyManager lobbyManager, ISpotifyService spotifyService, IBroadcaster broadcaster, LobbySettingsModel settings, ILogger<LobbyHub> logger, IDeezerService deezerService, IGameModeFactory gameModeFactory)
         {
             _lobbyManager = lobbyManager;
             _spotifyService = spotifyService;
@@ -29,6 +30,7 @@ namespace SpotifyTrivia.Hubs
             _settings = settings;
             _logger = logger;
             _deezerService = deezerService;
+            _gameModeFactory = gameModeFactory;
         }
 
         public async Task JoinLobby(string lobbyCode, string playerId, string displayName)
@@ -121,7 +123,7 @@ namespace SpotifyTrivia.Hubs
             }
         }
 
-        public async Task StartGame(string lobbyCode, int questionCount, int roundDurationSeconds, AlbumCoverVisibility? blurAlbum = AlbumCoverVisibility.Hide, int sampleSize = 200)
+        public async Task StartGame(string lobbyCode, int questionCount, int roundDurationSeconds, AlbumCoverVisibility? blurAlbum = AlbumCoverVisibility.Hide, int sampleSize = 200, AnswerStyle answerStyle = AnswerStyle.MultipleChoice)
         {
             var lobby = _lobbyManager.GetLobby(lobbyCode);
             if (lobby == null) return;
@@ -163,6 +165,21 @@ namespace SpotifyTrivia.Hubs
                 await Clients.Caller.SendAsync("ActionError", new { Message = "Invalid sample size" });
                 return;
             }
+
+            if (!Enum.IsDefined(typeof(AnswerStyle), answerStyle))
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Invalid answer style." });
+                return;
+            }
+
+            if (answerStyle == AnswerStyle.Search &&
+                _gameModeFactory.GetGameMode(lobby.GameMode) is not ISearchAnswerGameMode)
+            {
+                await Clients.Caller.SendAsync("ActionError", new { Message = "Hardmode isn't available for this game mode." });
+                return;
+            }
+
+            lobby.AnswerStyle = answerStyle;
 
             await _broadcaster.BroadcastPreparingGame(lobbyCode);
 
@@ -226,7 +243,7 @@ namespace SpotifyTrivia.Hubs
             await _broadcaster.BroadcastPlayerStatusChanged(lobbyCode, playerId, PlayerStatus.Answered);
         }
 
-        public async Task SubmitSearchAnswer(string lobbyCode, string playerId, long? trackId, long? artistId)
+        public async Task<bool> SubmitSearchAnswer(string lobbyCode, string playerId, long? trackId, long? artistId)
         {
             var answeredAtUtc = DateTime.UtcNow;   // captured before the Deezer lookup so slow lookups cost nothing
 
@@ -237,8 +254,8 @@ namespace SpotifyTrivia.Hubs
                 var track = await _deezerService.GetTrackByIdAsync(tid);
                 if (track == null)
                 {
-                    await Clients.Caller.SendAsync("ActionError", "Couldn't verify that song. Please try again.");
-                    return;
+                    await Clients.Caller.SendAsync("ActionError", new { Message = "Couldn't verify that song. Please try again." });
+                    return false;
                 }
                 submission.DeezerTrackId = track.Id;
                 submission.DeezerArtistId = track.Artist?.Id ?? 0;
@@ -252,16 +269,17 @@ namespace SpotifyTrivia.Hubs
             }
             else
             {
-                return;
+                return false;
             }
 
             var result = await _lobbyManager.RecordPlayerSearchAnswerAsync(lobbyCode, playerId, submission, answeredAtUtc);
-            if (!result.Success) return;
+            if (!result.Success) return false;
 
             await Clients.Caller.SendAsync("AnswerResult", result);
             await Clients.Groups(lobbyCode).SendAsync("PlayerAnswered", new { playerId });
 
             await _broadcaster.BroadcastPlayerStatusChanged(lobbyCode, playerId, PlayerStatus.Answered);
+            return true;
         }
 
         public async Task LeaveLobby(string lobbyCode, string playerId)
@@ -456,7 +474,11 @@ namespace SpotifyTrivia.Hubs
                     {
                         question.PreviewUrl,
                         question.AlbumCoverUrl,
-                        question.AnswerChoices,
+                        AnswerChoices = lobby.AnswerStyle == AnswerStyle.Search
+                            ? new List<string>()
+                            : question.AnswerChoices,
+                        AnswerStyle = lobby.AnswerStyle,
+                        question.StemRevealOrder,
                         StartedAtUtc = lobby.RoundStartedAtUtc,
                         DurationSeconds = lobby.RoundDurationSeconds,
                         QuestionNumber = lobby.CurrentQuestionIndex + 1,

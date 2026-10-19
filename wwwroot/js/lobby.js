@@ -144,7 +144,8 @@ document.addEventListener("DOMContentLoaded", () => {
             questionCount: 10,
             roundDuration: 10,
             sampleSize: 200,
-            blurAlbum: "hide"
+            blurAlbum: "hide",
+            answerStyle: "MultipleChoice"
         }
 
         const questionSlider = document.getElementById("question-count-slider");
@@ -156,6 +157,25 @@ document.addEventListener("DOMContentLoaded", () => {
         const saveSettingsBtn = document.getElementById("save-settings-btn");
         const backSettingsBtn = document.getElementById("back-settings-btn");
         const settingsModal = document.getElementById("settings-modal");
+
+        const HARDMODE_MODES = ["ClassicGuessSong"];
+        const selectedMode = () => gameModeGrid?.querySelector(".gamemode-card.selected")?.dataset.mode ?? null;
+        const effectiveAnswerStyle = () =>
+            HARDMODE_MODES.includes(selectedMode()) ? currentSettings.answerStyle : "MultipleChoice";
+
+        function syncAnswerStyleAvailability() {
+            const allowed = HARDMODE_MODES.includes(selectedMode());
+            document.getElementById("answer-style-search").disabled = !allowed;
+
+            const wanted = allowed ? currentSettings.answerStyle : "MultipleChoice";
+            document.querySelector(`input[name="answer-style"][value="${wanted}"]`).checked = true;
+            
+            document.getElementById("answer-style-hint").textContent = allowed
+                ? "Hardmode: search for the song instead of picking from choices"
+                : "Hardmode isn't available for this game mode";
+        }
+
+        settingsModal.addEventListener("show.bs.mmodal", syncAnswerStyleAvailability);
 
         const playerList = document.getElementById("player-list");
         playerList.addEventListener("click", event => {
@@ -181,7 +201,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 questionCount: parseInt(questionSlider.value, 10),
                 roundDuration: parseInt(roundDurationSlider.value, 10),
                 sampleSize: document.querySelector('input[name="sample-size-step"]:checked')?.value || "200",
-                blurAlbum: document.querySelector('input[name="blur-album"]:checked').value || "hide"
+                blurAlbum: document.querySelector('input[name="blur-album"]:checked').value || "hide",
+                answerStyle: document.querySelector('input[name="answer-style"]:checked')?.value || "MultipleChoice"
             };
             
             bootstrap.Modal.getInstance(settingsModal).hide();
@@ -261,7 +282,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 currentSettings.questionCount,
                 currentSettings.roundDuration,
                 currentSettings.blurAlbum,
-                currentSettings.sampleSize === "max" ? 999999 : parseInt(currentSettings.sampleSize, 10) 
+                currentSettings.sampleSize === "max" ? 999999 : parseInt(currentSettings.sampleSize, 10),
+                effectiveAnswerStyle()
             )
                 .catch(err => {
                     showError("Failed to start: " + err);

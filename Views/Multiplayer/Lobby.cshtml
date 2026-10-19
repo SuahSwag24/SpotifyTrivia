@@ -306,6 +306,8 @@
             grid-template-columns: repeat(3, 1fr);
         }
     }
+
+    .btn-check:disabled + .segmented-label { opacity: 0.4; cursor: not-allowed; }
 </style>
 
 <div class="lobby-wrapper lobby-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@isHost.ToString().ToLower()">
@@ -548,6 +550,24 @@
 
                             <input type="radio" class="btn-check" name="blur-album" id="blur-album-hide" value="hide" checked>
                             <label class="segmented-label" for="blur-album-hide">Hide</label>
+                        </div>
+                    </div>
+
+                    <!-- Answer Style (Hardmode) -->
+                    <div class="blur-setting-row mb-4">
+                        <div class="pe-2">
+                            <h6 class="text-white fw-bold mb-1">Answer Style</h6>
+                            <small id="answer-style-hint" class="text-secondary d-block lh-sm">
+                                Hardmode: search for the song instead of picking from choices
+                            </small>
+                        </div>
+
+                        <div class="segmented-control">
+                            <input type="radio" class="btn-check" name="answer-style" id="answer-style-choice" value="MultipleChoice" checked>
+                            <label class="segmented-label" for="answer-style-choice">Choices</label>
+
+                            <input type="radio" class="btn-check" name="answer-style" id="answer-style-search" value="Search">
+                            <label class="segmented-label" for="answer-style-search">Hardmode</label>
                         </div>
                     </div>
                 </div>

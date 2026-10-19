@@ -4,6 +4,7 @@
     ViewData["Title"] = "Game";
 }
 
+<script src="~/js/search-answer.js" asp-append-version="true"></script>
 <script src="/js/multiplayer-hub.js"></script>
 <script src="/js/game.js"></script>
 
@@ -753,6 +754,24 @@
         opacity: 0.4;
         cursor: not-allowed;
     }
+
+    /* Search answer */
+    .search-answer { max-width: 480px; margin: 0 auto; text-align: left; }
+    .search-answer-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+    .search-answer-tabs { display: flex; gap: .5rem; margin-bottom: .5rem; }
+    .search-tab { flex: 1; background: #181818; color: #b3b3b3; border: 1px solid #282828; border-radius: 999px; padding: .35rem; }
+    .search-tab.active { background: #282828; color: #fff; }
+    .search-artist-bar { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; color: #fff; font-weight: 600; }
+    .search-artist-bar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .search-answer-results { list-style: none; margin: .5rem 0 0; padding: 0; max-height: 40vh; overflow-y: auto; }
+    .search-result { display: flex; align-items: center; gap: .75rem; width: 100%; padding: .4rem .5rem; background: transparent; border: 0; border-radius: 8px; color: #fff; text-align: left; }
+    .search-result:hover:not(:disabled) { background: #282828; }
+    .search-result img { border-radius: 4px; object-fit: cover; flex: none; }
+    .search-result-text { display: flex; flex-direction: column; min-width: 0; }
+    .search-result-primary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .search-result-secondary { color: #b3b3b3; font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .search-answer-status { min-height: 1.5rem; margin-top: .5rem; color: #b3b3b3; font-size: .9rem; }
+    .search-answer-fields:disabled { opacity: .6; }
 </style>
 
 <div class="game-wrapper game-container" data-lobby-code="@Model.Code" data-player-id="@ViewBag.PlayerId" data-display-name="@ViewBag.DisplayName" data-is-host="@ViewBag.IsHost.ToString().ToLower()">
@@ -819,6 +838,24 @@
 
                 <div id="answer-choices">
                     <!-- 4 dynamic buttons built by JS per question -->
+                </div>
+
+                <div id="search-answer" class="search-answer d-none">
+                    <fieldset id="search-answer-fields" class="search-answer-fields">
+                        <div id="search-answer-tabs" class="search-answer-tabs">
+                            <button type="button" class="search-tab active" data-kind="track">Song</button>
+                            <button type="button" class="search-tab" data-kind="artist">Artist</button>
+                        </div>
+                        <input id="search-answer-input" type="search" class="form-control"
+                            autocomplete="off" autocapitalize="off" spellcheck="false" />
+                        <div id="search-answer-artist-bar" class="search-artist-bar d-none">
+                            <span id="search-answer-artist-label"></span>
+                            <button type="button" id="search-answer-artist-submit" class="btn btn-spotify btn-sm">Answer with artist only</button>
+                            <button type="button" id="search-answer-artist-back" class="btn btn-outline-custom btn-sm">Back</button>
+                        </div>
+                        <ul id="search-answer-results" class="search-answer-results"></ul>
+                    </fieldset>
+                    <div id="search-answer-status" class="search-answer-status" aria-live="polite"></div>
                 </div>
             </div>
 

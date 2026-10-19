@@ -55,7 +55,7 @@ namespace SpotifyTrivia.Services.GameModes
                 .ToList();
 
             cancellationToken.ThrowIfCancellationRequested();
-            var previewUrls = await Task.WhenAll(trackTasks);
+            var deezerTracks = await Task.WhenAll(trackTasks);
             cancellationToken.ThrowIfCancellationRequested();
 
             var quizQuestions = new List<TriviaQuestionModel>();
@@ -66,9 +66,10 @@ namespace SpotifyTrivia.Services.GameModes
                     break;
 
                 var candidate = candidates[i];
-                var previewUrl = previewUrls[i];
+                var deezerTrack = deezerTracks[i];
+                var previewUrl = deezerTrack?.Preview;
 
-                if (string.IsNullOrEmpty(previewUrl))
+                if (deezerTrack == null || string.IsNullOrEmpty(previewUrl))
                     continue;
 
                 string correctAnswer = $"{candidate.Title} - {candidate.Artist}";
@@ -101,6 +102,10 @@ namespace SpotifyTrivia.Services.GameModes
                     AnswerChoices = choices,
                     SpotifyUrl = candidate.SpotifyUrl ?? "",
                     ContributedByPlayerIds = candidate.ContributedByPlayerIds,
+                    Isrc = candidate.Isrc ?? string.Empty,
+                    DeezerTrackId = deezerTrack.Id,
+                    DeezerArtistId = deezerTrack.Artist?.Id ?? 0,
+                    DeezerTitle = deezerTrack.Title ?? string.Empty,
                     StemUrls = new()
                     {
                         $"/api/stems/{jobId}/drums",

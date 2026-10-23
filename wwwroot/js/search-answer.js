@@ -12,6 +12,13 @@
     let timer = null;
     let seq = 0;
     let controller = null;
+    let currentIndex = 0;
+    let isLoadingMore = false;
+    let hasMore = true;
+    let currentQuery = "";
+    
+    const PAGE_SIZE_TRACKS = 10;
+    const PAGE_SIZE_ARTISTS = 8;
 
     function setStatus(text) { statusEl.textContent = text || ""; }
     function clearResults() { resultsEl.replaceChildren(); }
@@ -78,6 +85,11 @@
 
     async function runSearch() {
         const q = input.value.trim();
+        
+        currentIndex = 0;
+        hasMore = true;
+        currentQuery = q;
+
         if (q.length < MIN_CHARS) {
             if (controller) controller.abort();
             clearResults();
@@ -186,6 +198,12 @@
             }
         });
 
+        resultsEl.addEventListener("scroll", () => {
+            if (resultsEl.scrollTop + resultsEl.clientHeight >= resultsEl.scrollHeight - 50) {
+                loadMore();
+            }
+        });
+
         document.getElementById("search-answer-artist-submit").addEventListener("click", () => {
             if (pickedArtist) submit({ trackId: null, artistId: pickedArtist.artistId });
         });
@@ -209,6 +227,10 @@
         clearResults();
         setLocked(false);
         setStatus(TIP);
+        currentIndex = 0;
+        isLoadingMore = false;
+        hasMore = true;
+        currentQuery = "";
     }
 
     function show(canAnswer) {
@@ -224,6 +246,40 @@
         if (data.wasCorrect) setStatus(`✅ Correct! +${data.awardedScore}`);
         else if (data.wasArtistCorrect) setStatus(`🎤 Right artist, wrong song. +${data.awardedScore}`);
         else setStatus("❌ Not quite");
+    }
+
+    async function loadMore() {
+        if (isLoadingMore || !hasMore || locked) return;
+        isLoadingMore = true;
+
+        const pageSize = kind === "track" ? PAGE_SIZE_TRACKS : PAGE_SIZE_ARTISTS;
+        currentIndex += pageSize;
+        const mySeq = ++seq;
+
+        try {
+            const url = kind === "track"
+                ? `/api/deezer/tracks?q=${encodeURIComponent(currentQuery)}&index=${currentIndex}`
+                : `/api/deezer/artists?q=${encodeURIComponent(currentQuery)}&index=${currentIndex}`;
+
+            const data = await fetchJson(url);
+            if (mySeq !== seq) return;
+
+            if (!data.length || data.length < pageSize) hasMore = false;
+
+            //  APPEND list
+            if (kind === "track") {
+                data.forEach(t => resultsEl.appendChild(
+                    makeRow(t.albumCoverUrl, t.title, t.artistName, {kind: "track", trackId: t.trackId})));
+            } else {
+                data.forEach(a => resultsEl.appendChild(
+                    makeRow(a.pictureUrl, a.name, "", {kind: "artist", artistId: a.aristId, name: a.name})));
+            }
+        } catch (err) {
+            if (err.name === "AbortError" || mySeq !== seq) return;
+            hasMore = false;
+        } finally {
+            isLoadingMore = false;
+        }
     }
 
     window.SearchAnswerPicker = { init, reset, show, hide, showResult };

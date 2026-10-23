@@ -37,19 +37,19 @@ namespace SpotifyTrivia.Services
             return result is { Id: not 0 } ? result : null;
         }
 
-        public Task<List<SearchArtistResult>?> SearchArtistsAsync(string query) =>
-            GetCachedAsync($"artists:{query.Trim().ToLowerInvariant()}", async () =>
+        public Task<List<SearchArtistResult>?> SearchArtistsAsync(string query, int index) =>
+            GetCachedAsync($"artists:{query.Trim().ToLowerInvariant()}:{index}", async () =>
             {
                 var r = await GetJsonAsync<DeezerArtistListResponse>(
-                    $"https://api.deezer.com/search/artist?q={Uri.EscapeDataString(query.Trim())}&limit=8");
+                    $"https://api.deezer.com/search/artist?q={Uri.EscapeDataString(query.Trim())}&limit=8&index={index}");
                 return r?.Data?.Select(a => new SearchArtistResult(a.Id, a.Name ?? "", a.PictureMedium)).ToList();
             });
 
-        public Task<List<SearchTrackResult>?> SearchTracksAsync(string query) =>
-            GetCachedAsync($"tracks:{query.Trim().ToLowerInvariant()}", async () =>
+        public Task<List<SearchTrackResult>?> SearchTracksAsync(string query, int index = 0) =>
+            GetCachedAsync($"tracks:{query.Trim().ToLowerInvariant()}:{index}", async () =>
             {
                 var r = await GetJsonAsync<DeezerSearchResponse>(
-                    $"https://api.deezer.com/search/track?q={Uri.EscapeDataString(query.Trim())}&limit=10");
+                    $"https://api.deezer.com/search/track?q={Uri.EscapeDataString(query.Trim())}&limit=10&index={index}");
                 return r?.Data?.Select(ToTrackResult).ToList();
             });
 

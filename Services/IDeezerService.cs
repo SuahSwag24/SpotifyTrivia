@@ -10,8 +10,8 @@ namespace SpotifyTrivia.Services
         Task<string?> GetPreviewUrlAsync(string isrc);
         Task<DeezerTrackResponse?> GetTrackByIsrcAsync(string isrc);
         Task<DeezerTrackResponse?> GetTrackByIdAsync(long trackId);
-        Task<List<SearchArtistResult>?> SearchArtistsAsync(string query);
-        Task<List<SearchTrackResult>?> SearchTracksAsync(string query);
+        Task<List<SearchArtistResult>?> SearchArtistsAsync(string query, int index = 0);
+        Task<List<SearchTrackResult>?> SearchTracksAsync(string query, int index = 0);
         Task<List<SearchTrackResult>?> GetArtistTopTracksAsync(long artistId);
     }
 }

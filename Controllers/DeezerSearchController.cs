@@ -11,18 +11,18 @@ namespace SpotifyTrivia.Controllers
         public DeezerSearchController(IDeezerService deezer) => _deezer = deezer;
 
         [HttpGet("artists")]
-        public async Task<IActionResult> Artists([FromQuery] string q)
+        public async Task<IActionResult> Artists([FromQuery] string q, [FromQuery] int index = 0)
         {
             if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2) return Ok(Array.Empty<object>());
-            var results = await _deezer.SearchArtistsAsync(q);
+            var results = await _deezer.SearchArtistsAsync(q, index);
             return results == null ? StatusCode(503) : Ok(results);
         }
 
         [HttpGet("tracks")]
-        public async Task<IActionResult> Tracks([FromQuery] string q)
+        public async Task<IActionResult> Tracks([FromQuery] string q, [FromQuery] int index = 0)
         {
             if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2) return Ok(Array.Empty<object>());
-            var results = await _deezer.SearchTracksAsync(q);
+            var results = await _deezer.SearchTracksAsync(q, index);
             return results == null ? StatusCode(503) : Ok(results);
         }
 

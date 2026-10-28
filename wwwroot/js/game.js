@@ -784,6 +784,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const resultTag = p.lastAnswerCorrect === true ? "✅" : (artistOnly ? "🎤" : (p.lastAnswerCorrect === false ? "❌" : "—"));
             const penaltyTag = p.lastAnswerPenalized ? ` <span class="penalty-tag">(-20% own song)</span>` : "";
+            const artistOnlyPenaltyTag = artistOnly ? ` <span class="penalty-tag">(-60% artist only)</span>` : "";
 
             const prevScore = previousScores.has(p.playerId) ? previousScores.get(p.playerId) : p.score - (p.scoreDelta ?? 0);
             const delta = p.score - prevScore;
@@ -794,7 +795,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     <span class="rank-badge ${rankClass}">#${rank}</span> ${resultTag} ${p.displayName}
                 </span>
                 <span class="row-right">
-                    <span class="score-value">${prevScore}</span>${deltaTag}${penaltyTag}
+                    <span class="score-value">${prevScore}</span>${deltaTag}${artistOnlyPenaltyTag}${penaltyTag}
                 </span>
             `;
 

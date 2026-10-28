@@ -67,6 +67,7 @@ namespace SpotifyTrivia.Services
                     p.Score,
                     ScoreDelta = p.AnswerHistory.LastOrDefault()?.AwardedScore ?? 0,
                     p.LastAnswerCorrect,
+                    p.LastAnswerArtistCorrect,
                     p.LastAnswerPenalized
                 })
             };

@@ -163,6 +163,7 @@ namespace SpotifyTrivia.Services
 
                 player.HasAnsweredCurrentQuestion = true;
                 player.LastAnswerCorrect = result.WasCorrect;
+                player.LastAnswerArtistCorrect = result.WasArtistCorrect;
                 player.LastAnswerSubmittedUtc = DateTime.UtcNow;
                 player.LastAnswerPenalized = result.WasSelfContributionPenalty;
 
@@ -354,6 +355,7 @@ namespace SpotifyTrivia.Services
                 p.HasAnsweredCurrentQuestion = false;
                 p.LastAnswerPenalized = false;
                 p.LastAnswerCorrect = null;
+                p.LastAnswerArtistCorrect = false;
             }
 
             lobby.SessionLoopCts?.Cancel();
@@ -413,6 +415,7 @@ namespace SpotifyTrivia.Services
                 p.Score = 0;
                 p.HasAnsweredCurrentQuestion = false;
                 p.LastAnswerCorrect = null;
+                p.LastAnswerArtistCorrect = false;
                 p.JoinStatus = PlayerJoinStatus.Active;
                 p.LastAnswerPenalized = false;
                 p.AnswerHistory.Clear();
@@ -578,6 +581,7 @@ namespace SpotifyTrivia.Services
 
                             p.HasAnsweredCurrentQuestion = false;
                             p.LastAnswerCorrect = null;
+                            p.LastAnswerArtistCorrect = false;
                             p.LastAnswerPenalized = false;
                             p.Status = PlayerStatus.Active;
                             await _lobbyBroadcaster.BroadcastPlayerStatusChanged(lobby.Code, p.PlayerId, p.Status);
@@ -769,6 +773,7 @@ namespace SpotifyTrivia.Services
 
                             p.HasAnsweredCurrentQuestion = false;
                             p.LastAnswerCorrect = null;
+                            p.LastAnswerArtistCorrect = false;
                             p.LastAnswerPenalized = false;
                             p.Status = PlayerStatus.Active;
                             await _lobbyBroadcaster.BroadcastPlayerStatusChanged(lobby.Code, p.PlayerId, p.Status);

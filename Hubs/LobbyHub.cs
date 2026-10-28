@@ -536,6 +536,7 @@ namespace SpotifyTrivia.Hubs
                             p.DisplayName,
                             p.Score,
                             p.LastAnswerCorrect,
+                            p.LastAnswerArtistCorrect,
                             p.LastAnswerPenalized
                         })
                     });

@@ -1,0 +1,555 @@
+@model List<SpotifyTrivia.Models.PlaylistModel>
+@{
+    ViewData["Title"] = "Single Player";
+}
+
+<script src="/js/singleplayer.js" defer></script>
+
+<style>
+    .singleplayer-lobby {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 1rem 0 2rem;
+    }
+
+    .singleplayer-card {
+        background-color: #181818;
+        border: 1px solid #282828;
+        border-radius: 16px;
+        padding: 1.5rem;
+    }
+
+    .back-link {
+        color: #b3b3b3;
+        text-decoration: none;
+    }
+
+    .back-link:hover {
+        color: #fff;
+    }
+
+    .setup-section + .setup-section {
+        margin-top: 1.5rem;
+    }
+
+    .setup-step {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        margin-right: 0.5rem;
+        border-radius: 50%;
+        background-color: rgba(29, 185, 84, 0.15);
+        color: #1DB954;
+        font-size: 0.95rem;
+        font-weight: 800;
+    }
+
+    .mode-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 1rem;
+    }
+
+    .selected-playlist {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        min-width: 0;
+        padding: 0.75rem;
+        border: 1px solid #333;
+        border-radius: 12px;
+        background-color: #242424;
+    }
+
+    .selected-playlist-cover {
+        width: 72px;
+        height: 72px;
+        flex: 0 0 72px;
+        border-radius: 8px;
+        background-color: #181818;
+        object-fit: cover;
+    }
+
+    .selected-playlist-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #1DB954;
+        font-size: 1.75rem;
+    }
+
+    .playlist-picker-wrapper {
+        max-height: 65vh;
+        overflow-y: auto;
+    }
+
+    .playlist-picker-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .playlist-picker-card {
+        height: 100%;
+        padding: 0.75rem;
+        border: 1px solid #333;
+        border-radius: 12px;
+        background-color: #242424;
+        transition: border-color 0.15s ease;
+    }
+
+    .playlist-picker-card:hover {
+        border-color: #1DB954;
+    }
+
+    .playlist-picker-cover {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        margin-bottom: 0.75rem;
+        border-radius: 8px;
+        background-color: #181818;
+        object-fit: cover;
+    }
+
+    .btn-spotify-picker {
+        background-color: #1DB954;
+        color: #000 !important;
+        font-weight: 700;
+        border: none;
+        border-radius: 50px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-spotify-picker:hover:not(:disabled) {
+        background-color: #1ed760;
+        color: #000 !important;
+        transform: scale(1.02);
+    }
+
+    .custom-range-spotify {
+        appearance: none;
+        width: 100%;
+        height: 6px;
+        margin: 1rem 0;
+        border-radius: 5px;
+        background: #3e3e3e;
+        outline: none;
+    }
+
+    .custom-range-spotify::-webkit-slider-thumb {
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #1DB954;
+        cursor: pointer;
+    }
+
+    .custom-range-spotify::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border: 0;
+        border-radius: 50%;
+        background: #1DB954;
+        cursor: pointer;
+    }
+
+    .blur-setting-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem;
+        border: 1px solid #333;
+        border-radius: 12px;
+        background-color: #242424;
+    }
+
+    .segmented-control {
+        display: flex;
+        gap: 4px;
+        padding: 4px;
+        border: 1px solid #333;
+        border-radius: 8px;
+        background-color: #121212;
+    }
+
+    .segmented-label {
+        margin: 0;
+        padding: 0.4rem 0.75rem;
+        border-radius: 6px;
+        color: #b3b3b3;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-align: center;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .btn-check:checked + .segmented-label {
+        background-color: #3e3e3e;
+        color: #1DB954;
+    }
+
+    .sample-size-control {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 4px;
+        padding: 4px;
+        border: 1px solid #333;
+        border-radius: 10px;
+        background-color: #121212;
+    }
+
+    .sample-size-option {
+        padding: 0.55rem 0.35rem;
+        border-radius: 6px;
+        color: #b3b3b3;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-align: center;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .btn-check:checked + .sample-size-option {
+        background-color: #3e3e3e;
+        color: #1DB954;
+    }
+
+    .settings-summary {
+        color: #b3b3b3;
+    }
+
+    .setup-option {
+        position: relative;
+        min-width: 0;
+        cursor: pointer;
+    }
+
+    .setup-option input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+    }
+
+    .playlist-option-card,
+    .mode-option-card {
+        height: 100%;
+        padding: 0.75rem;
+        overflow: hidden;
+        border: 1px solid #333;
+        border-radius: 12px;
+        background-color: #242424;
+        transition: border-color 0.15s ease, background-color 0.15s ease;
+    }
+
+    .setup-option:hover .playlist-option-card,
+    .setup-option:hover .mode-option-card {
+        border-color: #777;
+    }
+
+    .setup-option input:checked + .playlist-option-card,
+    .setup-option input:checked + .mode-option-card {
+        border-color: #1DB954;
+        background-color: rgba(29, 185, 84, 0.1);
+    }
+
+    .setup-option input:focus-visible + .playlist-option-card,
+    .setup-option input:focus-visible + .mode-option-card {
+        outline: 2px solid #1DB954;
+        outline-offset: 2px;
+    }
+
+    .playlist-cover {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        margin-bottom: 0.75rem;
+        border-radius: 8px;
+        background-color: #181818;
+        object-fit: cover;
+    }
+
+    .playlist-cover-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #1DB954;
+        font-size: 2rem;
+    }
+
+    .mode-option-card {
+        display: flex;
+        min-height: 125px;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        text-align: center;
+    }
+
+    .btn-spotify {
+        background-color: #1DB954;
+        color: #000 !important;
+        font-weight: 700;
+        border: none;
+        border-radius: 50px;
+        padding: 0.75rem 1.75rem;
+        transition: all 0.2s ease;
+    }
+
+    .btn-spotify:hover:not(:disabled) {
+        background-color: #1ed760;
+        color: #000 !important;
+        transform: scale(1.02);
+    }
+
+    .btn-spotify:disabled {
+        background-color: #282828;
+        color: #777 !important;
+        cursor: not-allowed;
+    }
+
+    .btn-outline-custom {
+        background: transparent;
+        color: #fff !important;
+        border: 1px solid #535353;
+        font-weight: 600;
+        border-radius: 50px;
+        transition: all 0.2s ease;
+        padding: 0.75rem 1rem;
+    }
+
+    .btn-outline-custom:hover:not(:disabled),
+    .btn-outline-custom:focus-visible {
+        border-color: #fff;
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #fff !important;
+    }
+</style>
+
+<div class="singleplayer-lobby">
+    <a href="/dashboard" class="back-link d-inline-block mb-3">← Dashboard</a>
+    <header class="text-center mb-4">
+        <h1 class="display-5 fw-bold text-white mb-2">Single Player 🎧</h1>
+        <p class="text-secondary fs-5 mb-0">Set up your trivia game, one step at a time.</p>
+    </header>
+
+    <form>
+        <section class="singleplayer-card setup-section" aria-labelledby="playlist-heading">
+            <h2 id="playlist-heading" class="h4 text-white fw-bold mb-1">
+                <span class="setup-step">1</span>Playlist
+            </h2>
+            <p class="text-secondary mb-3">Choose the playlist you want to play from.</p>
+
+            <input type="hidden" id="selected-playlist-id" name="playlistId" required />
+            <div class="d-flex flex-column flex-sm-row align-items-stretch gap-3">
+                <div id="selected-playlist" class="selected-playlist flex-grow-1" aria-live="polite">
+                    <span id="selected-playlist-placeholder" class="selected-playlist-cover selected-playlist-placeholder" aria-hidden="true">♫</span>
+                    <img id="selected-playlist-image" class="selected-playlist-cover d-none" alt="" />
+                    <div class="text-truncate">
+                        <span class="d-block text-secondary small">Selected playlist</span>
+                        <span id="selected-playlist-name" class="d-block text-white fw-bold text-truncate">No playlist selected</span>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-outline-custom align-self-sm-center"
+                        data-bs-toggle="modal" data-bs-target="#singleplayer-playlist-modal"
+                        @(Model == null || Model.Count == 0 ? "disabled" : null)>
+                    Browse playlists
+                </button>
+            </div>
+        </section>
+
+        <section class="singleplayer-card setup-section" aria-labelledby="mode-heading">
+            <h2 id="mode-heading" class="h4 text-white fw-bold mb-1">
+                <span class="setup-step">2</span>Mode
+            </h2>
+            <p class="text-secondary mb-3">Choose how you want to test your music knowledge.</p>
+
+            <div class="mode-grid">
+                <label class="setup-option">
+                    <input type="radio" name="gameMode" value="ClassicGuessSong" required />
+                    <span class="mode-option-card">
+                        <span class="fs-3" aria-hidden="true">🎵</span>
+                        <span class="text-white fw-bold">Classic Trivia</span>
+                        <span class="text-secondary small">Guess the song and artist</span>
+                    </span>
+                </label>
+                <label class="setup-option">
+                    <input type="radio" name="gameMode" value="GuessArtist" required />
+                    <span class="mode-option-card">
+                        <span class="fs-3" aria-hidden="true">🎤</span>
+                        <span class="text-white fw-bold">Artist Guessing</span>
+                        <span class="text-secondary small">Name the artist</span>
+                    </span>
+                </label>
+            </div>
+
+        </section>
+
+        <section class="singleplayer-card setup-section" aria-labelledby="settings-heading">
+            <h2 id="settings-heading" class="h4 text-white fw-bold mb-1">
+                <span class="setup-step">3</span>Settings
+            </h2>
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                <p id="settings-summary" class="settings-summary mb-0" aria-live="polite">
+                    10 questions · 10 seconds per round · 200 track sample
+                </p>
+                <button type="button" class="btn btn-outline-custom text-nowrap"
+                        data-bs-toggle="modal" data-bs-target="#singleplayer-settings-modal">
+                    ⚙️ Game Settings
+                </button>
+            </div>
+            <input type="hidden" name="questionCount" id="saved-question-count" value="10" />
+            <input type="hidden" name="roundDuration" id="saved-round-duration" value="10" />
+            <input type="hidden" name="sampleSize" id="saved-sample-size" value="200" />
+            <input type="hidden" name="blurAlbum" id="saved-blur-album" value="hide" />
+            <input type="hidden" name="answerStyle" id="saved-answer-style" value="MultipleChoice" />
+        </section>
+
+        <div class="text-center mt-4">
+            <button type="button" class="btn btn-spotify px-5" disabled
+                    aria-describedby="start-game-note">
+                Start Game
+            </button>
+            <p id="start-game-note" class="text-secondary small mt-2 mb-0">
+                Game launch will be connected after the setup lobby is complete.
+            </p>
+        </div>
+    </form>
+</div>
+
+<div class="modal fade" id="singleplayer-playlist-modal" tabindex="-1"
+     aria-labelledby="singleplayer-playlist-modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content" style="background-color:#181818; border:1px solid #282828;">
+            <div class="modal-header" style="border-bottom:1px solid #282828;">
+                <h2 class="modal-title h5 text-white fw-bold" id="singleplayer-playlist-modal-title">Select a Playlist</h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="background-color:#121212;">
+                @if (Model == null || Model.Count == 0)
+                {
+                    <div class="text-center p-4">
+                        <p class="text-white fw-bold mb-1">No playlists found</p>
+                        <p class="text-secondary mb-3">We couldn't find any playlists in your Spotify account.</p>
+                        <a href="/login" class="btn btn-outline-custom">Reconnect Spotify</a>
+                    </div>
+                }
+                else
+                {
+                    <div class="playlist-picker-wrapper">
+                        <div class="playlist-picker-grid">
+                            @foreach (var playlist in Model)
+                            {
+                                <div class="playlist-picker-card d-flex flex-column">
+                                    @if (string.IsNullOrWhiteSpace(playlist.ImageUrl))
+                                    {
+                                        <span class="playlist-picker-cover selected-playlist-placeholder" aria-hidden="true">♫</span>
+                                    }
+                                    else
+                                    {
+                                        <img class="playlist-picker-cover" src="@playlist.ImageUrl" alt="" loading="lazy" />
+                                    }
+                                    <span class="text-white fw-bold text-truncate mb-2" title="@playlist.Name">@playlist.Name</span>
+                                    <button type="button"
+                                            class="btn btn-spotify-picker w-100 py-2 mt-auto playlist-select-btn"
+                                            data-playlist-id="@playlist.Id"
+                                            data-playlist-name="@playlist.Name"
+                                            data-playlist-image="@playlist.ImageUrl">
+                                        Select
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="singleplayer-settings-modal" tabindex="-1"
+     aria-labelledby="singleplayer-settings-modal-title" aria-hidden="true"
+     data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background-color:#181818; border:1px solid #282828;">
+            <div class="modal-header" style="border-bottom:1px solid #282828;">
+                <h2 class="modal-title h5 text-white fw-bold" id="singleplayer-settings-modal-title">Game Rules</h2>
+            </div>
+            <div class="modal-body pb-4">
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <label for="sp-question-count-slider" class="form-label text-secondary fw-bold mb-0">Number of Questions</label>
+                        <output id="sp-question-count-display" for="sp-question-count-slider" class="fw-bold text-white fs-4">10</output>
+                    </div>
+                    <input type="range" id="sp-question-count-slider" class="custom-range-spotify" min="5" max="20" step="1" value="10" />
+                    <div class="d-flex justify-content-between text-secondary small"><span>5</span><span>20</span></div>
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <label for="sp-round-duration-slider" class="form-label text-secondary fw-bold mb-0">Round Duration</label>
+                        <output id="sp-round-duration-display" for="sp-round-duration-slider" class="fw-bold text-white fs-4">10s</output>
+                    </div>
+                    <input type="range" id="sp-round-duration-slider" class="custom-range-spotify" min="5" max="20" step="1" value="10" />
+                    <div class="d-flex justify-content-between text-secondary small"><span>5s</span><span>20s</span></div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label text-secondary fw-bold mb-2">Sample Size (Tracks)</label>
+                    <div class="sample-size-control" role="group" aria-label="Sample size">
+                        <input type="radio" class="btn-check" name="sp-sample-size-step" id="sp-step-50" value="50">
+                        <label class="sample-size-option" for="sp-step-50">50</label>
+                        <input type="radio" class="btn-check" name="sp-sample-size-step" id="sp-step-100" value="100">
+                        <label class="sample-size-option" for="sp-step-100">100</label>
+                        <input type="radio" class="btn-check" name="sp-sample-size-step" id="sp-step-200" value="200" checked>
+                        <label class="sample-size-option" for="sp-step-200">200</label>
+                        <input type="radio" class="btn-check" name="sp-sample-size-step" id="sp-step-500" value="500">
+                        <label class="sample-size-option" for="sp-step-500">500</label>
+                        <input type="radio" class="btn-check" name="sp-sample-size-step" id="sp-step-max" value="max">
+                        <label class="sample-size-option" for="sp-step-max">MAX</label>
+                    </div>
+                    <small class="text-secondary d-block mt-1">How many tracks to sample from the playlist.</small>
+                </div>
+
+                <div class="blur-setting-row mb-4">
+                    <div class="pe-2">
+                        <h3 class="h6 text-white fw-bold mb-1">Album Artwork</h3>
+                        <small class="text-secondary d-block lh-sm">Control cover visibility during gameplay.</small>
+                    </div>
+                    <div class="segmented-control">
+                        <input type="radio" class="btn-check" name="sp-blur-album" id="sp-blur-album-show" value="show">
+                        <label class="segmented-label" for="sp-blur-album-show">Show</label>
+                        <input type="radio" class="btn-check" name="sp-blur-album" id="sp-blur-album-blur" value="blur">
+                        <label class="segmented-label" for="sp-blur-album-blur">Blur</label>
+                        <input type="radio" class="btn-check" name="sp-blur-album" id="sp-blur-album-hide" value="hide" checked>
+                        <label class="segmented-label" for="sp-blur-album-hide">Hide</label>
+                    </div>
+                </div>
+
+                <div class="blur-setting-row">
+                    <div class="pe-2">
+                        <h3 class="h6 text-white fw-bold mb-1">Answer Style</h3>
+                        <small id="sp-answer-style-hint" class="text-secondary d-block lh-sm">Choose from multiple-choice answers or use hardmode.</small>
+                    </div>
+                    <div class="segmented-control">
+                        <input type="radio" class="btn-check" name="sp-answer-style" id="sp-answer-style-choice" value="MultipleChoice" checked>
+                        <label class="segmented-label" for="sp-answer-style-choice">Choices</label>
+                        <input type="radio" class="btn-check" name="sp-answer-style" id="sp-answer-style-search" value="Search">
+                        <label class="segmented-label" for="sp-answer-style-search">Hardmode</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top:1px solid #282828;">
+                <button type="button" class="btn btn-outline-custom px-4" id="sp-back-settings-btn">Back</button>
+                <button type="button" class="btn btn-spotify px-4" id="sp-save-settings-btn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>

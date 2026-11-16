@@ -3,6 +3,7 @@ using SpotifyTrivia.Hubs;
 using SpotifyTrivia.Models.Multiplayer;
 using SpotifyTrivia.Services;
 using SpotifyTrivia.Services.GameModes;
+using SpotifyTrivia.Services.Singleplayer;
 using SpotifyTrivia.Services.Stems;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -43,6 +44,7 @@ builder.Services.AddHttpClient<IStemSeparator, HttpStemSeparator>(client =>
     client.BaseAddress = new Uri(builder.Configuration["StemWorker:BaseUrl"]!);
     client.Timeout = TimeSpan.FromSeconds(90);
 });
+builder.Services.AddSingleton<ISingleplayerService, SingleplayerService>();
 
 builder.Services.AddMemoryCache();
 

@@ -10,7 +10,7 @@ namespace SpotifyTrivia.Services.Singleplayer
         Task<SpResult<SingleplayerStartResult>> StartAsync(SingleplayerStartParams p);
         SpResult<object> Prepare(string sessionId, string playerId, int round);
         SpResult<object> Begin(string sessionId, string playerId, int round);
-        SpResult<AnswerResultModel> Answer(string sessionId, string playerId, int round, int choiceIndex, SearchAnswerModel? searchAnswer);
+        Task<SpResult<AnswerResultModel>> AnswerAsync(string sessionId, string playerId, int round, int choiceIndex, long? trackId, long? artistId);
         SpResult<object> End(string sessionId, string playerId, int round);
         SpResult<object> Summary(string sessionId, string playerId);
     }

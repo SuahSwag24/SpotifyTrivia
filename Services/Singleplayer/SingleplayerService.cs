@@ -38,14 +38,16 @@ namespace SpotifyTrivia.Services.Singleplayer
 
         private readonly ConcurrentDictionary<string, SingleplayerSessionModel> _sessions = new();
         private readonly ISpotifyService _spotifyService;
+        private readonly IDeezerService _deezerService;
         private readonly IGameModeFactory _gameModeFactory;
         private readonly ILogger<SingleplayerService> _logger;
 
-        public SingleplayerService(ISpotifyService spotifyService, IGameModeFactory gameModeFactory, ILogger<SingleplayerService> logger)
+        public SingleplayerService(ISpotifyService spotifyService, IGameModeFactory gameModeFactory, ILogger<SingleplayerService> logger, IDeezerService deezerService)
         {
             _spotifyService = spotifyService;
             _gameModeFactory = gameModeFactory;
             _logger = logger;
+            _deezerService = deezerService;
         }
         async Task<SpResult<SingleplayerStartResult>> ISingleplayerService.StartAsync(SingleplayerStartParams p)
         {
@@ -166,9 +168,40 @@ namespace SpotifyTrivia.Services.Singleplayer
             }
         }
 
-        SpResult<AnswerResultModel> ISingleplayerService.Answer(string sessionId, string playerId, int round, int choiceIndex, SearchAnswerModel? searchAnswer)
+        public async Task<SpResult<AnswerResultModel>> AnswerAsync(string sessionId, string playerId, int round, int choiceIndex, long? trackId, long? artistId)
         {
-            if (!TryGet(sessionId, playerId, round, out var s, out int idx, out var err)) return new(default, err!.Value.Status, err.Value.Message);
+            var answeredAtUtc = DateTime.UtcNow;   // captured before the Deezer lookup so slow lookups cost nothing
+
+            if (!TryGet(sessionId, playerId, round, out var s, out int idx, out var err))
+                return new(default, err!.Value.Status, err.Value.Message);
+
+            SearchAnswerModel? submission = null;
+
+            if (s.AnswerStyle == AnswerStyle.Search)
+            {
+                submission = new SearchAnswerModel();
+                if (trackId is long tid)
+                {
+                    //  Resolve on the server so the client can't claim arbitrary artist/title/ISRC values
+                    var track = await _deezerService.GetTrackByIdAsync(tid);
+                    if (track == null)
+                        return new(default, 502, "Couldn't verify that song. Please try again.");
+
+                    submission.DeezerTrackId = track.Id;
+                    submission.DeezerArtistId = track.Artist?.Id ?? 0;
+                    submission.Title = track.Title ?? string.Empty;
+                    submission.ArtistName = track.Artist?.Name ?? string.Empty;
+                    submission.Isrc = track.Isrc;
+                }
+                else if (artistId is long aid)
+                {
+                    submission.DeezerArtistId = aid;   // artist-only answer from step 1
+                }
+                else
+                {
+                    return new(default, 400, "A search answer is required.");
+                }
+            }
 
             lock (s.Sync)
             {
@@ -176,26 +209,24 @@ namespace SpotifyTrivia.Services.Singleplayer
                     return new(default, 409, "That round isn't active.");
                 if (s.AnsweredCurrent)
                     return new(default, 409, "Already answered.");
-
-                var now = DateTime.UtcNow;
-                if ((now - s.RoundStartedAtUtc).TotalSeconds > s.RoundDurationSeconds + AnswerGraceSeconds)
+                if ((answeredAtUtc - s.RoundStartedAtUtc).TotalSeconds > s.RoundDurationSeconds + AnswerGraceSeconds)
                     return new(default, 409, "Time's up.");
 
                 var q = s.Questions[idx];
                 var mode = _gameModeFactory.GetGameMode(s.GameMode);
                 AnswerResultModel result;
 
-                if (s.AnswerStyle == AnswerStyle.Search)
+                if (submission != null)
                 {
-                    if (searchAnswer == null || mode is not ISearchAnswerGameMode searchMode)
-                        return new(default, 400, "A search answer is required.");
-                    result = searchMode.EvaluateSearchAnswer(q, searchAnswer, s.RoundStartedAtUtc, now, s.RoundDurationSeconds, s.PlayerId);
+                    if (mode is not ISearchAnswerGameMode searchMode)
+                        return new(default, 400, "Hardmode isn't available for this game mode.");
+                    result = searchMode.EvaluateSearchAnswer(q, submission, s.RoundStartedAtUtc, answeredAtUtc, s.RoundDurationSeconds, s.PlayerId);
                 }
                 else
                 {
                     if (choiceIndex < 0 || choiceIndex >= q.AnswerChoices.Count)
                         return new(default, 400, "Invalid choice.");
-                    result = mode.EvaluateAnswer(q, choiceIndex, s.RoundStartedAtUtc, now, s.RoundDurationSeconds, s.PlayerId);
+                    result = mode.EvaluateAnswer(q, choiceIndex, s.RoundStartedAtUtc, answeredAtUtc, s.RoundDurationSeconds, s.PlayerId);
                 }
 
                 s.AnsweredCurrent = true;

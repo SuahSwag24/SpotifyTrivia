@@ -12,7 +12,8 @@ namespace SpotifyTrivia.Controllers
     public class SingleplayerAnswerRequest
     {
         public int ChoiceIndex { get; set; } = -1;
-        public SearchAnswerModel? SearchAnswer { get; set; }
+        public long? TrackId { get; set; }
+        public long? ArtistId { get; set; }
     }
 
     public class SingleplayerController : Controller
@@ -91,8 +92,8 @@ namespace SpotifyTrivia.Controllers
         public IActionResult Begin(string id, int round) => ToAction(_singleplayerService.Begin(id, GetOrCreatePlayerId(), round));
 
         [HttpPost("singleplayer/{id}/round/{round:int}/answer")]
-        public IActionResult Answer(string id, int round, [FromBody] SingleplayerAnswerRequest body)
-            => ToAction(_singleplayerService.Answer(id, GetOrCreatePlayerId(), round, body.ChoiceIndex, body.SearchAnswer));
+        public async Task<IActionResult> Answer(string id, int round, [FromBody] SingleplayerAnswerRequest body)
+            => ToAction(await _singleplayerService.AnswerAsync(id, GetOrCreatePlayerId(), round, body.ChoiceIndex, body.TrackId, body.ArtistId));
 
         [HttpPost("singleplayer/{id}/round/{round:int}/end")]
         public IActionResult End(string id, int round) => ToAction(_singleplayerService.End(id, GetOrCreatePlayerId(), round));

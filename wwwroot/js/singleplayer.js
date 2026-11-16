@@ -112,4 +112,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
     syncSliderLabels();
     syncAnswerStyleAvailability();
+
+    const startButton = document.getElementById("start-game-btn");
+    const startNote = document.getElementById("start-game-note");
+    const setupForm = document.querySelector(".singleplayer-lobby form");
+    const defaultStartNote = startNote.textContent;
+
+    function setStartNote(text, isError) {
+        startNote.textContent = text;
+        startNote.classList.toggle("text-danger", isError);
+        startNote.classList.toggle("text-secondary", !isError);
+    }
+
+    function updateStartState() {
+        startButton.disabled = !(selectedPlaylistId.value && selectedMode());
+    }
+
+    document.querySelectorAll('input[name="gameMode"]').forEach(input => {
+        input.addEventListener("change", updateStartState);
+    });
+
+    startButton.addEventListener("click", async () => {
+        startButton.disabled = true;
+        startButton.textContent = "Preparing game...";
+        setStartNote("Loading tracks and matching previews. This can take a few seconds.", false);
+
+        try {
+            const response = await fetch("/singleplayer/start", { method: "POST", body: new FormData(setupForm) });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error ?? "Couldn't start the game.");
+
+            window.location.href = `/singleplayer/game/${encodeURIComponent(data.sessionId)}`;
+        } catch (err) {
+            setStartNote(err.message, true);
+            startButton.textContent = "Start Game";
+            updateStartState();
+        }
+    });
 });

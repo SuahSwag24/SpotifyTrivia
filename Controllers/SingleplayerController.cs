@@ -85,6 +85,18 @@ namespace SpotifyTrivia.Controllers
             return Ok(new { sessionId = result.Value.SessionId, totalQuestions = result.Value.TotalQuestions });
         }
 
+        [HttpGet("singleplayer/game/{id}")]
+        public IActionResult Game(string id)
+        {
+            if (string.IsNullOrWhiteSpace(HttpContext.Session.GetString("SpotifyAccessToken")))
+                return RedirectToAction("Login", "Auth");
+
+            var info = _singleplayerService.GetGameInfo(id, GetOrCreatePlayerId());
+            if (!info.Ok) return RedirectToAction(nameof(Index));
+
+            return View(info.Value);
+        }
+
         [HttpGet("singleplayer/{id}/round/{round:int}/prepare")]
         public IActionResult Prepare(string id, int round) => ToAction(_singleplayerService.Prepare(id, GetOrCreatePlayerId(), round));
 

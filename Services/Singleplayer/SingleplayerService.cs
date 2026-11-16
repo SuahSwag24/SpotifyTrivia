@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.Extensions.Options;
 using SpotifyTrivia.Models;
 using SpotifyTrivia.Models.Multiplayer;
 using SpotifyTrivia.Models.Singleplayer;
@@ -31,6 +32,15 @@ namespace SpotifyTrivia.Services.Singleplayer
 
     public record SingleplayerStartResult(string SessionId, int TotalQuestions, string? RefreshedAccessToken);
 
+    public record SinglePlayerGameInfo(
+        string SessionId,
+        string DisplayName,
+        int TotalQuestions,
+        int CountdownSeconds,
+        int RevealSeconds,
+        int AudioReadyTimeoutSeconds
+    );
+
     public class SingleplayerService : ISingleplayerService
     {
         private const double AnswerGraceSeconds = 1.5;
@@ -41,13 +51,15 @@ namespace SpotifyTrivia.Services.Singleplayer
         private readonly IDeezerService _deezerService;
         private readonly IGameModeFactory _gameModeFactory;
         private readonly ILogger<SingleplayerService> _logger;
+        private readonly LobbySettingsModel _settings;
 
-        public SingleplayerService(ISpotifyService spotifyService, IGameModeFactory gameModeFactory, ILogger<SingleplayerService> logger, IDeezerService deezerService)
+        public SingleplayerService(ISpotifyService spotifyService, IGameModeFactory gameModeFactory, ILogger<SingleplayerService> logger, IDeezerService deezerService, IOptions<LobbySettingsModel> options)
         {
             _spotifyService = spotifyService;
             _gameModeFactory = gameModeFactory;
             _logger = logger;
             _deezerService = deezerService;
+            _settings = options.Value;
         }
         async Task<SpResult<SingleplayerStartResult>> ISingleplayerService.StartAsync(SingleplayerStartParams p)
         {
@@ -315,10 +327,19 @@ namespace SpotifyTrivia.Services.Singleplayer
                         q.ArtistName,
                         q.AlbumCoverUrl,
                         q.SpotifyUrl,
+                        q.PreviewUrl,
                         Result = s.History[i]
                     })
                 });
             }
+        }
+
+        public SpResult<SinglePlayerGameInfo> GetGameInfo(string sessionid, string playerId)
+        {
+            if (!_sessions.TryGetValue(sessionid, out var s) || s.PlayerId != playerId)
+                return new(default, 404, "Game not found.");
+
+            return new(new SinglePlayerGameInfo(s.Id, s.DisplayName, s.Questions.Count, _settings.CountdownSeconds, _settings.RevealSeconds, _settings.AudioReadyTimeoutSeconds));
         }
 
         private bool TryGet(string sessionId, string playerId, int round, out SingleplayerSessionModel session, out int index, out (int Status, string Message)? error)

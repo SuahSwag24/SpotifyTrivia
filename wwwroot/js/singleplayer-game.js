@@ -8,10 +8,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const audioTimeoutSeconds = parseInt(container.dataset.audioTimeoutSeconds, 10);
     const baseUrl = `/singleplayer/${encodeURIComponent(sessionId)}`;
 
-    // Set to false to always run the full round timer, like multiplayer
-    const END_ROUND_ON_ANSWER = true;
-    const ANSWER_FEEDBACK_MS = 900;
-
     const $ = id => document.getElementById(id);
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
     const esc = value => String(value ?? "").replace(/[&<>"']/g, c =>
@@ -21,9 +17,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const albumCover = $("album-cover");
     const revealAlbumCover = $("reveal-album-cover");
+    const skipRoundButton = $("skip-round-btn");
 
     let round = null;          // { number, answered, closed, finishEarly }
     let runningScore = 0;
+
+    skipRoundButton.addEventListener("click", () => {
+        if (!round || round.closed) return;
+        skipRoundButton.disabled = true;
+        round.finishEarly();
+    });
 
     async function api(method, path, body) {
         const res = await fetch(`${baseUrl}${path}`, {
@@ -186,7 +189,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const result = await api("POST", `/round/${current.number}/answer`, body);
             current.answered = true;
             if (button) button.classList.add(result.wasCorrect ? "correct" : "incorrect");
-            if (END_ROUND_ON_ANSWER) setTimeout(current.finishEarly, ANSWER_FEEDBACK_MS);
+            skipRoundButton.classList.remove("d-none");
             return true;
         } catch (err) {
             toast(err.message, "warning");
@@ -196,6 +199,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderRound(data) {
         showPhase("question-phase");
+        skipRoundButton.disabled = false;
+        skipRoundButton.classList.add("d-none");
 
         const visibility = (data.blurAlbum ?? "hide").toString().toLowerCase();
         const placeholder = $("album-cover-hidden-placeholder");
@@ -242,6 +247,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         stopTimer();
         round.closed = true;
+        skipRoundButton.disabled = true;
         // Let an answer that was in flight at the deadline land before ending the round
         if (!round.answered) await sleep(400);
     }

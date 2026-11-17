@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
@@ -35,6 +35,7 @@ namespace SpotifyTrivia.Services.Singleplayer
     public record SinglePlayerGameInfo(
         string SessionId,
         string DisplayName,
+        GameModeType GameMode,
         int TotalQuestions,
         int CountdownSeconds,
         int RevealSeconds,
@@ -420,7 +421,7 @@ namespace SpotifyTrivia.Services.Singleplayer
 
             lock (s.Sync)
             {
-                return new(new SinglePlayerGameInfo(s.Id, s.DisplayName, s.Questions.Count, _settings.CountdownSeconds, _settings.RevealSeconds, _settings.AudioReadyTimeoutSeconds, s.StartingScore));
+                return new(new SinglePlayerGameInfo(s.Id, s.DisplayName, s.GameMode, s.Questions.Count, _settings.CountdownSeconds, _settings.RevealSeconds, _settings.AudioReadyTimeoutSeconds, s.StartingScore));
             }
         }
 

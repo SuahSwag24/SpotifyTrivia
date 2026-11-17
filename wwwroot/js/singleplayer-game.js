@@ -153,6 +153,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ---------- Question phase ----------
     SearchAnswerPicker.init({
+        artistOnly: container.dataset.gameMode === "GuessArtist",
         onSubmit: ({ trackId, artistId }) => submitAnswer({ trackId, artistId }, null)
     });
 

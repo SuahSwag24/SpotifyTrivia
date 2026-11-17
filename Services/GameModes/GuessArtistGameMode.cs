@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,7 +8,7 @@ using SpotifyTrivia.Models.Multiplayer;
 
 namespace SpotifyTrivia.Services.GameModes
 {
-    public class GuessArtistGameMode : IGameMode
+    public class GuessArtistGameMode : ISearchAnswerGameMode
     {
         private readonly IDeezerService _deezerService;
         private const double SELFCONTRIBUTIONPENALTYMULTIPLIER = 0.8;
@@ -82,7 +82,8 @@ namespace SpotifyTrivia.Services.GameModes
                     CorrectAnswer = correctAnswer,
                     AnswerChoices = choices,
                     SpotifyUrl = candidate.SpotifyUrl ?? "",
-                    ContributedByPlayerIds = candidate.ContributedByPlayerIds
+                    ContributedByPlayerIds = candidate.ContributedByPlayerIds,
+                    DeezerArtistId = deezerTrack.Artist?.Id ?? 0
                 });
 
                 excludedTrackIds.Add(candidate.Id);
@@ -121,6 +122,35 @@ namespace SpotifyTrivia.Services.GameModes
                 WasCorrect = isCorrect,
                 SubmittedIndex = choiceIndex,
                 CorrectIndex = correctIndex,
+                CorrectAnswerText = question.CorrectAnswer,
+                AwardedScore = score,
+                WasSelfContributionPenalty = isSelfContributed
+            };
+        }
+
+        public AnswerResultModel EvaluateSearchAnswer(
+            TriviaQuestionModel question,
+            SearchAnswerModel answer,
+            DateTime roundStartedAtUtc,
+            DateTime answeredAtUtc,
+            double roundDurationSeconds,
+            string playerId)
+        {
+            bool isCorrect = answer.DeezerTrackId == 0
+                && answer.DeezerArtistId != 0
+                && answer.DeezerArtistId == question.DeezerArtistId;
+            bool isSelfContributed = isCorrect && question.ContributedByPlayerIds.Contains(playerId);
+            int score = isCorrect
+                ? CalculateScore(roundStartedAtUtc, answeredAtUtc, roundDurationSeconds, isSelfContributed)
+                : 0;
+
+            return new AnswerResultModel
+            {
+                Success = true,
+                WasCorrect = isCorrect,
+                WasArtistCorrect = isCorrect,
+                SubmittedIndex = -1,
+                CorrectIndex = -1,
                 CorrectAnswerText = question.CorrectAnswer,
                 AwardedScore = score,
                 WasSelfContributionPenalty = isSelfContributed

@@ -158,24 +158,28 @@ document.addEventListener("DOMContentLoaded", () => {
         const backSettingsBtn = document.getElementById("back-settings-btn");
         const settingsModal = document.getElementById("settings-modal");
 
-        const HARDMODE_MODES = ["ClassicGuessSong"];
+        const HARDMODE_MODES = ["ClassicGuessSong", "GuessArtist"];
         const selectedMode = () => gameModeGrid?.querySelector(".gamemode-card.selected")?.dataset.mode ?? null;
         const effectiveAnswerStyle = () =>
             HARDMODE_MODES.includes(selectedMode()) ? currentSettings.answerStyle : "MultipleChoice";
 
         function syncAnswerStyleAvailability() {
-            const allowed = HARDMODE_MODES.includes(selectedMode());
+            const mode = selectedMode();
+            const allowed = HARDMODE_MODES.includes(mode);
             document.getElementById("answer-style-search").disabled = !allowed;
 
             const wanted = allowed ? currentSettings.answerStyle : "MultipleChoice";
             document.querySelector(`input[name="answer-style"][value="${wanted}"]`).checked = true;
             
             document.getElementById("answer-style-hint").textContent = allowed
-                ? "Hardmode: search for the song instead of picking from choices"
+                ? mode === "GuessArtist"
+                    ? "Hardmode: search for the artist instead of picking from choices"
+                    : "Hardmode: search for the song instead of picking from choices"
                 : "Hardmode isn't available for this game mode";
         }
 
-        settingsModal.addEventListener("show.bs.mmodal", syncAnswerStyleAvailability);
+        syncAnswerStyleAvailability();
+        settingsModal.addEventListener("show.bs.modal", syncAnswerStyleAvailability);
 
         const playerList = document.getElementById("player-list");
         playerList.addEventListener("click", event => {
@@ -260,6 +264,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const previouslySelected = gameModeGrid.querySelector(".gamemode-card.selected");
 
                 applySelectedGameMode(mode);
+                syncAnswerStyleAvailability();
 
                 try {
                     await connection.invoke("SelectGameMode", lobbyCode, mode);

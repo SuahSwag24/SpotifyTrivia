@@ -6,6 +6,7 @@
     let root, fields, input, statusEl, resultsEl, tabsEl, artistBar, artistLabel;
     let onSubmit = null;
     let kind = "track";
+    let artistOnly = false;
     let pickedArtist = null;
     let locked = false;
     let resultShown = false;
@@ -85,6 +86,7 @@
 
     async function runSearch() {
         const q = input.value.trim();
+        const searchKind = artistOnly ? "artist" : kind;
         
         currentIndex = 0;
         hasMore = true;
@@ -93,19 +95,19 @@
         if (q.length < MIN_CHARS) {
             if (controller) controller.abort();
             clearResults();
-            setStatus(kind === "track" ? TIP : "");
+            setStatus(searchKind === "track" ? TIP : "");
             return;
         }
 
         const mySeq = ++seq;
         setStatus("Searching…");
         try {
-            const url = kind === "track"
+            const url = searchKind === "track"
                 ? `/api/deezer/tracks?q=${encodeURIComponent(q)}`
                 : `/api/deezer/artists?q=${encodeURIComponent(q)}`;
             const data = await fetchJson(url);
             if (mySeq !== seq) return;
-            (kind === "track" ? renderTracks : renderArtists)(data);
+            (searchKind === "track" ? renderTracks : renderArtists)(data);
         } catch (err) {
             if (err.name === "AbortError" || mySeq !== seq) return;
             clearResults();
@@ -144,6 +146,7 @@
     }
 
     function setKind(next) {
+        if (artistOnly && next !== "artist") return;
         kind = next;
         tabsEl.querySelectorAll(".search-tab").forEach(b =>
             b.classList.toggle("active", b.dataset.kind === next));
@@ -177,6 +180,11 @@
         artistBar = document.getElementById("search-answer-artist-bar");
         artistLabel = document.getElementById("search-answer-artist-label");
         onSubmit = cfg.onSubmit;
+        artistOnly = cfg.artistOnly === true;
+        kind = artistOnly ? "artist" : "track";
+        tabsEl.classList.toggle("d-none", artistOnly);
+        artistBar.classList.add("d-none");
+        input.placeholder = artistOnly ? "Search for the artist…" : "Search for the song…";
 
         tabsEl.addEventListener("click", e => {
             const b = e.target.closest(".search-tab");
@@ -192,7 +200,11 @@
             const btn = e.target.closest(".search-result");
             if (!btn || locked) return;
             if (btn.dataset.kind === "artist") {
-                browseArtist(Number(btn.dataset.artistId), btn.dataset.name);
+                if (artistOnly) {
+                    submit({ trackId: null, artistId: Number(btn.dataset.artistId) });
+                } else {
+                    browseArtist(Number(btn.dataset.artistId), btn.dataset.name);
+                }
             } else {
                 submit({ trackId: Number(btn.dataset.trackId), artistId: null });
             }
@@ -216,17 +228,17 @@
         seq++;
         pickedArtist = null;
         resultShown = false;
-        kind = "track";
+        kind = artistOnly ? "artist" : "track";
         tabsEl.querySelectorAll(".search-tab").forEach(b =>
             b.classList.toggle("active", b.dataset.kind === "track"));
         artistBar.classList.add("d-none");
         input.classList.remove("d-none");
-        tabsEl.classList.remove("d-none");
+        tabsEl.classList.toggle("d-none", artistOnly);
         input.value = "";
-        input.placeholder = "Search for the song…";
+        input.placeholder = artistOnly ? "Search for the artist…" : "Search for the song…";
         clearResults();
         setLocked(false);
-        setStatus(TIP);
+        setStatus(artistOnly ? "Search for an artist to answer." : TIP);
         currentIndex = 0;
         isLoadingMore = false;
         hasMore = true;
@@ -252,12 +264,13 @@
         if (isLoadingMore || !hasMore || locked) return;
         isLoadingMore = true;
 
-        const pageSize = kind === "track" ? PAGE_SIZE_TRACKS : PAGE_SIZE_ARTISTS;
+        const searchKind = artistOnly ? "artist" : kind;
+        const pageSize = searchKind === "track" ? PAGE_SIZE_TRACKS : PAGE_SIZE_ARTISTS;
         currentIndex += pageSize;
         const mySeq = ++seq;
 
         try {
-            const url = kind === "track"
+            const url = searchKind === "track"
                 ? `/api/deezer/tracks?q=${encodeURIComponent(currentQuery)}&index=${currentIndex}`
                 : `/api/deezer/artists?q=${encodeURIComponent(currentQuery)}&index=${currentIndex}`;
 
@@ -267,12 +280,12 @@
             if (!data.length || data.length < pageSize) hasMore = false;
 
             //  APPEND list
-            if (kind === "track") {
+            if (searchKind === "track") {
                 data.forEach(t => resultsEl.appendChild(
                     makeRow(t.albumCoverUrl, t.title, t.artistName, {kind: "track", trackId: t.trackId})));
             } else {
                 data.forEach(a => resultsEl.appendChild(
-                    makeRow(a.pictureUrl, a.name, "", {kind: "artist", artistId: a.aristId, name: a.name})));
+                    makeRow(a.pictureUrl, a.name, "", {kind: "artist", artistId: a.artistId, name: a.name})));
             }
         } catch (err) {
             if (err.name === "AbortError" || mySeq !== seq) return;

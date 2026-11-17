@@ -58,17 +58,21 @@ document.addEventListener("DOMContentLoaded", () => {
     function syncAnswerStyleAvailability() {
         const searchInput = answerStyleInput("Search");
         const answerStyleHint = document.getElementById("sp-answer-style-hint");
-        const isClassicMode = selectedMode() === "ClassicGuessSong";
+        const mode = selectedMode();
+        const isArtistMode = mode === "GuessArtist";
+        const canSearch = mode === "ClassicGuessSong" || isArtistMode;
 
-        searchInput.disabled = !isClassicMode;
-        if (!isClassicMode && answerStyleInput("MultipleChoice")) {
+        searchInput.disabled = !canSearch;
+        if (!canSearch && answerStyleInput("MultipleChoice")) {
             answerStyleInput("MultipleChoice").checked = true;
             savedSettings.answerStyle.value = "MultipleChoice";
         }
 
-        answerStyleHint.textContent = isClassicMode
-            ? "Choose from multiple-choice answers or use hardmode."
-            : "Hardmode is only available for Classic Trivia.";
+        answerStyleHint.textContent = isArtistMode
+            ? "Search for the artist instead of choosing from multiple-choice answers."
+            : canSearch
+                ? "Choose from multiple-choice answers or use hardmode."
+                : "Hardmode is available for Classic Trivia and Guess Artist.";
     }
 
     function restoreSavedSettings() {

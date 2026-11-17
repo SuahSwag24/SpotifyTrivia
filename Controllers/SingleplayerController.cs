@@ -52,8 +52,8 @@ namespace SpotifyTrivia.Controllers
             if (string.IsNullOrWhiteSpace(request.PlaylistId))
                 return BadRequest(new { error = "Select a playlist first." });
 
-            //  Classic only for now
-            if (!Enum.TryParse<GameModeType>(request.GameMode, true, out var mode) || mode != GameModeType.ClassicGuessSong)
+            if (!Enum.TryParse<GameModeType>(request.GameMode, true, out var mode)
+                || (mode != GameModeType.ClassicGuessSong && mode != GameModeType.GuessArtist))
                 return BadRequest(new { error = "Select a valid game mode." });
 
             if (!Enum.TryParse<AnswerStyle>(request.AnswerStyle, true, out var answerStyle))

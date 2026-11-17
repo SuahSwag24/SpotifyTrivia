@@ -70,6 +70,9 @@ namespace SpotifyTrivia.Services.Singleplayer
             }
 
             var mode = _gameModeFactory.GetGameMode(p.GameMode);
+            if (p.AnswerStyle == AnswerStyle.Search && mode is not ISearchAnswerGameMode)
+                return new(default, 400, "Hardmode is not available for this gamemode");
+
             string token = p.AccessToken;
             string? refreshedToken = null;
             int total = 0;
@@ -102,7 +105,15 @@ namespace SpotifyTrivia.Services.Singleplayer
                 catch (PlaylistExhaustedException) { return null; };
             }
 
-            var questions = await TryGenerate(tracks);
+            List<TriviaQuestionModel>? questions;
+            try
+            {
+                questions = await TryGenerate(tracks);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return new(default, 422, ex.Message); // Fewer than 4 distinct artists
+            }
 
             if (questions == null && p.SampleSize is int sample && total > sample)
             {

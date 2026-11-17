@@ -38,7 +38,8 @@ namespace SpotifyTrivia.Services.Singleplayer
         int TotalQuestions,
         int CountdownSeconds,
         int RevealSeconds,
-        int AudioReadyTimeoutSeconds
+        int AudioReadyTimeoutSeconds,
+        int StartingScore
     );
 
     public class SingleplayerService : ISingleplayerService
@@ -77,6 +78,7 @@ namespace SpotifyTrivia.Services.Singleplayer
             string? refreshedToken = null;
             int total = 0;
             List<TrackModel> tracks;
+            List<TrackModel> questionTracks;
 
             try
             {
@@ -84,6 +86,7 @@ namespace SpotifyTrivia.Services.Singleplayer
                 refreshedToken = fetch.RefreshedAccessToken;
                 total = fetch.Total;
                 tracks = fetch.Data ?? new List<TrackModel>();
+                questionTracks = tracks;
             }
             catch (Exception ex)
             {
@@ -122,7 +125,8 @@ namespace SpotifyTrivia.Services.Singleplayer
                     int offset = Random.Shared.Next(0, total - sample + 1);
                     var retry = await _spotifyService.GetPlaylistTracksAsync(refreshedToken ?? token, p.RefreshToken, p.PlaylistId, p.SampleSize, offset);
                     refreshedToken = retry.RefreshedAccessToken ?? refreshedToken;
-                    questions = await TryGenerate(retry.Data ?? new List<TrackModel>());
+                    questionTracks = retry.Data ?? new List<TrackModel>();
+                    questions = await TryGenerate(questionTracks);
                 }
                 catch (Exception ex)
                 {
@@ -141,8 +145,12 @@ namespace SpotifyTrivia.Services.Singleplayer
                 AnswerStyle = p.AnswerStyle,
                 BlurAlbum = p.BlurAlbum,
                 RoundDurationSeconds = p.RoundDurationSeconds,
+                QuestionCount = p.QuestionCount,
+                CachedTracks = questionTracks,
                 Questions = questions
             };
+            foreach (var question in questions)
+                session.PlayedTrackIds.Add(question.TargetTrackId);
 
             _sessions[session.Id] = session;
 
@@ -162,6 +170,7 @@ namespace SpotifyTrivia.Services.Singleplayer
 
             lock (s.Sync)
             {
+                if (s.IsContinuing) return new(default, 409, "The next game is being prepared.");
                 bool resume = s.CurrentIndex == idx && s.RoundState == SingleplayerRoundState.Active;
                 bool next = s.CurrentIndex == idx - 1 && (s.CurrentIndex == -1 || s.RoundState == SingleplayerRoundState.Ended);
                 if (!resume && !next) return new(default, 409, "Round out of order.");
@@ -345,12 +354,74 @@ namespace SpotifyTrivia.Services.Singleplayer
             }
         }
 
+        async Task<SpResult<object>> ISingleplayerService.ContinueAsync(string sessionId, string playerId)
+        {
+            if (!_sessions.TryGetValue(sessionId, out var s) || s.PlayerId != playerId)
+                return new(default, 404, "Game not found.");
+
+            lock (s.Sync)
+            {
+                if (s.IsContinuing)
+                    return new(default, 409, "The next game is already being prepared.");
+                if (s.RoundState != SingleplayerRoundState.Ended || s.History.Count != s.Questions.Count)
+                    return new(default, 409, "Finish the current game before continuing.");
+
+                s.IsContinuing = true;
+            }
+
+            try
+            {
+                var mode = _gameModeFactory.GetGameMode(s.GameMode);
+                var playedTrackIds = new HashSet<string>(s.PlayedTrackIds);
+                var questions = await mode.GenerateQuestionsAsync(
+                    s.CachedTracks,
+                    s.QuestionCount,
+                    playedTrackIds,
+                    Array.Empty<string>(),
+                    s.RoundDurationSeconds);
+
+                lock (s.Sync)
+                {
+                    s.Questions = questions;
+                    s.PlayedTrackIds.Clear();
+                    s.PlayedTrackIds.UnionWith(playedTrackIds);
+                    s.History.Clear();
+                    s.CurrentIndex = -1;
+                    s.RoundState = SingleplayerRoundState.Idle;
+                    s.AnsweredCurrent = false;
+                    s.RoundStartedAtUtc = default;
+                    s.StartingScore = s.Score;
+                    s.IsContinuing = false;
+                }
+
+                return new(new { SessionId = s.Id });
+            }
+            catch (PlaylistExhaustedException)
+            {
+                lock (s.Sync) s.IsContinuing = false;
+                return new(default, 422, "No more unplayed tracks are available to continue.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                lock (s.Sync) s.IsContinuing = false;
+                return new(default, 422, ex.Message);
+            }
+            catch
+            {
+                lock (s.Sync) s.IsContinuing = false;
+                throw;
+            }
+        }
+
         public SpResult<SinglePlayerGameInfo> GetGameInfo(string sessionid, string playerId)
         {
             if (!_sessions.TryGetValue(sessionid, out var s) || s.PlayerId != playerId)
                 return new(default, 404, "Game not found.");
 
-            return new(new SinglePlayerGameInfo(s.Id, s.DisplayName, s.Questions.Count, _settings.CountdownSeconds, _settings.RevealSeconds, _settings.AudioReadyTimeoutSeconds));
+            lock (s.Sync)
+            {
+                return new(new SinglePlayerGameInfo(s.Id, s.DisplayName, s.Questions.Count, _settings.CountdownSeconds, _settings.RevealSeconds, _settings.AudioReadyTimeoutSeconds, s.StartingScore));
+            }
         }
 
         private bool TryGet(string sessionId, string playerId, int round, out SingleplayerSessionModel session, out int index, out (int Status, string Message)? error)

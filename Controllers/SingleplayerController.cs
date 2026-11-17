@@ -113,6 +113,10 @@ namespace SpotifyTrivia.Controllers
         [HttpGet("singleplayer/{id}/summary")]
         public IActionResult Summary(string id) => ToAction(_singleplayerService.Summary(id, GetOrCreatePlayerId()));
 
+        [HttpPost("singleplayer/{id}/continue")]
+        public async Task<IActionResult> Continue(string id)
+            => ToAction(await _singleplayerService.ContinueAsync(id, GetOrCreatePlayerId()));
+
         private IActionResult ToAction<T>(SpResult<T> r) =>
             r.Ok ? Ok(r.Value) : StatusCode(r.Status, new { error = r.Error });
 

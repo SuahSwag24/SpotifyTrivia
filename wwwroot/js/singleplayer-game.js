@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const countdownSeconds = parseInt(container.dataset.countdownSeconds, 10);
     const revealSeconds = parseInt(container.dataset.revealSeconds, 10);
     const audioTimeoutSeconds = parseInt(container.dataset.audioTimeoutSeconds, 10);
+    const startingScore = parseInt(container.dataset.startingScore, 10) || 0;
     const baseUrl = `/singleplayer/${encodeURIComponent(sessionId)}`;
 
     const $ = id => document.getElementById(id);
@@ -20,7 +21,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const skipRoundButton = $("skip-round-btn");
 
     let round = null;          // { number, answered, closed, finishEarly }
-    let runningScore = 0;
+    let runningScore = startingScore;
 
     skipRoundButton.addEventListener("click", () => {
         if (!round || round.closed) return;
@@ -401,6 +402,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const leaveModal = bootstrap.Modal.getOrCreateInstance($("leave-confirmation-modal"));
     $("leave-game-btn").addEventListener("click", () => leaveModal.show());
     $("confirm-leave-btn").addEventListener("click", () => { window.location.href = "/singleplayer"; });
+    $("continue-game-btn").addEventListener("click", async event => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        button.textContent = "Preparing game...";
+
+        try {
+            const result = await api("POST", "/continue");
+            window.location.href = `/singleplayer/game/${encodeURIComponent(result.sessionId)}`;
+        } catch (err) {
+            toast(err.message, "warning");
+            button.disabled = false;
+            button.textContent = "Continue Playing";
+        }
+    });
 
     // ---------- Main loop ----------
     function showPreparing() {

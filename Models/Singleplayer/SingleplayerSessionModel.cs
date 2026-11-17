@@ -16,12 +16,17 @@ namespace SpotifyTrivia.Models.Singleplayer
         public AnswerStyle AnswerStyle { get; init; }
         public AlbumCoverVisibility BlurAlbum { get; init; }
         public int RoundDurationSeconds { get; init; }
-        public List<TriviaQuestionModel> Questions { get; init; } = new();
+        public int QuestionCount { get; init; }
+        public List<TrackModel> CachedTracks { get; init; } = new();
+        public List<TriviaQuestionModel> Questions { get; set; } = new();
+        public HashSet<string> PlayedTrackIds { get; } = new();
         public List<AnswerResultModel> History { get; } = new();
         public int Score { get; set; }
+        public int StartingScore { get; set; }
         public int CurrentIndex { get; set; } = -1;
         public SingleplayerRoundState RoundState { get; set; } = SingleplayerRoundState.Idle;
         public bool AnsweredCurrent { get; set; }
+        public bool IsContinuing { get; set; }
         public DateTime RoundStartedAtUtc { get; set; }
         public DateTime CreatedAtUtc { get; } = DateTime.UtcNow;
         public object Sync { get; } = new();

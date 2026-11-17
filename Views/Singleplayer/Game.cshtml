@@ -7,7 +7,7 @@
 <script src="~/js/search-answer.js" asp-append-version="true"></script>
 <script src="~/js/singleplayer-game.js" asp-append-version="true"></script>
 
-<div class="game-wrapper game-container" data-session-id="@Model.SessionId" data-display-name="@Model.DisplayName" data-total-questions="@Model.TotalQuestions" data-countdown-seconds="@Model.CountdownSeconds" data-reveal-seconds="@Model.RevealSeconds" data-audio-timeout-seconds="@Model.AudioReadyTimeoutSeconds">
+<div class="game-wrapper game-container" data-session-id="@Model.SessionId" data-display-name="@Model.DisplayName" data-total-questions="@Model.TotalQuestions" data-countdown-seconds="@Model.CountdownSeconds" data-reveal-seconds="@Model.RevealSeconds" data-audio-timeout-seconds="@Model.AudioReadyTimeoutSeconds" data-starting-score="@Model.StartingScore">
     <div class="text-end mb-2">
         <button id="leave-game-btn" type="button" class="btn btn-sm btn-danger">Leave Game</button>
     </div>
@@ -92,6 +92,7 @@
         <ul id="song-list-board" class="scoreboard-list text-start"></ul>
 
         <div class="mt-4 d-flex justify-content-center gap-2">
+            <button id="continue-game-btn" type="button" class="btn btn-primary">Continue Playing</button>
             <a href="/singleplayer" class="btn btn-primary">Play Again</a>
             <a href="/dashboard" class="btn btn-outline-light">Dashboard</a>
         </div>

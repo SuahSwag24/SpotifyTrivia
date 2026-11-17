@@ -13,6 +13,7 @@ namespace SpotifyTrivia.Services.Singleplayer
         Task<SpResult<AnswerResultModel>> AnswerAsync(string sessionId, string playerId, int round, int choiceIndex, long? trackId, long? artistId);
         SpResult<object> End(string sessionId, string playerId, int round);
         SpResult<object> Summary(string sessionId, string playerId);
+        Task<SpResult<object>> ContinueAsync(string sessionId, string playerId);
         SpResult<SinglePlayerGameInfo> GetGameInfo(string sessionid, string playerId);
     }
 }
